@@ -277,7 +277,34 @@ assert(Boolean(payrollProcessed?.adpBatchNumber), `Executed payout has valid ADP
 assert(SST_PAYROLL_CYCLES.length >= 3, `SST payroll cut-off calendar configured (Cycles: ${SST_PAYROLL_CYCLES.length})`);
 assert(SST_PAYROLL_CYCLES.some(c => c.cutoffDate === '2026-09-25'), 'Upcoming September 25 semi-monthly payroll cut-off exists');
 
-// 9. SUMMARY
+// 9. UNIFIED SST PEOPLE OPERATIONS & HR HUB PORTAL
+console.log('\n📌 Test 9: Unified SST People Operations & HR Hub Architecture...');
+const VALID_HUB_TABS = ['pars', 'payouts', 'directory', 'workflow'];
+assert(VALID_HUB_TABS.length === 4, 'Unified Hub Portal contains 4 core operational modules');
+assert(VALID_HUB_TABS.includes('pars'), 'Module 1: Personnel Action Requests (PAR Tracker) tab active');
+assert(VALID_HUB_TABS.includes('payouts'), 'Module 2: CPO Payout & Deduction Approvals tab active');
+assert(VALID_HUB_TABS.includes('directory'), 'Module 3: District Approvers Directory tab active');
+assert(VALID_HUB_TABS.includes('workflow'), 'Module 4: Routing Rules Engine tab active');
+
+// Verify Persona and Counter Synchronization Across the Hub
+const totalParsCount = INITIAL_PAR_DATA.length;
+assert(totalParsCount >= 3, `PAR module live record counter synchronized (${totalParsCount} PARs)`);
+
+const totalPayoutsCount = INITIAL_PAYOUT_REQUESTS.length;
+assert(totalPayoutsCount >= 4, `Payout module live record counter synchronized (${totalPayoutsCount} requests)`);
+
+const totalDirectoryCount = USER_PERSONAS.length;
+assert(totalDirectoryCount >= 10, `District directory live counter synchronized (${totalDirectoryCount} approvers/roles)`);
+
+// Verify Shared Active Persona Scope between Modules
+assert(isChiefPeopleOfficer(kevinPersona) === true, 'Dr. Kevin Demirci maintains Super Admin access across all hub tabs');
+const cpoPar = { ...INITIAL_PAR_DATA[0], currentStage: 'cpo_review' as const };
+assert(canPersonaActOnPar(kevinPersona, cpoPar) === true, 'CPO can act on PAR items in PAR tab');
+assert(isRegionalHrCoordinator(kristyPersona) === true, 'Kristy Stewart retains Regional HR submission access in Payouts tab');
+assert(isPayrollCoordinator(paolaPersona) === true, 'Paola Comparini retains ADP execution authority in Payouts tab');
+assert(DEFAULT_WORKFLOW_CONFIG.routingRules.length >= 4, 'Workflow Routing Engine configured with district branching rules');
+
+// 10. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

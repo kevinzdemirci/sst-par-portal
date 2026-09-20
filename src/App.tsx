@@ -27,13 +27,14 @@ import { CpoPayoutModal } from './components/CpoPayoutModal';
 import { CpoPayoutRequest } from './types/payout';
 import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
 import { isRegionalHrCoordinator } from './utils/formatters';
-import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
 const PERSONA_KEY = 'sst_par_persona_v2';
 const WORKFLOW_CONFIG_KEY = 'sst_workflow_config_v2';
 const PERSONAS_CONFIG_KEY = 'sst_approver_personas_v2';
 const PAYOUTS_KEY = 'sst_cpo_payouts_v1';
+const HUB_TAB_KEY = 'sst_active_hub_tab_v1';
 
 export function App() {
   const [pars, setPars] = useState<PersonnelActionRequest[]>(() => {
@@ -146,6 +147,17 @@ export function App() {
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  const [activeHubTab, setActiveHubTab] = useState<'pars' | 'payouts' | 'directory' | 'workflow'>(() => {
+    try {
+      const saved = localStorage.getItem(HUB_TAB_KEY);
+      if (saved && ['pars', 'payouts', 'directory', 'workflow'].includes(saved)) {
+        return saved as any;
+      }
+    } catch {
+      // ignore
+    }
+    return 'pars';
+  });
 
   // CPO Payout & Deduction Approval System State
   const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
@@ -208,6 +220,14 @@ export function App() {
       // ignore
     }
   }, [payouts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HUB_TAB_KEY, activeHubTab);
+    } catch {
+      // ignore
+    }
+  }, [activeHubTab]);
 
   const pendingPayoutsCount = useMemo(() => {
     return payouts.filter(p => p.status === 'pending_cpo').length;
@@ -830,6 +850,8 @@ export function App() {
         onOpenRoleManagerModal={() => setIsRoleManagerOpen(true)}
         onOpenPayoutModal={() => setIsPayoutModalOpen(true)}
         pendingPayoutsCount={pendingPayoutsCount}
+        activeHubTab={activeHubTab}
+        onSelectHubTab={setActiveHubTab}
       />
 
       {/* Floating Notification Toast */}
@@ -901,8 +923,12 @@ export function App() {
             {isChiefPeopleOfficer(currentPersona) ? (
               <>
                 <button
-                  onClick={() => setIsPayoutModalOpen(true)}
-                  className="text-xs font-black bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/40 flex items-center space-x-1.5"
+                  onClick={() => setActiveHubTab('payouts')}
+                  className={`text-xs font-black px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'payouts'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-md'
+                      : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/40'
+                  }`}
                   title="Open CPO Payout & Deduction Approval Studio"
                 >
                   <DollarSign className="w-3.5 h-3.5 text-rose-300" />
@@ -914,11 +940,15 @@ export function App() {
                   )}
                 </button>
                 <button
-                  onClick={() => setIsRoleManagerOpen(true)}
-                  className="text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/30 flex items-center space-x-1.5"
+                  onClick={() => setActiveHubTab('directory')}
+                  className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'directory'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                      : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border-blue-400/30'
+                  }`}
                   title="Manage and remove roles from the SST directory (CPO Admin)"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-rose-300" />
+                  <Trash2 className="w-3.5 h-3.5 text-blue-200" />
                   <span>Manage / Remove Roles</span>
                 </button>
                 <button
@@ -931,16 +961,24 @@ export function App() {
             ) : isRegionalHrCoordinator(currentPersona) ? (
               <>
                 <button
-                  onClick={() => setIsPayoutModalOpen(true)}
-                  className="text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 px-3.5 py-2 rounded-xl transition-colors border border-emerald-400/40 flex items-center space-x-1.5"
+                  onClick={() => setActiveHubTab('payouts')}
+                  className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'payouts'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                      : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border-emerald-400/40'
+                  }`}
                   title="Request staff payment or payroll deduction for upcoming cut-off"
                 >
                   <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
                   <span>Request Staff Payout / Deduction</span>
                 </button>
                 <button
-                  onClick={() => setIsRoleManagerOpen(true)}
-                  className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20 flex items-center space-x-1.5"
+                  onClick={() => setActiveHubTab('directory')}
+                  className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'directory'
+                      ? 'bg-white text-[#0f2352] font-bold border-white'
+                      : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                  }`}
                   title="View the SST approver directory"
                 >
                   <Users className="w-3.5 h-3.5 text-blue-200" />
@@ -949,8 +987,12 @@ export function App() {
               </>
             ) : (
               <button
-                onClick={() => setIsRoleManagerOpen(true)}
-                className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20 flex items-center space-x-1.5"
+                onClick={() => setActiveHubTab('directory')}
+                className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                  activeHubTab === 'directory'
+                    ? 'bg-white text-[#0f2352] font-bold border-white'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                }`}
                 title="View the SST approver directory"
               >
                 <Users className="w-3.5 h-3.5 text-blue-200" />
@@ -958,61 +1000,194 @@ export function App() {
               </button>
             )}
             <button
-              onClick={() => setIsWorkflowModalOpen(true)}
-              className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20"
+              onClick={() => setActiveHubTab('workflow')}
+              className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border ${
+                activeHubTab === 'workflow'
+                  ? 'bg-white text-[#0f2352] border-white shadow-md'
+                  : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+              }`}
             >
               SST Routing Rules
             </button>
           </div>
         </div>
 
-        {/* Real-time KPI Stats Cards */}
-        <DashboardStats
-          pars={pars}
-          selectedStageFilter={selectedStageFilter}
-          onSelectStageFilter={setSelectedStageFilter}
-        />
+        {/* Unified Hub Primary Tab Navigation */}
+        <div className="mb-6 bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2 overflow-x-auto no-print">
+          <div className="flex items-center space-x-2 shrink-0">
+            {/* Tab 1: Personnel Action Requests */}
+            <button
+              onClick={() => setActiveHubTab('pars')}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeHubTab === 'pars'
+                  ? 'bg-[#0f2352] text-white shadow-md shadow-[#0f2352]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Personnel Action Requests (PAR Tracker)</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeHubTab === 'pars' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {pars.length}
+              </span>
+            </button>
 
-        {/* Search & Location Filters */}
-        <ParFilters
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          selectedActionType={selectedActionType}
-          onActionTypeChange={setSelectedActionType}
-          selectedLocation={selectedLocation}
-          onLocationChange={setSelectedLocation}
-          selectedCampus={selectedCampus}
-          onCampusChange={setSelectedCampus}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          totalFilteredCount={filteredPars.length}
-          totalCount={pars.length}
-          onResetFilters={() => {
-            setSearchQuery('');
-            setSelectedActionType('all');
-            setSelectedLocation('all');
-            setSelectedCampus('all');
-            setSelectedStageFilter('all');
-            setFilterActionQueue(false);
-          }}
-        />
+            {/* Tab 2: CPO Payout & Deduction Approvals */}
+            <button
+              onClick={() => setActiveHubTab('payouts')}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
+                activeHubTab === 'payouts'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              <span>CPO Payout & Deduction Approvals</span>
+              {pendingPayoutsCount > 0 ? (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse ${
+                  activeHubTab === 'payouts' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
+                }`}>
+                  {pendingPayoutsCount} Pending CPO
+                </span>
+              ) : (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeHubTab === 'payouts' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {payouts.length}
+                </span>
+              )}
+            </button>
 
-        {/* View Component: Table or Kanban Pipeline */}
-        {viewMode === 'table' ? (
-          <ParTable
-            pars={filteredPars}
-            currentPersona={currentPersona}
-            onSelectPar={(par) => setSelectedPar(par)}
-            onOpenNewParModal={() => setIsNewParModalOpen(true)}
-            onDeletePar={handleDeletePar}
-          />
-        ) : (
-          <ParKanban
-            pars={filteredPars}
-            currentPersona={currentPersona}
-            onSelectPar={(par) => setSelectedPar(par)}
-            onDeletePar={handleDeletePar}
-          />
+            {/* Tab 3: District Approvers Directory */}
+            <button
+              onClick={() => setActiveHubTab('directory')}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeHubTab === 'directory'
+                  ? 'bg-[#0f2352] text-white shadow-md shadow-[#0f2352]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>District Approver Directory</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeHubTab === 'directory' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {availablePersonas.length}
+              </span>
+            </button>
+
+            {/* Tab 4: Approval Routing Rules Engine */}
+            <button
+              onClick={() => setActiveHubTab('workflow')}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                activeHubTab === 'workflow'
+                  ? 'bg-[#0f2352] text-white shadow-md shadow-[#0f2352]/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <span>⚙️ Routing Rules Engine</span>
+            </button>
+          </div>
+
+          <div className="hidden lg:flex items-center space-x-2 text-xs text-slate-500 pr-2 shrink-0">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="font-semibold text-slate-700">Unified Hub Portal</span>
+          </div>
+        </div>
+
+        {/* View Component: Filtered by Active Hub Tab */}
+        {activeHubTab === 'pars' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Real-time KPI Stats Cards */}
+            <DashboardStats
+              pars={pars}
+              selectedStageFilter={selectedStageFilter}
+              onSelectStageFilter={setSelectedStageFilter}
+            />
+
+            {/* Search & Location Filters */}
+            <ParFilters
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              selectedActionType={selectedActionType}
+              onActionTypeChange={setSelectedActionType}
+              selectedLocation={selectedLocation}
+              onLocationChange={setSelectedLocation}
+              selectedCampus={selectedCampus}
+              onCampusChange={setSelectedCampus}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              totalFilteredCount={filteredPars.length}
+              totalCount={pars.length}
+              onResetFilters={() => {
+                setSearchQuery('');
+                setSelectedActionType('all');
+                setSelectedLocation('all');
+                setSelectedCampus('all');
+                setSelectedStageFilter('all');
+                setFilterActionQueue(false);
+              }}
+            />
+
+            {/* View Component: Table or Kanban Pipeline */}
+            {viewMode === 'table' ? (
+              <ParTable
+                pars={filteredPars}
+                currentPersona={currentPersona}
+                onSelectPar={(par) => setSelectedPar(par)}
+                onOpenNewParModal={() => setIsNewParModalOpen(true)}
+                onDeletePar={handleDeletePar}
+              />
+            ) : (
+              <ParKanban
+                pars={filteredPars}
+                currentPersona={currentPersona}
+                onSelectPar={(par) => setSelectedPar(par)}
+                onDeletePar={handleDeletePar}
+              />
+            )}
+          </div>
+        )}
+
+        {activeHubTab === 'payouts' && (
+          <div className="animate-fadeIn">
+            <CpoPayoutModal
+              embedded={true}
+              currentPersona={currentPersona}
+              payouts={payouts}
+              onSavePayouts={setPayouts}
+              onToast={showToast}
+              districtLogo={workflowConfig.districtLogo}
+              districtName={workflowConfig.districtName}
+            />
+          </div>
+        )}
+
+        {activeHubTab === 'directory' && (
+          <div className="animate-fadeIn">
+            <RoleManagerModal
+              embedded={true}
+              availablePersonas={availablePersonas}
+              workflowConfig={workflowConfig}
+              currentPersona={currentPersona}
+              onSelectPersona={setCurrentPersona}
+              onDeleteRole={handleDeleteRole}
+              onDeactivateAccount={handleDeactivateRoleAccount}
+              onOpenAccountModal={handleOpenAccountCreation}
+              onSendActivationEmail={(role) => setActivationEmailTarget(role)}
+              onUpdateRolePhoto={handleUpdateRolePhoto}
+            />
+          </div>
+        )}
+
+        {activeHubTab === 'workflow' && (
+          <div className="animate-fadeIn">
+            <WorkflowDiagramModal
+              embedded={true}
+              onOpenAdminRules={() => setIsWorkflowAdminOpen(true)}
+            />
+          </div>
         )}
 
       </main>
@@ -1022,7 +1197,7 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-slate-700">School of Science and Technology</span>
-            <span>• Personnel Action Request (PAR) Management Portal</span>
+            <span>• People Operations & HR Hub (PARs • CPO Payouts • Directory • Workflow)</span>
           </div>
           <div className="text-[11px] text-slate-400">Charter District Electronic Signature Compliant</div>
         </div>

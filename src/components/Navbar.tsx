@@ -23,6 +23,8 @@ interface NavbarProps {
   onToggleActionQueue: () => void;
   districtLogo?: string;
   districtName?: string;
+  activeHubTab?: 'pars' | 'payouts' | 'directory' | 'workflow';
+  onSelectHubTab?: (tab: 'pars' | 'payouts' | 'directory' | 'workflow') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -41,7 +43,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   filterActionQueue,
   onToggleActionQueue,
   districtLogo,
-  districtName
+  districtName,
+  activeHubTab = 'pars',
+  onSelectHubTab
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
@@ -55,27 +59,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Logo & School of Science and Technology Branding */}
           <div className="flex items-center space-x-3.5">
-            <div className="flex items-center py-1">
+            <div 
+              className="flex items-center py-1 cursor-pointer"
+              onClick={() => onSelectHubTab && onSelectHubTab('pars')}
+              title="SST Hub Home — Return to Personnel Action Requests"
+            >
               <img 
                 src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
-                className="h-14 sm:h-[68px] w-auto object-contain rounded drop-shadow-xs"
+                className="h-14 sm:h-[68px] w-auto object-contain rounded drop-shadow-xs transition-transform hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
                 }}
               />
             </div>
-            <div className="border-l border-slate-200 pl-3.5 hidden sm:block">
+            <div 
+              className="border-l border-slate-200 pl-3.5 hidden sm:block cursor-pointer"
+              onClick={() => onSelectHubTab && onSelectHubTab('pars')}
+              title="SST Hub Home — Return to Personnel Action Requests"
+            >
               <div className="flex items-center space-x-2">
                 <span className="text-base font-black tracking-tight text-[#0f2352]">
-                  Personnel Action Request (PAR) Portal
+                  People Operations & HR Hub
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200">
                   SST Official
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                {districtName || 'School of Science and Technology'} • Multi-Department Workflow
+                {districtName || 'School of Science and Technology'} • Multi-Department Personnel & Payroll Hub
               </p>
             </div>
           </div>
@@ -123,7 +135,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                     } : undefined;
                     if (onOpenAccountModal) onOpenAccountModal(matchedAppr as any);
                   } else if (e.target.value === '__MANAGE_ROLES__' || e.target.value === '__VIEW_DIRECTORY__') {
-                    if (onOpenRoleManagerModal) onOpenRoleManagerModal();
+                    if (onSelectHubTab) {
+                      onSelectHubTab('directory');
+                    } else if (onOpenRoleManagerModal) {
+                      onOpenRoleManagerModal();
+                    }
                   } else {
                     const found = availablePersonas.find(p => p.id === e.target.value);
                     if (found) onSelectPersona(found);
@@ -170,18 +186,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Manage Roles (CPO Only) or View Directory (All Roles) */}
-            {onOpenRoleManagerModal && (
+            {(onSelectHubTab || onOpenRoleManagerModal) && (
               <button
                 type="button"
-                onClick={onOpenRoleManagerModal}
+                onClick={() => {
+                  if (onSelectHubTab) {
+                    onSelectHubTab('directory');
+                  } else if (onOpenRoleManagerModal) {
+                    onOpenRoleManagerModal();
+                  }
+                }}
                 className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs border ${
-                  isCpo 
-                    ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800' 
-                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                  activeHubTab === 'directory'
+                    ? 'bg-[#0f2352] text-white border-[#0f2352] shadow-xs'
+                    : isCpo 
+                      ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800' 
+                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
                 }`}
                 title={isCpo ? "Manage, add, and remove roles from the SST directory (CPO Admin)" : "View SST Approver Directory"}
               >
-                {isCpo ? <Trash2 className="w-3.5 h-3.5 text-rose-600" /> : <Users className="w-3.5 h-3.5 text-slate-600" />}
+                {isCpo ? (
+                  <Trash2 className={`w-3.5 h-3.5 ${activeHubTab === 'directory' ? 'text-white' : 'text-rose-600'}`} />
+                ) : (
+                  <Users className={`w-3.5 h-3.5 ${activeHubTab === 'directory' ? 'text-white' : 'text-slate-600'}`} />
+                )}
                 <span className="hidden sm:inline">{isCpo ? 'Manage Roles' : 'Directory'}</span>
               </button>
             )}
@@ -226,16 +254,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* CPO Payout & Deduction Approval System */}
-            {onOpenPayoutModal && (
+            {(onSelectHubTab || onOpenPayoutModal) && (
               <button
                 type="button"
-                onClick={onOpenPayoutModal}
+                onClick={() => {
+                  if (onSelectHubTab) {
+                    onSelectHubTab('payouts');
+                  } else if (onOpenPayoutModal) {
+                    onOpenPayoutModal();
+                  }
+                }}
                 className={`relative inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
-                  isCpo
-                    ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-900'
-                    : isHr
-                      ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  activeHubTab === 'payouts'
+                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                    : isCpo
+                      ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-900'
+                      : isHr
+                        ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
                 title={
                   isCpo
@@ -248,13 +284,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }
               >
                 <DollarSign className={`w-4 h-4 ${
-                  isCpo ? 'text-rose-600' : isHr ? 'text-emerald-600' : 'text-slate-600'
+                  activeHubTab === 'payouts' ? 'text-white' : isCpo ? 'text-rose-600' : isHr ? 'text-emerald-600' : 'text-slate-600'
                 }`} />
                 <span className="hidden sm:inline">
                   {isCpo ? 'CPO Payouts' : isHr ? 'Request Payout' : isPayroll ? 'Payout Closeout' : 'Payouts'}
                 </span>
                 {pendingPayoutsCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white shadow-xs">
+                  <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-black shadow-xs ${
+                    activeHubTab === 'payouts' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
+                  }`}>
                     {pendingPayoutsCount}
                   </span>
                 )}
@@ -282,13 +320,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Workflow Diagram modal button */}
+            {/* Workflow Diagram button */}
             <button
-              onClick={onOpenWorkflowModal}
-              className="inline-flex items-center space-x-1 px-3 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={() => {
+                if (onSelectHubTab) {
+                  onSelectHubTab('workflow');
+                } else if (onOpenWorkflowModal) {
+                  onOpenWorkflowModal();
+                }
+              }}
+              className={`inline-flex items-center space-x-1 px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${
+                activeHubTab === 'workflow'
+                  ? 'bg-[#0f2352] text-white border-[#0f2352] shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
               title="View SST Routing Architecture"
             >
-              <GitBranch className="w-4 h-4 text-slate-500" />
+              <GitBranch className={`w-4 h-4 ${activeHubTab === 'workflow' ? 'text-white' : 'text-slate-500'}`} />
               <span className="hidden lg:inline">Routing Map</span>
             </button>
 

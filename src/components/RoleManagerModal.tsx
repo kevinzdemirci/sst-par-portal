@@ -47,7 +47,8 @@ interface RoleManagerModalProps {
   onOpenAccountModal: (role?: ApproverRoleConfig) => void;
   onSendActivationEmail?: (role: ApproverRoleConfig | UserPersona) => void;
   onUpdateRolePhoto?: (roleId: string, newPhoto: string) => void;
-  onClose: () => void;
+  onClose?: () => void;
+  embedded?: boolean;
 }
 
 export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
@@ -60,7 +61,8 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
   onOpenAccountModal,
   onSendActivationEmail,
   onUpdateRolePhoto,
-  onClose
+  onClose,
+  embedded = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [changingPhotoForId, setChangingPhotoForId] = useState<string | null>(null);
@@ -209,70 +211,64 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
     setChangingPhotoForId(null);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      {/* Hidden File Input for Direct Avatar Uploads */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handlePhotoUpload} 
-        accept="image/*" 
-        className="hidden" 
-      />
-
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 animate-scaleUp">
-        
-        {/* Modal Header */}
-        <div className="p-6 bg-gradient-to-r from-[#0f2352] to-[#1a3880] text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20">
-              <ShieldCheck className={`w-6 h-6 ${isCpo ? 'text-amber-300' : 'text-blue-300'}`} />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-black tracking-tight">
-                  {isCpo ? 'SST Role & Approver Directory Manager' : 'SST Approver Directory'}
-                </h3>
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                  isCpo 
-                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/30' 
-                    : 'bg-blue-400/20 text-blue-200 border-blue-400/30'
-                }`}>
-                  {isCpo ? 'Super Admin' : 'Read-Only View'}
-                </span>
-                <span className="text-[11px] font-bold bg-white/10 text-white px-2 py-0.5 rounded-full border border-white/20">
-                  {allRoles.length} Roles
-                </span>
-              </div>
-              <p className="text-xs text-blue-200 mt-0.5">
-                {isCpo 
-                  ? 'Add or remove approver roles, invite team members, and manage digital signature credentials.' 
-                  : 'SST executive & campus approver directory. Role creation, deletion, and routing are managed by the Chief People Officer.'}
-              </p>
-            </div>
+  const innerContent = (
+    <div className={`bg-white rounded-3xl border border-slate-200 flex flex-col overflow-hidden ${
+      embedded ? 'shadow-md w-full' : 'shadow-2xl max-w-4xl w-full max-h-[90vh] animate-scaleUp'
+    }`}>
+      
+      {/* Modal Header */}
+      <div className="p-6 bg-gradient-to-r from-[#0f2352] to-[#1a3880] text-white flex items-center justify-between shrink-0">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20">
+            <ShieldCheck className={`w-6 h-6 ${isCpo ? 'text-amber-300' : 'text-blue-300'}`} />
           </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-lg font-black tracking-tight">
+                {isCpo ? 'SST Role & Approver Directory Manager' : 'SST Approver Directory'}
+              </h3>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                isCpo 
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/30' 
+                  : 'bg-blue-400/20 text-blue-200 border-blue-400/30'
+              }`}>
+                {isCpo ? 'Super Admin' : 'Read-Only View'}
+              </span>
+              <span className="text-[11px] font-bold bg-white/10 text-white px-2 py-0.5 rounded-full border border-white/20">
+                {allRoles.length} Roles
+              </span>
+            </div>
+            <p className="text-xs text-blue-200 mt-0.5">
+              {isCpo 
+                ? 'Add or remove approver roles, invite team members, and manage digital signature credentials.' 
+                : 'SST executive & campus approver directory. Role creation, deletion, and routing are managed by the Chief People Officer.'}
+            </p>
+          </div>
+        </div>
 
-          <div className="flex items-center space-x-2">
-            {isCpo && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenAccountModal();
-                }}
-                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Add Approver Role</span>
-              </button>
-            )}
+        <div className="flex items-center space-x-2">
+          {isCpo && (
+            <button
+              onClick={() => {
+                if (onClose && !embedded) onClose();
+                onOpenAccountModal();
+              }}
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Add Approver Role</span>
+            </button>
+          )}
+          {onClose && !embedded && (
             <button
               onClick={onClose}
               className="p-2 text-blue-200 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Search & Notice Toolbar */}
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
@@ -451,7 +447,7 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            onClose();
+                            if (onClose && !embedded) onClose();
                             onOpenAccountModal(fullRoleConfig);
                           }}
                           className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0f2352] border border-blue-200 font-bold text-xs rounded-xl transition-colors flex items-center space-x-1.5 shadow-2xs"
@@ -578,16 +574,45 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
           <div>
             Showing <strong className="text-slate-800">{filteredRoles.length}</strong> of <strong className="text-slate-800">{allRoles.length}</strong> roles.
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold rounded-xl transition-colors"
-          >
-            Done
-          </button>
+          {onClose && !embedded && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold rounded-xl transition-colors"
+            >
+              Done
+            </button>
+          )}
         </div>
 
       </div>
-    </div>
-  );
-};
+    );
+
+    if (embedded) {
+      return (
+        <div className="w-full animate-fadeIn relative">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handlePhotoUpload} 
+            accept="image/*" 
+            className="hidden" 
+          />
+          {innerContent}
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handlePhotoUpload} 
+          accept="image/*" 
+          className="hidden" 
+        />
+        {innerContent}
+      </div>
+    );
+  };

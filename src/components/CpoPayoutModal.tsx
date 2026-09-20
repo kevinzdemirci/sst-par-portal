@@ -39,8 +39,9 @@ import {
 import confetti from 'canvas-confetti';
 
 interface CpoPayoutModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  embedded?: boolean;
+  onClose?: () => void;
   currentPersona: UserPersona;
   payouts: CpoPayoutRequest[];
   onSavePayouts: (updated: CpoPayoutRequest[]) => void;
@@ -50,7 +51,8 @@ interface CpoPayoutModalProps {
 }
 
 export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
-  isOpen,
+  isOpen = false,
+  embedded = false,
   onClose,
   currentPersona,
   payouts,
@@ -402,65 +404,69 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     };
   }, [payouts]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !embedded) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-slate-200">
-        
-        {/* Hidden File Input */}
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileUpload} 
-          className="hidden" 
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-        />
+  const innerCard = (
+    <div className={`bg-white rounded-3xl border border-slate-200 flex flex-col ${
+      embedded 
+        ? 'shadow-md w-full' 
+        : 'shadow-2xl max-w-6xl w-full max-h-[94vh] overflow-hidden'
+    }`}>
+      
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+      />
 
-        {/* Modal Top Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-blue-50/40 to-slate-50 flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            <img 
-              src={getNormalizedLogoUrl(districtLogo)} 
-              alt="SST" 
-              className="h-14 w-auto object-contain rounded drop-shadow-xs"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
-              }}
-            />
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-base font-black text-slate-900 tracking-tight">
-                  CPO Payout & Deduction Approval System
-                </h2>
-                <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-0.5 rounded-full bg-[#0f2352] text-white">
-                  SST Expedited Payroll
+      {/* Modal Top Header */}
+      <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-blue-50/40 to-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center space-x-3.5">
+          <img 
+            src={getNormalizedLogoUrl(districtLogo)} 
+            alt="SST" 
+            className="h-14 w-auto object-contain rounded drop-shadow-xs"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
+            }}
+          />
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-base font-black text-slate-900 tracking-tight">
+                CPO Payout & Deduction Approval System
+              </h2>
+              <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-0.5 rounded-full bg-[#0f2352] text-white">
+                SST Expedited Payroll
+              </span>
+              {metrics.pendingCpoCount > 0 && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 flex items-center space-x-1">
+                  <Clock className="w-3 h-3 text-rose-600 animate-spin" />
+                  <span>{metrics.pendingCpoCount} Pending CPO</span>
                 </span>
-                {metrics.pendingCpoCount > 0 && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 flex items-center space-x-1">
-                    <Clock className="w-3 h-3 text-rose-600 animate-spin" />
-                    <span>{metrics.pendingCpoCount} Pending CPO</span>
-                  </span>
-                )}
+              )}
+            </div>
+            <p className="text-xs text-slate-500 font-medium">
+              {districtName} • Regional HR Cut-Off Deadlines & Chief People Officer Authorizations
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {/* Cutoff Deadline Reminder Pill */}
+          <div className="flex items-center space-x-2 bg-amber-50 border border-amber-300/80 px-3 py-1.5 rounded-xl shadow-2xs">
+            <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
+            <div className="text-left leading-tight">
+              <div className="text-[10px] uppercase font-bold text-amber-900">Next Payroll Cut-Off</div>
+              <div className="text-xs font-black text-amber-800">
+                Sept 25, 2026 <span className="font-medium text-[11px] text-amber-700">(5 Days Left)</span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">
-                {districtName} • Regional HR Cut-Off Deadlines & Chief People Officer Authorizations
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Cutoff Deadline Reminder Pill */}
-            <div className="hidden md:flex items-center space-x-2 bg-amber-50 border border-amber-300/80 px-3 py-1.5 rounded-xl shadow-2xs">
-              <Calendar className="w-4 h-4 text-amber-700 shrink-0" />
-              <div className="text-left leading-tight">
-                <div className="text-[10px] uppercase font-bold text-amber-900">Next Payroll Cut-Off</div>
-                <div className="text-xs font-black text-amber-800">
-                  Sept 25, 2026 <span className="font-medium text-[11px] text-amber-700">(5 Days Left)</span>
-                </div>
-              </div>
-            </div>
-
+          {onClose && !embedded && (
             <button
               onClick={onClose}
               className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
@@ -468,8 +474,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Sub-Navigation Tabs */}
         <div className="px-6 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
@@ -1081,10 +1088,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
           )}
         </div>
       </div>
+    );
 
-      {/* DETAILED DOSSIER & CPO REVIEW MODAL DRAWER */}
-      {selectedPayout && (
-        <div className="fixed inset-0 z-60 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+    {/* DETAILED DOSSIER & CPO REVIEW MODAL DRAWER */}
+    const dossierModal = selectedPayout ? (
+      <div className="fixed inset-0 z-60 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 my-auto">
             
             {/* Header */}
@@ -1391,63 +1399,77 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
             </div>
           </div>
         </div>
-      )}
+      ) : null;
 
-      {/* DOCUMENT PREVIEW MODAL */}
-      {previewDoc && (
-        <div className="fixed inset-0 z-70 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-300">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <FileText className="w-4 h-4 text-blue-600" />
-                <h4 className="text-sm font-bold text-slate-900 truncate">{previewDoc.name}</h4>
-              </div>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="p-1 text-slate-400 hover:text-slate-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
+  const previewModal = previewDoc ? (
+    <div className="fixed inset-0 z-70 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-300">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <FileText className="w-4 h-4 text-blue-600" />
+            <h4 className="text-sm font-bold text-slate-900 truncate">{previewDoc.name}</h4>
+          </div>
+          <button
+            onClick={() => setPreviewDoc(null)}
+            className="p-1 text-slate-400 hover:text-slate-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center bg-slate-50/60 space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto shadow-2xs">
+              <FileText className="w-8 h-8" />
             </div>
-
-            <div className="p-6 space-y-4">
-              <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center bg-slate-50/60 space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto shadow-2xs">
-                  <FileText className="w-8 h-8" />
-                </div>
-                <div>
-                  <h5 className="font-bold text-slate-900">{previewDoc.name}</h5>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">
-                    {previewDoc.size} • {previewDoc.fileType}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Uploaded by {previewDoc.uploadedBy} on {formatDate(previewDoc.uploadedAt)}
-                  </p>
-                </div>
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>SST Verified Payroll Supporting Document</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-400">Document authenticated for audit trail.</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    alert(`Simulating secure download for "${previewDoc.name}"...`);
-                  }}
-                  className="inline-flex items-center space-x-1.5 px-4 py-2 bg-[#0f2352] text-white rounded-xl text-xs font-bold hover:bg-[#1a3880]"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Document</span>
-                </button>
-              </div>
+            <div>
+              <h5 className="font-bold text-slate-900">{previewDoc.name}</h5>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                {previewDoc.size} • {previewDoc.fileType}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Uploaded by {previewDoc.uploadedBy} on {formatDate(previewDoc.uploadedAt)}
+              </p>
+            </div>
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>SST Verified Payroll Supporting Document</span>
             </div>
           </div>
-        </div>
-      )}
 
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-slate-400">Document authenticated for audit trail.</span>
+            <button
+              type="button"
+              onClick={() => {
+                alert(`Simulating secure download for "${previewDoc.name}"...`);
+              }}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-[#0f2352] text-white rounded-xl text-xs font-bold hover:bg-[#1a3880]"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Document</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  if (embedded) {
+    return (
+      <div className="w-full animate-fadeIn relative">
+        {innerCard}
+        {dossierModal}
+        {previewModal}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fadeIn">
+      {innerCard}
+      {dossierModal}
+      {previewModal}
     </div>
   );
 };

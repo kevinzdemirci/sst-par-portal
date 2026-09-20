@@ -3,49 +3,57 @@ import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { X, ArrowRight, CheckCircle2, RotateCcw, AlertOctagon, ShieldCheck, Bell, Laptop, UserPlus } from 'lucide-react';
 
 interface WorkflowDiagramModalProps {
-  onClose: () => void;
+  onClose?: () => void;
   onOpenAdminRules?: () => void;
+  embedded?: boolean;
 }
 
-export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ onClose, onOpenAdminRules }) => {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            <img src={SST_DEFAULT_LOGO} alt="SST" className="h-14 w-auto object-contain" />
-            <div>
-              <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                SST Multi-Department Approval Routing Engine
-              </h2>
-              <p className="text-xs text-slate-500">
-                School of Science and Technology • Electronic Signature Architecture
-              </p>
-            </div>
+export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ 
+  onClose, 
+  onOpenAdminRules,
+  embedded = false 
+}) => {
+  const innerContent = (
+    <div className={`bg-white rounded-3xl border border-slate-200 flex flex-col overflow-hidden ${
+      embedded ? 'shadow-md w-full' : 'shadow-2xl max-w-3xl w-full max-h-[90vh]'
+    }`}>
+      
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between">
+        <div className="flex items-center space-x-3.5">
+          <img src={SST_DEFAULT_LOGO} alt="SST" className="h-14 w-auto object-contain" />
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+              SST Multi-Department Approval Routing Engine
+            </h2>
+            <p className="text-xs text-slate-500">
+              School of Science and Technology • Electronic Signature Architecture
+            </p>
           </div>
-          <div className="flex items-center space-x-2">
-            {onOpenAdminRules && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenAdminRules();
-                }}
-                className="px-3 py-1.5 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1.5"
-              >
-                <span>⚙️ Edit Routing Rules</span>
-              </button>
-            )}
+        </div>
+        <div className="flex items-center space-x-2">
+          {onOpenAdminRules && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onClose && !embedded) onClose();
+                onOpenAdminRules();
+              }}
+              className="px-3 py-1.5 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1.5"
+            >
+              <span>⚙️ Edit Routing Rules</span>
+            </button>
+          )}
+          {onClose && !embedded && (
             <button
               onClick={onClose}
               className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-slate-700 leading-relaxed">
@@ -286,16 +294,31 @@ export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ onCl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl transition-colors"
-          >
-            Close Routing Guide
-          </button>
-        </div>
+        {onClose && !embedded && (
+          <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl transition-colors"
+            >
+              Close Routing Guide
+            </button>
+          </div>
+        )}
 
       </div>
-    </div>
-  );
-};
+    );
+
+    if (embedded) {
+      return (
+        <div className="w-full animate-fadeIn">
+          {innerContent}
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fadeIn">
+        {innerContent}
+      </div>
+    );
+  };

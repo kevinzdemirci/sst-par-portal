@@ -145,6 +145,21 @@ export interface Attachment {
   fileType: string;
 }
 
+export interface DepartmentNotificationRecord {
+  id: string;
+  recipientName: string;
+  recipientEmail: string;
+  recipientRole: string;
+  department: string;
+  region: string;
+  type: 'it' | 'talent_acquisition' | 'other';
+  status: 'notified' | 'pending';
+  notifiedAt?: string;
+  actionRequired: boolean;
+  purpose: string;
+  notes?: string;
+}
+
 export interface PersonnelActionRequest {
   id: string;
   trackingNumber: string;
@@ -233,6 +248,7 @@ export interface PersonnelActionRequest {
   electronicSignatures: ElectronicSignatureRecord[];
   comments: ActivityComment[];
   attachments: Attachment[];
+  departmentNotifications?: DepartmentNotificationRecord[];
 }
 
 export interface UserPersona {
@@ -251,11 +267,13 @@ export interface UserPersona {
   signatureStyle?: string;
   signatureImage?: string;
   isAccountActivated?: boolean;
+  isNotificationOnly?: boolean;
+  notificationRoleType?: 'it' | 'talent_acquisition' | 'other';
 }
 
 export interface ApproverRoleConfig {
   id: string;
-  roleKey: 'supervisor' | 'cpo' | 'regional_houston' | 'regional_sacc' | 'hr_houston' | 'hr_sacc' | 'benefits' | 'payroll' | 'custom';
+  roleKey: 'supervisor' | 'cpo' | 'regional_houston' | 'regional_sacc' | 'hr_houston' | 'hr_sacc' | 'benefits' | 'payroll' | 'it_houston' | 'it_sacc' | 'ta_houston' | 'ta_sacc' | 'notification' | 'custom';
   title: string;
   name: string;
   email: string;
@@ -269,6 +287,8 @@ export interface ApproverRoleConfig {
   signingPin?: string;
   signatureImage?: string;
   isAccountActivated?: boolean;
+  isNotificationOnly?: boolean;
+  notificationRoleType?: 'it' | 'talent_acquisition' | 'other';
 }
 
 export interface WorkflowStageSetting {

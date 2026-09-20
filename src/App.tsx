@@ -761,8 +761,14 @@ export function App() {
       }
 
       // Action queue filter
-      if (filterActionQueue && !canPersonaActOnPar(currentPersona, par)) {
-        return false;
+      if (filterActionQueue) {
+        if (currentPersona.isNotificationOnly) {
+          const isHouston = (currentPersona.region || '').includes('Houston') || currentPersona.role.includes('Houston');
+          if (isHouston && par.location !== 'Houston') return false;
+          if (!isHouston && par.location === 'Houston') return false;
+        } else if (!canPersonaActOnPar(currentPersona, par)) {
+          return false;
+        }
       }
 
       return true;
@@ -827,6 +833,13 @@ export function App() {
                     <span>•</span>
                     <span>{currentPersona.role}</span>
                   </span>
+                ) : currentPersona.isNotificationOnly ? (
+                  <span className="text-xs font-black bg-purple-500/30 px-2.5 py-0.5 rounded-lg text-purple-200 border border-purple-400/40 flex items-center space-x-1.5">
+                    <span>📢 Notification Only (FYI):</span>
+                    <span>{currentPersona.name}</span>
+                    <span>•</span>
+                    <span>{currentPersona.role}</span>
+                  </span>
                 ) : (
                   <span className="text-xs font-black bg-blue-500/30 px-2.5 py-0.5 rounded-lg text-white border border-blue-400/30 flex items-center space-x-1.5">
                     <span>🔒 Scoped Approver:</span>
@@ -841,7 +854,9 @@ export function App() {
                 School of Science and Technology • Simulating <strong className="text-white">{currentPersona.department}</strong>. 
                 {isChiefPeopleOfficer(currentPersona) 
                   ? ' Full administrative privileges: adding/removing roles, workflow routing, and executive approval.'
-                  : ' Permissions scoped strictly to your designated department and workflow stage sign-offs.'}
+                  : currentPersona.isNotificationOnly
+                    ? ' Department notification recipient (No action or signature required). Reviewing district notifications & asset/vacancy tracking.'
+                    : ' Permissions scoped strictly to your designated department and workflow stage sign-offs.'}
               </p>
             </div>
           </div>

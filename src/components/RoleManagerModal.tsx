@@ -15,7 +15,8 @@ import {
   Pencil,
   Upload,
   Sparkles,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Bell
 } from 'lucide-react';
 import { isChiefPeopleOfficer } from '../utils/formatters';
 import { compressImageFile } from '../utils/imageCompressor';
@@ -367,7 +368,12 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                               Active Persona
                             </span>
                           )}
-                          {role.isAccountActivated ? (
+                          {role.approverConfig?.isNotificationOnly || role.persona?.isNotificationOnly ? (
+                            <span className="text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                              <Bell className="w-3 h-3 text-purple-600" />
+                              <span>Notification Only (No Action Required)</span>
+                            </span>
+                          ) : role.isAccountActivated ? (
                             <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center space-x-1">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>E-Sign Active</span>
@@ -397,7 +403,8 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const personaObj = role.persona || {
+                            const isNotif = Boolean(role.approverConfig?.isNotificationOnly || role.persona?.isNotificationOnly);
+                            const personaObj: UserPersona = role.persona || {
                               id: role.id,
                               name: role.name,
                               role: role.role,
@@ -406,9 +413,11 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                               region: role.region || 'All SST Schools',
                               email: role.email,
                               avatar: role.avatar,
-                              canReviewStages: ['draft', 'supervisor_review', 'cpo_review', 'regional_review', 'hr_review'],
+                              canReviewStages: isNotif ? [] : ['draft', 'supervisor_review', 'cpo_review', 'regional_review', 'hr_review'],
                               signerId: role.approverConfig?.signerId || `SST-${Date.now()}`,
-                              ipAddress: role.approverConfig?.ipAddress || '208.184.164.228'
+                              ipAddress: role.approverConfig?.ipAddress || '208.184.164.228',
+                              isNotificationOnly: isNotif,
+                              notificationRoleType: role.approverConfig?.notificationRoleType || (role.persona as UserPersona | undefined)?.notificationRoleType
                             };
                             onSelectPersona(personaObj);
                           }}

@@ -122,13 +122,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                 title="Switch Viewing Persona"
               >
-                <optgroup label="Active Approver Accounts">
-                  {availablePersonas.map(p => (
+                <optgroup label="SST Workflow Approvers (Signatures Required)">
+                  {availablePersonas.filter(p => !p.isNotificationOnly).map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {p.role} ({p.department})
                     </option>
                   ))}
                 </optgroup>
+                {availablePersonas.some(p => p.isNotificationOnly) && (
+                  <optgroup label="📢 Department Notifications (No Action Required)">
+                    {availablePersonas.filter(p => p.isNotificationOnly).map(p => (
+                      <option key={p.id} value={p.id}>
+                        📢 {p.name} — {p.role} ({p.department})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 <optgroup label={isCpo ? "District Administration Controls" : "My Account & Directory"}>
                   {isCpo ? (
                     <>

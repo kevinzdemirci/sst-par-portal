@@ -8,6 +8,7 @@ import {
   WorkflowConfig,
   SstRoutingRule
 } from '../types/par';
+import { getDepartmentNotificationRecipients } from '../utils/formatters';
 
 export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
   {
@@ -291,6 +292,66 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       ipAddress: '208.184.164.228',
       avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
       canReviewStages: ['payroll_action']
+    },
+    {
+      id: 'p-enes',
+      roleKey: 'it_houston',
+      title: 'Regional Director of IT (Houston)',
+      name: 'Enes Sevik',
+      email: 'esevik@ssttx.org',
+      department: 'Information Technology',
+      region: 'Houston Area Campuses',
+      signerId: 'SST-NOTIF-ENES',
+      ipAddress: '108.65.54.120',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      canReviewStages: [],
+      isNotificationOnly: true,
+      notificationRoleType: 'it'
+    },
+    {
+      id: 'p-ahmet',
+      roleKey: 'it_sacc',
+      title: 'Regional Director of IT (SA & CC)',
+      name: 'Ahmet Kaya',
+      email: 'akaya@ssttx.org',
+      department: 'Information Technology',
+      region: 'San Antonio & Corpus Christi Campuses',
+      signerId: 'SST-NOTIF-AHMET',
+      ipAddress: '208.184.164.240',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+      canReviewStages: [],
+      isNotificationOnly: true,
+      notificationRoleType: 'it'
+    },
+    {
+      id: 'p-hasan',
+      roleKey: 'ta_houston',
+      title: 'Regional Director of Talent Acquisitions (Houston)',
+      name: 'Hasan Kendirci',
+      email: 'hkendirci@ssttx.org',
+      department: 'Talent Acquisition & Staffing',
+      region: 'Houston Area Campuses',
+      signerId: 'SST-NOTIF-HASAN',
+      ipAddress: '108.65.54.122',
+      avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
+      canReviewStages: [],
+      isNotificationOnly: true,
+      notificationRoleType: 'talent_acquisition'
+    },
+    {
+      id: 'p-ali',
+      roleKey: 'ta_sacc',
+      title: 'Regional Director of Talent Acquisitions (SA & CC)',
+      name: 'Ali Dalm',
+      email: 'adal@ssttx.org',
+      department: 'Talent Acquisition & Staffing',
+      region: 'San Antonio & Corpus Christi Campuses',
+      signerId: 'SST-NOTIF-ALI',
+      ipAddress: '208.184.164.242',
+      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
+      canReviewStages: [],
+      isNotificationOnly: true,
+      notificationRoleType: 'talent_acquisition'
     }
   ],
   districtName: 'School of Science and Technology (SST)',
@@ -401,6 +462,66 @@ export const USER_PERSONAS: UserPersona[] = [
     canReviewStages: ['payroll_action'],
     signerId: '4f291ab8-7612-4a01-9871-3312cb889021',
     ipAddress: '208.184.164.228'
+  },
+  {
+    id: 'p-enes',
+    name: 'Enes Sevik',
+    role: 'Regional Director of IT (Houston)',
+    department: 'Information Technology',
+    campus: 'SST Houston Regional Office',
+    region: 'Houston Area',
+    email: 'esevik@ssttx.org',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    canReviewStages: [],
+    isNotificationOnly: true,
+    notificationRoleType: 'it',
+    signerId: 'SST-NOTIF-ENES',
+    ipAddress: '108.65.54.120'
+  },
+  {
+    id: 'p-ahmet',
+    name: 'Ahmet Kaya',
+    role: 'Regional Director of IT (SA & CC)',
+    department: 'Information Technology',
+    campus: 'SST Central Office (District Administration)',
+    region: 'San Antonio & Corpus Christi',
+    email: 'akaya@ssttx.org',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+    canReviewStages: [],
+    isNotificationOnly: true,
+    notificationRoleType: 'it',
+    signerId: 'SST-NOTIF-AHMET',
+    ipAddress: '208.184.164.240'
+  },
+  {
+    id: 'p-hasan',
+    name: 'Hasan Kendirci',
+    role: 'Regional Director of Talent Acquisitions (Houston)',
+    department: 'Talent Acquisition & Staffing',
+    campus: 'SST Houston Regional Office',
+    region: 'Houston Area',
+    email: 'hkendirci@ssttx.org',
+    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
+    canReviewStages: [],
+    isNotificationOnly: true,
+    notificationRoleType: 'talent_acquisition',
+    signerId: 'SST-NOTIF-HASAN',
+    ipAddress: '108.65.54.122'
+  },
+  {
+    id: 'p-ali',
+    name: 'Ali Dalm',
+    role: 'Regional Director of Talent Acquisitions (SA & CC)',
+    department: 'Talent Acquisition & Staffing',
+    campus: 'SST Central Office (District Administration)',
+    region: 'San Antonio & Corpus Christi',
+    email: 'adal@ssttx.org',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
+    canReviewStages: [],
+    isNotificationOnly: true,
+    notificationRoleType: 'talent_acquisition',
+    signerId: 'SST-NOTIF-ALI',
+    ipAddress: '208.184.164.242'
   }
 ];
 
@@ -799,7 +920,8 @@ export const INITIAL_PAR_DATA: PersonnelActionRequest[] = [
         uploadedAt: '2026-09-16T08:28:00Z',
         fileType: 'image/jpeg'
       }
-    ]
+    ],
+    departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary')
   },
 
   // Sample 2: Daniel Kovacs - VOLUNTARY Resignation in SAN ANTONIO -> Routes to Serdar Bulut (Regional Executive Director - SA & CC)
@@ -947,7 +1069,8 @@ export const INITIAL_PAR_DATA: PersonnelActionRequest[] = [
         uploadedAt: '2026-09-18T09:55:00Z',
         fileType: 'application/pdf'
       }
-    ]
+    ],
+    departmentNotifications: getDepartmentNotificationRecipients('San Antonio', 'SST Discovery')
   },
 
   // Sample 3: VOLUNTARY Resignation in HOUSTON -> Routes to Atnan Ekin (Regional Executive Director - Houston)
@@ -1086,7 +1209,8 @@ export const INITIAL_PAR_DATA: PersonnelActionRequest[] = [
       }
     ],
 
-    attachments: []
+    attachments: [],
+    departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary')
   },
 
   // Sample 4: AP Physics Teacher Incentive Stipend -> Dr. Kevin Demirci (Chief People Officer)
@@ -1224,6 +1348,7 @@ export const INITIAL_PAR_DATA: PersonnelActionRequest[] = [
         uploadedAt: '2026-09-15T09:50:00Z',
         fileType: 'application/pdf'
       }
-    ]
+    ],
+    departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Champions College Prep High School')
   }
 ];

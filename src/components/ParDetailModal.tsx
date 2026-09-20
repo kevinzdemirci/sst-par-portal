@@ -10,7 +10,8 @@ import {
   getActionTypeInfo, 
   getStageInfo, 
   getPriorityBadge, 
-  canPersonaActOnPar 
+  canPersonaActOnPar,
+  getDepartmentNotificationRecipients
 } from '../utils/formatters';
 import { 
   X, 
@@ -26,7 +27,12 @@ import {
   FileCheck,
   Check,
   Pencil,
-  Trash2
+  Trash2,
+  Bell,
+  Laptop,
+  UserPlus,
+  Mail,
+  Info
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -59,7 +65,8 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
 }) => {
   const [decisionNotes, setDecisionNotes] = useState('');
   const [generalComment, setGeneralComment] = useState('');
-  const [activeTab, setActiveTab] = useState<'form' | 'signatures' | 'audit'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'signatures' | 'audit' | 'notifications'>('form');
+  const [notificationsSentToast, setNotificationsSentToast] = useState<string | null>(null);
 
   // Employee details editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -110,6 +117,19 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   const hrStep = par.routingSteps.find(s => s.stage === 'hr_review');
   const benefitsStep = par.routingSteps.find(s => s.stage === 'benefits_review');
   const payrollStep = par.routingSteps.find(s => s.stage === 'payroll_action');
+
+  const deptNotifications = par.departmentNotifications && par.departmentNotifications.length > 0 
+    ? par.departmentNotifications 
+    : getDepartmentNotificationRecipients(par.location, par.campus);
+
+  const handleResendNotifications = () => {
+    const itContact = deptNotifications.find(n => n.type === 'it');
+    const taContact = deptNotifications.find(n => n.type === 'talent_acquisition');
+    const msg = `Automated notification emails successfully dispatched to ${itContact?.recipientName} (${itContact?.recipientEmail}) and ${taContact?.recipientName} (${taContact?.recipientEmail}) for informational processing (No Action Required).`;
+    setNotificationsSentToast(msg);
+    onAddComment(par.id, `[AUTOMATED NOTIFICATION]: Re-dispatched informational notice to IT (${itContact?.recipientName}) and Talent Acquisition (${taContact?.recipientName}). No action required.`, currentPersona);
+    setTimeout(() => setNotificationsSentToast(null), 5000);
+  };
 
   const handleApprove = () => {
     onApprovePar(par.id, decisionNotes || 'Endorsed and electronically signed.', currentPersona);
@@ -299,6 +319,18 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
           >
             <Clock className="w-4 h-4 text-slate-500" />
             <span>Activity Thread & Notes ({par.comments.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+              activeTab === 'notifications'
+                ? 'border-purple-600 text-purple-700 font-black'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Bell className="w-4 h-4 text-purple-600" />
+            <span>Department Notifications (IT & Talent Acquisition — No Action Required)</span>
           </button>
         </div>
 
@@ -860,6 +892,53 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Automated Department Notifications (FYI / No Action Required) */}
+                  <div className="mt-6 pt-5 border-t-2 border-dashed border-slate-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-slate-200 gap-2">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-[#0f2352] flex items-center space-x-2">
+                          <Bell className="w-4 h-4 text-purple-600" />
+                          <span>Department Notification & Asset Control (No Action Required)</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Automated informational distribution list for equipment recovery, Google Workspace de-provisioning, and vacancy backfill recruitment.
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 bg-purple-100 text-purple-900 border border-purple-200 rounded-lg text-[10px] font-bold tracking-wider uppercase inline-flex items-center space-x-1 shrink-0">
+                        <span>INFORMATIONAL ONLY • NO ACTION REQUIRED</span>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {deptNotifications.map((notif, nIdx) => (
+                        <div key={nIdx} className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-200 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-bold text-slate-900 text-xs flex items-center space-x-1.5">
+                                {notif.type === 'it' ? <Laptop className="w-3.5 h-3.5 text-blue-600" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-600" />}
+                                <span>{notif.department}</span>
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center space-x-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>NOTIFIED</span>
+                              </span>
+                            </div>
+                            <div className="font-bold text-slate-900 text-xs">{notif.recipientName}</div>
+                            <div className="text-[11px] text-[#0f2352] font-semibold">{notif.recipientRole}</div>
+                            <div className="text-[11px] text-blue-700 font-mono mt-0.5">{notif.recipientEmail}</div>
+                            <p className="text-[11px] text-slate-600 mt-2 bg-white/80 p-2 rounded-lg border border-purple-100">
+                              <strong>Scope:</strong> {notif.purpose}
+                            </p>
+                          </div>
+                          <div className="mt-2.5 pt-2 border-t border-purple-100 text-[10px] text-slate-400 flex items-center justify-between">
+                            <span>Region: {notif.region}</span>
+                            <span className="text-purple-700 font-bold">No Signature Required</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -973,10 +1052,92 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
             </div>
           )}
 
+          {/* TAB 4: DEPARTMENT NOTIFICATIONS & ASSET/RECRUITMENT CONTROL (NO ACTION REQUIRED) */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-5">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-200 gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                      <Bell className="w-4 h-4 text-purple-600" />
+                      <span>Stakeholder Department Notifications</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                        INFORMATIONAL ONLY • NO ACTION REQUIRED
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      The following departments receive automated notifications upon PAR creation and updates for informational coordination, asset de-provisioning, and backfill recruitment. No signature or approval is required.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleResendNotifications}
+                    className="shrink-0 px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Resend Automated Notifications</span>
+                  </button>
+                </div>
+
+                {notificationsSentToast && (
+                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{notificationsSentToast}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {deptNotifications.map((notif, nIdx) => (
+                    <div key={nIdx} className="p-5 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/60 to-white shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs uppercase tracking-wider text-purple-900 flex items-center space-x-1.5">
+                          {notif.type === 'it' ? <Laptop className="w-4 h-4 text-blue-600" /> : <UserPlus className="w-4 h-4 text-emerald-600" />}
+                          <span>{notif.department}</span>
+                        </span>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>AUTOMATED NOTICE SENT</span>
+                        </span>
+                      </div>
+
+                      <div className="border-t border-purple-100 pt-3">
+                        <div className="text-sm font-bold text-slate-900">{notif.recipientName}</div>
+                        <div className="text-xs font-medium text-[#0f2352]">{notif.recipientRole}</div>
+                        <div className="text-xs text-blue-700 font-mono mt-0.5">{notif.recipientEmail}</div>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                        <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">Department Operational Scope:</div>
+                        <div className="text-[11px] text-slate-600 leading-relaxed">{notif.purpose}</div>
+                      </div>
+
+                      <div className="pt-2 border-t border-purple-100 text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>Assigned Region: <strong>{notif.region}</strong></span>
+                        <span className="text-purple-700 font-bold">No Signature Required</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start space-x-3">
+                  <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-slate-800">Why are these departments notified without requiring approval?</strong>
+                    <p className="mt-0.5 leading-relaxed text-[11px]">
+                      Per SST District policy, IT requires prompt notification to initiate hardware returns and account deactivations (or device provisioning for transfers/promotions), while Talent Acquisition requires real-time vacancy updates to launch recruitment backfills. Because these are operational workflows rather than administrative authorizers, their involvement is strictly informational and does not delay or block PAR processing.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
           {/* Department Action Box (Visible when active persona can sign!) */}
           {canAct && (
             <div className="bg-gradient-to-br from-amber-50 to-orange-50/70 p-5 rounded-2xl border-2 border-amber-400 shadow-md no-print">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
                   <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
@@ -1031,8 +1192,28 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
             </div>
           )}
 
+          {/* Notification-Only Informational Banner */}
+          {currentPersona.isNotificationOnly && (
+            <div className="bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-purple-900 shadow-2xs no-print">
+              <div className="flex items-center space-x-3">
+                <Bell className="w-5 h-5 text-purple-600 shrink-0" />
+                <div>
+                  <div className="font-bold">
+                    📢 Notification Recipient: {currentPersona.name} ({currentPersona.role})
+                  </div>
+                  <div className="text-[11px] text-purple-700">
+                    This Personnel Action Request is provided to your department for informational coordination & asset/vacancy management. No signature or approval action is required from you.
+                  </div>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-purple-200/80 text-purple-950 font-bold rounded-lg text-[10px] uppercase tracking-wider shrink-0 border border-purple-300">
+                No Action Required
+              </span>
+            </div>
+          )}
+
           {/* Helper banner when user is viewing but cannot sign as current persona */}
-          {!canAct && par.currentStage !== 'completed' && par.currentStage !== 'rejected' && (
+          {!canAct && !currentPersona.isNotificationOnly && par.currentStage !== 'completed' && par.currentStage !== 'rejected' && (
             <div className="bg-gradient-to-r from-amber-50 to-blue-50 p-4 rounded-2xl border border-amber-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print shadow-2xs">
               <div className="flex items-center space-x-3 text-slate-700">
                 <Clock className="w-5 h-5 text-amber-600 shrink-0" />

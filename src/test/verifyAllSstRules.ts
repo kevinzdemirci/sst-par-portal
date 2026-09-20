@@ -198,7 +198,50 @@ const updatedApprovers = DEFAULT_WORKFLOW_CONFIG.approvers.map(a => a.id === tes
 const targetApprover = updatedApprovers.find(a => a.id === testRoleId);
 assert(targetApprover?.avatar === newPhotoUrl, 'Role photo can be dynamically updated across approver workflow directory');
 
-// 7. SUMMARY
+// 7. VERIFY DEPARTMENT NOTIFICATIONS & NO-ACTION-REQUIRED STAKEHOLDERS
+console.log('\n📌 Test 7: Department Notifications & No-Action-Required Stakeholders (IT & Talent Acquisition)...');
+import { getDepartmentNotificationRecipients } from '../utils/formatters';
+
+const enesPersona = USER_PERSONAS.find(p => p.email === 'esevik@ssttx.org');
+assert(Boolean(enesPersona), 'Enes Sevik exists with email esevik@ssttx.org (Houston IT)');
+assert(Boolean(enesPersona?.role.includes('IT')), 'Enes Sevik is assigned to Information Technology');
+assert(enesPersona?.isNotificationOnly === true, 'Enes Sevik is marked as notification-only (No Action Required)');
+
+const ahmetPersona = USER_PERSONAS.find(p => p.email === 'akaya@ssttx.org');
+assert(Boolean(ahmetPersona), 'Ahmet Kaya exists with email akaya@ssttx.org (SA & CC IT)');
+assert(Boolean(ahmetPersona?.role.includes('IT')), 'Ahmet Kaya is assigned to Information Technology');
+assert(ahmetPersona?.isNotificationOnly === true, 'Ahmet Kaya is marked as notification-only (No Action Required)');
+
+const hasanPersona = USER_PERSONAS.find(p => p.email === 'hkendirci@ssttx.org');
+assert(Boolean(hasanPersona), 'Hasan Kendirci exists with email hkendirci@ssttx.org (Houston Talent Acquisition)');
+assert(Boolean(hasanPersona?.role.includes('Talent Acquisition')), 'Hasan Kendirci is assigned to Talent Acquisition');
+assert(hasanPersona?.isNotificationOnly === true, 'Hasan Kendirci is marked as notification-only (No Action Required)');
+
+const aliPersona = USER_PERSONAS.find(p => p.email === 'adal@ssttx.org');
+assert(Boolean(aliPersona), 'Ali Dalm exists with email adal@ssttx.org (SA & CC Talent Acquisition)');
+assert(Boolean(aliPersona?.role.includes('Talent Acquisition')), 'Ali Dalm is assigned to Talent Acquisition');
+assert(aliPersona?.isNotificationOnly === true, 'Ali Dalm is marked as notification-only (No Action Required)');
+
+// 7b. Verify getDepartmentNotificationRecipients regional dispatching
+const houstonRecipients = getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary');
+assert(houstonRecipients.length === 2, 'Houston PAR generates 2 department notification records (IT + Talent Acquisition)');
+assert(houstonRecipients.some(r => r.recipientEmail === 'esevik@ssttx.org' && r.type === 'it'), 'Houston IT recipient is Enes Sevik');
+assert(houstonRecipients.some(r => r.recipientEmail === 'hkendirci@ssttx.org' && r.type === 'talent_acquisition'), 'Houston Talent Acquisition recipient is Hasan Kendirci');
+assert(houstonRecipients.every(r => r.actionRequired === false), 'All department notification records have actionRequired === false');
+
+const saccRecipients = getDepartmentNotificationRecipients('San Antonio', 'SST Discovery');
+assert(saccRecipients.length === 2, 'SA & CC PAR generates 2 department notification records (IT + Talent Acquisition)');
+assert(saccRecipients.some(r => r.recipientEmail === 'akaya@ssttx.org' && r.type === 'it'), 'SA & CC IT recipient is Ahmet Kaya');
+assert(saccRecipients.some(r => r.recipientEmail === 'adal@ssttx.org' && r.type === 'talent_acquisition'), 'SA & CC Talent Acquisition recipient is Ali Dalm');
+assert(saccRecipients.every(r => r.actionRequired === false), 'All SA & CC notification records have actionRequired === false');
+
+// 7c. Verify canPersonaActOnPar returns false for all notification-only roles
+if (enesPersona) assert(canPersonaActOnPar(enesPersona, INITIAL_PAR_DATA[0]) === false, 'Enes Sevik (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
+if (ahmetPersona) assert(canPersonaActOnPar(ahmetPersona, INITIAL_PAR_DATA[0]) === false, 'Ahmet Kaya (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
+if (hasanPersona) assert(canPersonaActOnPar(hasanPersona, INITIAL_PAR_DATA[0]) === false, 'Hasan Kendirci (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
+if (aliPersona) assert(canPersonaActOnPar(aliPersona, INITIAL_PAR_DATA[0]) === false, 'Ali Dalm (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
+
+// 8. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

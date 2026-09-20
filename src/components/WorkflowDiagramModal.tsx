@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ArrowRight, CheckCircle2, RotateCcw, AlertOctagon, ShieldCheck } from 'lucide-react';
+import { X, ArrowRight, CheckCircle2, RotateCcw, AlertOctagon, ShieldCheck, Bell, Laptop, UserPlus } from 'lucide-react';
 
 interface WorkflowDiagramModalProps {
   onClose: () => void;
@@ -196,6 +196,51 @@ export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ onCl
                 <div className="font-bold">4. Payroll</div>
                 <div className="text-[10px] text-indigo-700">Paola Comparini</div>
                 <div className="text-[9px] text-indigo-500">pcomparini@ssttx.org</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Workflow 3: Automated Department Notifications (Parallel / No Action Required) */}
+          <div className="bg-purple-50/60 rounded-2xl p-4 border border-purple-200 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-purple-950 text-sm flex items-center space-x-2">
+                <Bell className="w-4 h-4 text-purple-600" />
+                <span>3. Automated Department Notifications (No Action Required)</span>
+              </h3>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-purple-200 text-purple-900">
+                Informational Only
+              </span>
+            </div>
+            <p className="text-[11px] text-purple-800">
+              In parallel with administrative approvals, SST automated dispatch notifies critical operational leads for equipment recovery and talent backfills without interrupting workflow progress:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="bg-white p-3 rounded-xl border border-purple-200 shadow-2xs space-y-1.5">
+                <div className="flex items-center space-x-2 text-slate-900 font-bold">
+                  <Laptop className="w-4 h-4 text-blue-600" />
+                  <span>IT Department Notification</span>
+                </div>
+                <div className="text-[11px] text-slate-700">
+                  <div>• <strong>Houston:</strong> Enes Sevik (<span className="text-blue-700 font-mono">esevik@ssttx.org</span>)</div>
+                  <div>• <strong>SA & CC:</strong> Ahmet Kaya (<span className="text-blue-700 font-mono">akaya@ssttx.org</span>)</div>
+                </div>
+                <p className="text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  Automatic notice for hardware recovery (laptops, badges), Google Workspace & SIS account de-provisioning.
+                </p>
+              </div>
+
+              <div className="bg-white p-3 rounded-xl border border-purple-200 shadow-2xs space-y-1.5">
+                <div className="flex items-center space-x-2 text-slate-900 font-bold">
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  <span>Talent Acquisition Notification</span>
+                </div>
+                <div className="text-[11px] text-slate-700">
+                  <div>• <strong>Houston:</strong> Hasan Kendirci (<span className="text-blue-700 font-mono">hkendirci@ssttx.org</span>)</div>
+                  <div>• <strong>SA & CC:</strong> Ali Dalm (<span className="text-blue-700 font-mono">adal@ssttx.org</span>)</div>
+                </div>
+                <p className="text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  Automatic vacancy notice to launch immediate requisition, job posting, and backfill recruitment.
+                </p>
               </div>
             </div>
           </div>

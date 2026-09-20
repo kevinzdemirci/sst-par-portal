@@ -1042,9 +1042,15 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                           <div>
                             <div className="flex items-center space-x-2">
                               <span className="font-black text-slate-900 text-sm">{appr.name}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#0f2352] border border-blue-200">
-                                {appr.roleKey.toUpperCase()}
-                              </span>
+                              {appr.isNotificationOnly ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 flex items-center space-x-1">
+                                  <span>📢 NOTIFICATION ONLY (NO ACTION REQUIRED)</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#0f2352] border border-blue-200">
+                                  {appr.roleKey.toUpperCase()}
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs text-slate-500 font-medium">{appr.title} • <span className="text-slate-400">{appr.department}</span></div>
                           </div>

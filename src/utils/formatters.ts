@@ -211,6 +211,11 @@ export function getPriorityBadge(priority: Priority): {
 }
 
 export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionRequest): boolean {
+  // Notification-only personas have no action required
+  if (persona.isNotificationOnly) {
+    return false;
+  }
+
   if (par.currentStage === 'completed' || par.currentStage === 'rejected') {
     return false;
   }
@@ -294,11 +299,13 @@ export interface PersonaPermissions {
   canSendInvites: boolean;
   canCreatePar: boolean;
   canConfigureOwnEsign: boolean;
+  isNotificationOnly: boolean;
   roleBadgeText: string;
 }
 
 export function getPersonaPermissions(persona: UserPersona): PersonaPermissions {
   const isCpo = isChiefPeopleOfficer(persona);
+  const isNotificationOnly = Boolean(persona.isNotificationOnly);
   const isPrincipalOrSupervisor = persona.role.includes('Principal') || persona.role.includes('Supervisor') || persona.canReviewStages.includes('supervisor_review');
 
   return {
@@ -306,11 +313,97 @@ export function getPersonaPermissions(persona: UserPersona): PersonaPermissions 
     canManageWorkflow: isCpo,
     canAddRemoveRoles: isCpo,
     canSendInvites: isCpo,
-    canCreatePar: isCpo || isPrincipalOrSupervisor,
-    canConfigureOwnEsign: true,
+    canCreatePar: !isNotificationOnly && (isCpo || isPrincipalOrSupervisor),
+    canConfigureOwnEsign: !isNotificationOnly,
+    isNotificationOnly,
     roleBadgeText: isCpo 
       ? 'Chief People Officer (Super Admin)' 
-      : `${persona.role} (${persona.department})`
+      : isNotificationOnly
+        ? `📢 Notification Only (FYI) • ${persona.role}`
+        : `${persona.role} (${persona.department})`
   };
 }
 
+/**
+ * Resolves the automated department notification recipients (IT and Talent Acquisition)
+ * for a PAR based on its campus and geographical region.
+ * These departments receive FYI notifications with NO action or approval required.
+ */
+export function getDepartmentNotificationRecipients(
+  location?: string,
+  campus?: string
+): import('../types/par').DepartmentNotificationRecord[] {
+  const locStr = (location || '').toLowerCase();
+  const campusStr = (campus || '').toLowerCase();
+  const isHouston = locStr === 'houston' || 
+    campusStr.includes('houston') || 
+    campusStr.includes('champions') || 
+    campusStr.includes('spring') || 
+    campusStr.includes('advancement') || 
+    campusStr.includes('sugar land') || 
+    campusStr.includes('woodlands') || 
+    campusStr.includes('willow creek');
+
+  const now = new Date().toISOString();
+
+  if (isHouston) {
+    return [
+      {
+        id: 'notif-it-hou',
+        recipientName: 'Enes Sevik',
+        recipientEmail: 'esevik@ssttx.org',
+        recipientRole: 'IT Department Lead (Houston)',
+        department: 'Information Technology',
+        region: 'Houston Area Campuses',
+        type: 'it',
+        status: 'notified',
+        notifiedAt: now,
+        actionRequired: false,
+        purpose: 'IT equipment recovery (laptops, monitors, keycard badges), Google Workspace de-provisioning, and SIS access management'
+      },
+      {
+        id: 'notif-ta-hou',
+        recipientName: 'Hasan Kendirci',
+        recipientEmail: 'hkendirci@ssttx.org',
+        recipientRole: 'Regional Director of Talent Acquisitions (Houston)',
+        department: 'Talent Acquisition & Staffing',
+        region: 'Houston Area Campuses',
+        type: 'talent_acquisition',
+        status: 'notified',
+        notifiedAt: now,
+        actionRequired: false,
+        purpose: 'Position vacancy notification, staffing requisition, and backfill recruitment pipeline'
+      }
+    ];
+  } else {
+    // San Antonio & Corpus Christi
+    return [
+      {
+        id: 'notif-it-sacc',
+        recipientName: 'Ahmet Kaya',
+        recipientEmail: 'akaya@ssttx.org',
+        recipientRole: 'IT Department Lead (SA & CC)',
+        department: 'Information Technology',
+        region: 'San Antonio & Corpus Christi Campuses',
+        type: 'it',
+        status: 'notified',
+        notifiedAt: now,
+        actionRequired: false,
+        purpose: 'IT equipment recovery (laptops, monitors, keycard badges), Google Workspace de-provisioning, and SIS access management'
+      },
+      {
+        id: 'notif-ta-sacc',
+        recipientName: 'Ali Dalm',
+        recipientEmail: 'adal@ssttx.org',
+        recipientRole: 'Regional Director of Talent Acquisitions (SA & CC)',
+        department: 'Talent Acquisition & Staffing',
+        region: 'San Antonio & Corpus Christi Campuses',
+        type: 'talent_acquisition',
+        status: 'notified',
+        notifiedAt: now,
+        actionRequired: false,
+        purpose: 'Position vacancy notification, staffing requisition, and backfill recruitment pipeline'
+      }
+    ];
+  }
+}

@@ -10,7 +10,7 @@ import {
   WorkflowConfig
 } from '../types/par';
 import { MOCK_EMPLOYEES, buildSstRouting } from '../data/mockData';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, getDepartmentNotificationRecipients } from '../utils/formatters';
 import { 
   X, 
   UserCheck, 
@@ -19,7 +19,8 @@ import {
   TrendingUp, 
   ArrowRightLeft, 
   CalendarClock, 
-  ArrowRight
+  ArrowRight,
+  Bell
 } from 'lucide-react';
 
 interface ParFormModalProps {
@@ -279,7 +280,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           uploadedAt: new Date().toISOString(),
           fileType: 'image/jpeg'
         }
-      ] : []
+      ] : [],
+      departmentNotifications: getDepartmentNotificationRecipients(location, campus)
     };
 
     onSubmitPar(newPar);
@@ -915,6 +917,35 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
               <span className="px-2.5 py-1 rounded-lg bg-indigo-900/60 border border-indigo-400 text-indigo-200 font-semibold">
                 Final. Payroll (Paola Comparini)
               </span>
+            </div>
+          </div>
+
+          {/* Automated Department Notifications (FYI / No Action Required) */}
+          <div className="bg-purple-900/30 border border-purple-400/40 text-purple-100 p-4 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-purple-200 flex items-center space-x-1.5">
+                <Bell className="w-3.5 h-3.5 text-purple-300" />
+                <span>Automated Department Stakeholder Notifications (No Action Required)</span>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/20 text-purple-200 border border-purple-300/30">
+                INFORMATIONAL ONLY
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                <span className="font-bold text-white block text-[11px]">IT Department ({location}):</span>
+                <span className="text-purple-200 text-[11px]">
+                  {location === 'Houston' ? 'Enes Sevik (esevik@ssttx.org)' : 'Ahmet Kaya (akaya@ssttx.org)'}
+                </span>
+                <p className="text-[10px] text-purple-300 mt-1">Automatic notice for hardware recovery, Google Workspace & SIS deactivation.</p>
+              </div>
+              <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
+                <span className="font-bold text-white block text-[11px]">Talent Acquisition ({location}):</span>
+                <span className="text-purple-200 text-[11px]">
+                  {location === 'Houston' ? 'Hasan Kendirci (hkendirci@ssttx.org)' : 'Ali Dalm (adal@ssttx.org)'}
+                </span>
+                <p className="text-[10px] text-purple-300 mt-1">Automatic notice for vacancy posting & backfill recruitment pipeline.</p>
+              </div>
             </div>
           </div>
 

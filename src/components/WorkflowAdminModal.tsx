@@ -442,7 +442,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-blue-50/40 to-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
-            <img src={districtLogo} alt="SST" className="h-10 w-auto object-contain rounded" />
+            <img src={districtLogo} alt="SST" className="h-14 w-auto object-contain rounded" />
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-slate-900 tracking-tight">
@@ -1499,7 +1499,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                       District Logo Path / URL:
                     </label>
                     <div className="flex items-center space-x-2">
-                      <img src={districtLogo} alt="Logo" className="w-8 h-8 object-contain rounded border border-slate-200" />
+                      <img src={districtLogo} alt="Logo" className="w-11 h-11 object-contain rounded border border-slate-200" />
                       <input 
                         type="text"
                         value={districtLogo}

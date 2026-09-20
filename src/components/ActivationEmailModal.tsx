@@ -122,7 +122,7 @@ School of Science and Technology Charter District`;
                 <img 
                   src="/sst-logo.jpg" 
                   alt="SST Logo" 
-                  className="w-10 h-10 object-contain rounded-lg border border-slate-200"
+                  className="w-14 h-14 object-contain rounded-lg border border-slate-200"
                 />
                 <div>
                   <h4 className="font-black text-sm text-[#0f2352] tracking-tight">School of Science and Technology</h4>

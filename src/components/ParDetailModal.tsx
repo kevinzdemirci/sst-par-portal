@@ -356,7 +356,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   <img 
                     src="/sst-logo.jpg" 
                     alt="School of Science & Technology" 
-                    className="h-16 mx-auto object-contain mb-2"
+                    className="h-[90px] mx-auto object-contain mb-3 drop-shadow-xs"
                   />
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                     Personnel Action Request Form

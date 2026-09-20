@@ -7,7 +7,6 @@ import {
 } from '../types/par';
 import { 
   X, 
-  UserCheck, 
   PenTool, 
   RotateCcw, 
   Upload, 
@@ -20,6 +19,7 @@ import {
 import confetti from 'canvas-confetti';
 import { compressImageFile } from '../utils/imageCompressor';
 import { isChiefPeopleOfficer, getInitialsAvatarUrl } from '../utils/formatters';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 
 interface AccountCreationModalProps {
   workflowConfig: WorkflowConfig;
@@ -410,9 +410,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-900 via-[#0f2352] to-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
-            <div className="p-2 rounded-2xl bg-white/10 border border-white/20">
-              <UserCheck className="w-6 h-6 text-amber-400" />
-            </div>
+            <img src={SST_DEFAULT_LOGO} alt="SST Logo" className="h-12 w-auto object-contain bg-white/10 p-1 rounded-xl border border-white/20" />
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold tracking-tight">

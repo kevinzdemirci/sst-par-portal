@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { isChiefPeopleOfficer, getInitialsAvatarUrl } from '../utils/formatters';
 import { compressImageFile } from '../utils/imageCompressor';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 
 interface RoleManagerModalProps {
   availablePersonas: UserPersona[];
@@ -189,10 +190,8 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
       
       {/* Modal Header */}
       <div className="p-6 bg-gradient-to-r from-[#0f2352] to-[#1a3880] text-white flex items-center justify-between shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20">
-            <ShieldCheck className={`w-6 h-6 ${isCpo ? 'text-amber-300' : 'text-blue-300'}`} />
-          </div>
+        <div className="flex items-center space-x-3.5">
+          <img src={SST_DEFAULT_LOGO} alt="SST Logo" className="h-12 w-auto object-contain bg-white/10 p-1 rounded-xl border border-white/20" />
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="text-lg font-black tracking-tight">

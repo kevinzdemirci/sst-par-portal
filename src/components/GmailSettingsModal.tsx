@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   X, 
-  Mail, 
   Send, 
   CheckCircle2, 
   AlertTriangle, 
@@ -23,6 +22,7 @@ import {
   sendGmailEmail, 
   GOOGLE_APPS_SCRIPT_SAMPLE 
 } from '../utils/gmailService';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 
 interface GmailSettingsModalProps {
   isOpen: boolean;
@@ -126,10 +126,8 @@ export const GmailSettingsModal: React.FC<GmailSettingsModalProps> = ({
         
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-[#0f2352] to-[#1a3880] text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20">
-              <Mail className="w-6 h-6 text-amber-300" />
-            </div>
+          <div className="flex items-center space-x-3.5">
+            <img src={SST_DEFAULT_LOGO} alt="SST Logo" className="h-12 w-auto object-contain bg-white/10 p-1 rounded-xl border border-white/20" />
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-lg font-black tracking-tight">Gmail & Google Workspace Dispatcher</h3>

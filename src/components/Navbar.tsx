@@ -64,14 +64,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Logo & School of Science and Technology Branding */}
           <div className="flex items-center space-x-3.5">
             <div 
-              className="flex items-center py-1 cursor-pointer"
+              className="flex items-center py-1 cursor-pointer shrink-0"
               onClick={() => onSelectHubTab && onSelectHubTab('pars')}
               title="SST Hub Home — Return to Personnel Action Requests"
             >
               <img 
                 src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
-                className="h-14 sm:h-[68px] w-auto object-contain rounded drop-shadow-xs transition-transform hover:scale-105"
+                className="h-14 sm:h-[68px] w-auto max-w-[200px] object-contain rounded drop-shadow-xs transition-transform hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
                 }}

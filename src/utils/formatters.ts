@@ -1,4 +1,5 @@
 import { ActionType, WorkflowStage, Priority, PersonnelActionRequest, UserPersona } from '../types/par';
+import { PayoutStatus, PayoutType } from '../types/payout';
 
 export function formatCurrency(amount?: number): string {
   if (amount === undefined || isNaN(amount)) return '$0';
@@ -407,3 +408,106 @@ export function getDepartmentNotificationRecipients(
     ];
   }
 }
+
+/**
+ * Checks if the given persona is a Regional HR Coordinator (Kristy Stewart or Amber Johnson).
+ * Regional HR Coordinators can initiate CPO Payout and Deduction approval requests.
+ */
+export function isRegionalHrCoordinator(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  const email = (persona.email || '').toLowerCase();
+  const role = (persona.role || '').toLowerCase();
+  return (
+    email === 'kstewart@ssttx.org' ||
+    email === 'ajohnson@ssttx.org' ||
+    role.includes('regional hr coordinator') ||
+    role.includes('hr coordinator')
+  );
+}
+
+/**
+ * Checks if the given persona is the Payroll Coordinator (Paola Comparini).
+ */
+export function isPayrollCoordinator(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  const email = (persona.email || '').toLowerCase();
+  const role = (persona.role || '').toLowerCase();
+  return (
+    email === 'pcomparini@ssttx.org' ||
+    role.includes('payroll')
+  );
+}
+
+/**
+ * Visual badge helper for Payout Types (Payment vs Deduction)
+ */
+export function formatPayoutTypeBadge(type: PayoutType): {
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+  sign: string;
+} {
+  if (type === 'payment') {
+    return {
+      label: 'Payment / Payout',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold',
+      dotClass: 'bg-emerald-600',
+      sign: '+'
+    };
+  }
+  return {
+    label: 'Payroll Deduction',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-300 font-bold',
+    dotClass: 'bg-amber-600',
+    sign: '-'
+  };
+}
+
+/**
+ * Visual badge helper for Payout Statuses
+ */
+export function formatPayoutStatusBadge(status: PayoutStatus): {
+  label: string;
+  badgeClass: string;
+  dotClass: string;
+} {
+  switch (status) {
+    case 'pending_cpo':
+      return {
+        label: 'Pending CPO Approval',
+        badgeClass: 'bg-rose-50 text-rose-800 border-rose-300 animate-pulse',
+        dotClass: 'bg-rose-600'
+      };
+    case 'approved_by_cpo':
+      return {
+        label: 'Approved by CPO (Queued for Payroll)',
+        badgeClass: 'bg-blue-50 text-blue-800 border-blue-300',
+        dotClass: 'bg-blue-600'
+      };
+    case 'processed_payroll':
+      return {
+        label: 'Processed in ADP (Completed)',
+        badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+        dotClass: 'bg-emerald-600'
+      };
+    case 'rejected':
+      return {
+        label: 'Rejected by CPO',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+        dotClass: 'bg-slate-500'
+      };
+    case 'revision_required':
+      return {
+        label: 'Revision / Info Requested',
+        badgeClass: 'bg-amber-50 text-amber-800 border-amber-300',
+        dotClass: 'bg-amber-600'
+      };
+    default:
+      return {
+        label: status,
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+        dotClass: 'bg-slate-500'
+      };
+  }
+}
+

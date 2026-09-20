@@ -23,12 +23,17 @@ import { WorkflowAdminModal } from './components/WorkflowAdminModal';
 import { AccountCreationModal } from './components/AccountCreationModal';
 import { RoleManagerModal } from './components/RoleManagerModal';
 import { ActivationEmailModal } from './components/ActivationEmailModal';
-import { CheckCircle, AlertCircle, Info, Trash2, Users } from 'lucide-react';
+import { CpoPayoutModal } from './components/CpoPayoutModal';
+import { CpoPayoutRequest } from './types/payout';
+import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
+import { isRegionalHrCoordinator } from './utils/formatters';
+import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
 const PERSONA_KEY = 'sst_par_persona_v2';
 const WORKFLOW_CONFIG_KEY = 'sst_workflow_config_v2';
 const PERSONAS_CONFIG_KEY = 'sst_approver_personas_v2';
+const PAYOUTS_KEY = 'sst_cpo_payouts_v1';
 
 export function App() {
   const [pars, setPars] = useState<PersonnelActionRequest[]>(() => {
@@ -136,10 +141,22 @@ export function App() {
   const [isWorkflowAdminOpen, setIsWorkflowAdminOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+
+  // CPO Payout & Deduction Approval System State
+  const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
+    try {
+      const saved = localStorage.getItem(PAYOUTS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // ignore
+    }
+    return INITIAL_PAYOUT_REQUESTS;
+  });
   
   // Notification Toast
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'warning' | 'info'; text: string } | null>(null);
@@ -183,6 +200,18 @@ export function App() {
       // ignore
     }
   }, [availablePersonas]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PAYOUTS_KEY, JSON.stringify(payouts));
+    } catch {
+      // ignore
+    }
+  }, [payouts]);
+
+  const pendingPayoutsCount = useMemo(() => {
+    return payouts.filter(p => p.status === 'pending_cpo').length;
+  }, [payouts]);
 
   useEffect(() => {
     if (toastMessage) {
@@ -799,6 +828,8 @@ export function App() {
         districtName={workflowConfig.districtName}
         onOpenAccountModal={() => handleOpenAccountCreation()}
         onOpenRoleManagerModal={() => setIsRoleManagerOpen(true)}
+        onOpenPayoutModal={() => setIsPayoutModalOpen(true)}
+        pendingPayoutsCount={pendingPayoutsCount}
       />
 
       {/* Floating Notification Toast */}
@@ -870,6 +901,19 @@ export function App() {
             {isChiefPeopleOfficer(currentPersona) ? (
               <>
                 <button
+                  onClick={() => setIsPayoutModalOpen(true)}
+                  className="text-xs font-black bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/40 flex items-center space-x-1.5"
+                  title="Open CPO Payout & Deduction Approval Studio"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-rose-300" />
+                  <span>CPO Payouts</span>
+                  {pendingPayoutsCount > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                      {pendingPayoutsCount}
+                    </span>
+                  )}
+                </button>
+                <button
                   onClick={() => setIsRoleManagerOpen(true)}
                   className="text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/30 flex items-center space-x-1.5"
                   title="Manage and remove roles from the SST directory (CPO Admin)"
@@ -882,6 +926,25 @@ export function App() {
                   className="text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 px-3.5 py-2 rounded-xl transition-colors border border-amber-400/30 flex items-center space-x-1.5"
                 >
                   <span>⚙️ Workflow Admin</span>
+                </button>
+              </>
+            ) : isRegionalHrCoordinator(currentPersona) ? (
+              <>
+                <button
+                  onClick={() => setIsPayoutModalOpen(true)}
+                  className="text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 px-3.5 py-2 rounded-xl transition-colors border border-emerald-400/40 flex items-center space-x-1.5"
+                  title="Request staff payment or payroll deduction for upcoming cut-off"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>Request Staff Payout / Deduction</span>
+                </button>
+                <button
+                  onClick={() => setIsRoleManagerOpen(true)}
+                  className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20 flex items-center space-x-1.5"
+                  title="View the SST approver directory"
+                >
+                  <Users className="w-3.5 h-3.5 text-blue-200" />
+                  <span>SST Directory</span>
                 </button>
               </>
             ) : (
@@ -1095,6 +1158,18 @@ export function App() {
           }}
         />
       )}
+
+      {/* CPO Payout & Deduction Approval Modal */}
+      <CpoPayoutModal
+        isOpen={isPayoutModalOpen}
+        onClose={() => setIsPayoutModalOpen(false)}
+        currentPersona={currentPersona}
+        payouts={payouts}
+        onSavePayouts={(updated) => setPayouts(updated)}
+        onToast={showToast}
+        districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
+        districtName={workflowConfig.districtName}
+      />
 
     </div>
   );

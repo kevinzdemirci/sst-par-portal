@@ -2,8 +2,8 @@ import React from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { canPersonaActOnPar, isChiefPeopleOfficer } from '../utils/formatters';
-import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2 } from 'lucide-react';
+import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
+import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 
 interface NavbarProps {
@@ -15,6 +15,8 @@ interface NavbarProps {
   onOpenAdminModal?: () => void;
   onOpenAccountModal?: (role?: ApproverRoleConfig) => void;
   onOpenRoleManagerModal?: () => void;
+  onOpenPayoutModal?: () => void;
+  pendingPayoutsCount?: number;
   onResetData: () => void;
   pars: PersonnelActionRequest[];
   filterActionQueue: boolean;
@@ -32,6 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminModal,
   onOpenAccountModal,
   onOpenRoleManagerModal,
+  onOpenPayoutModal,
+  pendingPayoutsCount = 0,
   onResetData,
   pars,
   filterActionQueue,
@@ -41,6 +45,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
+  const isHr = isRegionalHrCoordinator(currentPersona);
+  const isPayroll = isPayrollCoordinator(currentPersona);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
@@ -216,6 +222,42 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <UserCheck className={`w-3.5 h-3.5 ${isCpo ? 'text-emerald-600' : 'text-blue-600'}`} />
                 <span className="hidden sm:inline">{isCpo ? 'Activate Role' : 'My E-Sign'}</span>
+              </button>
+            )}
+
+            {/* CPO Payout & Deduction Approval System */}
+            {onOpenPayoutModal && (
+              <button
+                type="button"
+                onClick={onOpenPayoutModal}
+                className={`relative inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
+                  isCpo
+                    ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-900'
+                    : isHr
+                      ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title={
+                  isCpo
+                    ? 'Review and approve staff payout and payroll deduction requests'
+                    : isHr
+                      ? 'Submit staff payout or deduction requests for upcoming payroll cut-off'
+                      : isPayroll
+                        ? 'Execute CPO-approved payouts in ADP Payroll'
+                        : 'View CPO staff payout & deduction approvals'
+                }
+              >
+                <DollarSign className={`w-4 h-4 ${
+                  isCpo ? 'text-rose-600' : isHr ? 'text-emerald-600' : 'text-slate-600'
+                }`} />
+                <span className="hidden sm:inline">
+                  {isCpo ? 'CPO Payouts' : isHr ? 'Request Payout' : isPayroll ? 'Payout Closeout' : 'Payouts'}
+                </span>
+                {pendingPayoutsCount > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500 text-white shadow-xs">
+                    {pendingPayoutsCount}
+                  </span>
+                )}
               </button>
             )}
 

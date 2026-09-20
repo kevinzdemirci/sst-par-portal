@@ -1,6 +1,7 @@
 import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
-import { canPersonaActOnPar } from '../utils/formatters';
+import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
 import { PersonnelActionRequest, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
+import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -241,7 +242,42 @@ if (ahmetPersona) assert(canPersonaActOnPar(ahmetPersona, INITIAL_PAR_DATA[0]) =
 if (hasanPersona) assert(canPersonaActOnPar(hasanPersona, INITIAL_PAR_DATA[0]) === false, 'Hasan Kendirci (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 if (aliPersona) assert(canPersonaActOnPar(aliPersona, INITIAL_PAR_DATA[0]) === false, 'Ali Dal (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 
-// 8. SUMMARY
+// 8. CPO PAYOUT & DEDUCTION APPROVAL SYSTEM
+console.log('\n📌 Test 8: CPO Payout & Deduction Approval System (Regional HR, CPO, Payroll)...');
+assert(isRegionalHrCoordinator(kristyPersona) === true, 'Kristy Stewart is recognized as Regional HR Coordinator (Houston)');
+assert(isRegionalHrCoordinator(amberPersona) === true, 'Amber Johnson is recognized as Regional HR Coordinator (SA & CC)');
+assert(isRegionalHrCoordinator(kevinPersona) === false, 'Dr. Kevin Demirci is Chief People Officer, not HR Coordinator');
+assert(isPayrollCoordinator(paolaPersona) === true, 'Paola Comparini is recognized as Payroll Coordinator');
+assert(isPayrollCoordinator(kristyPersona) === false, 'Kristy Stewart is not Payroll Coordinator');
+
+// Payout data tests
+assert(INITIAL_PAYOUT_REQUESTS.length >= 4, `Initial payout requests loaded (Found: ${INITIAL_PAYOUT_REQUESTS.length})`);
+const pendingCpo = INITIAL_PAYOUT_REQUESTS.filter(p => p.status === 'pending_cpo');
+assert(pendingCpo.length >= 2, `Pending CPO approval queue populated (Found: ${pendingCpo.length})`);
+
+const paymentReq = INITIAL_PAYOUT_REQUESTS.find(p => p.payoutType === 'payment' && p.status === 'pending_cpo');
+assert(Boolean(paymentReq), 'Pending payment request exists with positive compensation amount');
+assert(Boolean(paymentReq && paymentReq.amount > 0), `Payment amount is positive ($${paymentReq?.amount})`);
+assert(Boolean(paymentReq && paymentReq.supportingDocs.length > 0), 'Payment request includes attached supporting documentation');
+assert(Boolean(paymentReq && paymentReq.payrollCutoffDate), `Payment request specifies target payroll cut-off date (${paymentReq?.payrollCutoffDate})`);
+
+const deductionReq = INITIAL_PAYOUT_REQUESTS.find(p => p.payoutType === 'deduction' && p.status === 'pending_cpo');
+assert(Boolean(deductionReq), 'Pending deduction request exists for staff payroll reduction');
+assert(Boolean(deductionReq && deductionReq.amount > 0), `Deduction amount is positive ($${deductionReq?.amount})`);
+assert(Boolean(deductionReq && deductionReq.supportingDocs.length > 0), 'Deduction request includes signed authorization/supporting documentation');
+
+const approvedReq = INITIAL_PAYOUT_REQUESTS.find(p => p.status === 'approved_by_cpo');
+assert(Boolean(approvedReq), 'Approved payout queued for Payroll ADP execution exists');
+assert(approvedReq?.cpoSignerName === 'Dr. Kevin Demirci', 'Approved payout bears digital signature of Dr. Kevin Demirci (CPO)');
+
+const payrollProcessed = INITIAL_PAYOUT_REQUESTS.find(p => p.status === 'processed_payroll');
+assert(Boolean(payrollProcessed), 'Fully executed ADP payroll record exists');
+assert(Boolean(payrollProcessed?.adpBatchNumber), `Executed payout has valid ADP batch confirmation (#${payrollProcessed?.adpBatchNumber})`);
+
+assert(SST_PAYROLL_CYCLES.length >= 3, `SST payroll cut-off calendar configured (Cycles: ${SST_PAYROLL_CYCLES.length})`);
+assert(SST_PAYROLL_CYCLES.some(c => c.cutoffDate === '2026-09-25'), 'Upcoming September 25 semi-monthly payroll cut-off exists');
+
+// 9. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

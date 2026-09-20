@@ -942,7 +942,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
               <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
                 <span className="font-bold text-white block text-[11px]">Talent Acquisition ({location}):</span>
                 <span className="text-purple-200 text-[11px]">
-                  {location === 'Houston' ? 'Hasan Kendirci (hkendirci@ssttx.org)' : 'Ali Dalm (adal@ssttx.org)'}
+                  {location === 'Houston' ? 'Hasan Kendirci (hkendirci@ssttx.org)' : 'Ali Dal (adal@ssttx.org)'}
                 </span>
                 <p className="text-[10px] text-purple-300 mt-1">Automatic notice for vacancy posting & backfill recruitment pipeline.</p>
               </div>

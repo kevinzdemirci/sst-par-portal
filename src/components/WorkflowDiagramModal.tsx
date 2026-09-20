@@ -236,7 +236,7 @@ export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ onCl
                 </div>
                 <div className="text-[11px] text-slate-700">
                   <div>• <strong>Houston:</strong> Hasan Kendirci (<span className="text-blue-700 font-mono">hkendirci@ssttx.org</span>)</div>
-                  <div>• <strong>SA & CC:</strong> Ali Dalm (<span className="text-blue-700 font-mono">adal@ssttx.org</span>)</div>
+                  <div>• <strong>SA & CC:</strong> Ali Dal (<span className="text-blue-700 font-mono">adal@ssttx.org</span>)</div>
                 </div>
                 <p className="text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">
                   Automatic vacancy notice to launch immediate requisition, job posting, and backfill recruitment.

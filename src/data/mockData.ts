@@ -342,7 +342,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       id: 'p-ali',
       roleKey: 'ta_sacc',
       title: 'Regional Director of Talent Acquisitions (SA & CC)',
-      name: 'Ali Dalm',
+      name: 'Ali Dal',
       email: 'adal@ssttx.org',
       department: 'Talent Acquisition & Staffing',
       region: 'San Antonio & Corpus Christi Campuses',
@@ -512,7 +512,7 @@ export const USER_PERSONAS: UserPersona[] = [
   },
   {
     id: 'p-ali',
-    name: 'Ali Dalm',
+    name: 'Ali Dal',
     role: 'Regional Director of Talent Acquisitions (SA & CC)',
     department: 'Talent Acquisition & Staffing',
     campus: 'SST Central Office (District Administration)',

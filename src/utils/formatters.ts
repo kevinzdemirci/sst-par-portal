@@ -393,7 +393,7 @@ export function getDepartmentNotificationRecipients(
       },
       {
         id: 'notif-ta-sacc',
-        recipientName: 'Ali Dalm',
+        recipientName: 'Ali Dal',
         recipientEmail: 'adal@ssttx.org',
         recipientRole: 'Regional Director of Talent Acquisitions (SA & CC)',
         department: 'Talent Acquisition & Staffing',

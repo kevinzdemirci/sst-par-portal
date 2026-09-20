@@ -218,9 +218,9 @@ assert(Boolean(hasanPersona?.role.includes('Talent Acquisition')), 'Hasan Kendir
 assert(hasanPersona?.isNotificationOnly === true, 'Hasan Kendirci is marked as notification-only (No Action Required)');
 
 const aliPersona = USER_PERSONAS.find(p => p.email === 'adal@ssttx.org');
-assert(Boolean(aliPersona), 'Ali Dalm exists with email adal@ssttx.org (SA & CC Talent Acquisition)');
-assert(Boolean(aliPersona?.role.includes('Talent Acquisition')), 'Ali Dalm is assigned to Talent Acquisition');
-assert(aliPersona?.isNotificationOnly === true, 'Ali Dalm is marked as notification-only (No Action Required)');
+assert(Boolean(aliPersona), 'Ali Dal exists with email adal@ssttx.org (SA & CC Talent Acquisition)');
+assert(Boolean(aliPersona?.role.includes('Talent Acquisition')), 'Ali Dal is assigned to Talent Acquisition');
+assert(aliPersona?.isNotificationOnly === true, 'Ali Dal is marked as notification-only (No Action Required)');
 
 // 7b. Verify getDepartmentNotificationRecipients regional dispatching
 const houstonRecipients = getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary');
@@ -232,14 +232,14 @@ assert(houstonRecipients.every(r => r.actionRequired === false), 'All department
 const saccRecipients = getDepartmentNotificationRecipients('San Antonio', 'SST Discovery');
 assert(saccRecipients.length === 2, 'SA & CC PAR generates 2 department notification records (IT + Talent Acquisition)');
 assert(saccRecipients.some(r => r.recipientEmail === 'akaya@ssttx.org' && r.type === 'it'), 'SA & CC IT recipient is Ahmet Kaya');
-assert(saccRecipients.some(r => r.recipientEmail === 'adal@ssttx.org' && r.type === 'talent_acquisition'), 'SA & CC Talent Acquisition recipient is Ali Dalm');
+assert(saccRecipients.some(r => r.recipientEmail === 'adal@ssttx.org' && r.type === 'talent_acquisition'), 'SA & CC Talent Acquisition recipient is Ali Dal');
 assert(saccRecipients.every(r => r.actionRequired === false), 'All SA & CC notification records have actionRequired === false');
 
 // 7c. Verify canPersonaActOnPar returns false for all notification-only roles
 if (enesPersona) assert(canPersonaActOnPar(enesPersona, INITIAL_PAR_DATA[0]) === false, 'Enes Sevik (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 if (ahmetPersona) assert(canPersonaActOnPar(ahmetPersona, INITIAL_PAR_DATA[0]) === false, 'Ahmet Kaya (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 if (hasanPersona) assert(canPersonaActOnPar(hasanPersona, INITIAL_PAR_DATA[0]) === false, 'Hasan Kendirci (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
-if (aliPersona) assert(canPersonaActOnPar(aliPersona, INITIAL_PAR_DATA[0]) === false, 'Ali Dalm (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
+if (aliPersona) assert(canPersonaActOnPar(aliPersona, INITIAL_PAR_DATA[0]) === false, 'Ali Dal (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 
 // 8. SUMMARY
 console.log('\n======================================================');

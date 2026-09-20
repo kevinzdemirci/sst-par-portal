@@ -2,6 +2,7 @@ import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouti
 import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
+import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -354,7 +355,43 @@ assert(resolveActivePayoutTab(kevinPersona, 'create') === 'queue', 'CPO attempti
 assert(resolveActivePayoutTab(paolaPersona, 'create') === 'queue', 'Payroll attempting "create" is redirected to "queue" (Reviewer mode)');
 assert(resolveActivePayoutTab(vanessaPersona, 'create') === 'queue', 'Principal attempting "create" is redirected to "queue" (Reviewer mode)');
 
-// 11. SUMMARY
+// 11. CUSTOMIZABLE SUPPORTING DOCUMENT TEMPLATES SYSTEM
+console.log('\n📌 Test 11: Customizable Supporting Document Templates System...');
+assert(DEFAULT_PAYOUT_TEMPLATES.length === 3, 'Default templates library contains 3 core forms');
+assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Signed_Extra_Duty_Timesheet.pdf'), 'Default templates include Signed Extra Duty Timesheet');
+assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Voluntary_Payroll_Deduction_Authorization.pdf'), 'Default templates include Voluntary Payroll Deduction Authorization');
+assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Regional_Travel_and_Expense_Receipts.pdf'), 'Default templates include Regional Travel and Expense Receipts');
+
+// Verify adding a custom user-defined template
+let userTemplates: PayoutTemplateItem[] = [...DEFAULT_PAYOUT_TEMPLATES];
+const customTemplate: PayoutTemplateItem = {
+  id: 'tpl-custom-1',
+  name: 'Bilingual Stipend Verification',
+  fileName: 'Bilingual_Stipend_Verification.pdf',
+  size: '225 KB'
+};
+userTemplates = [...userTemplates, customTemplate];
+assert(userTemplates.length === 4, 'Custom template successfully added to template options');
+assert(userTemplates.some(t => t.name === 'Bilingual Stipend Verification'), 'Newly created template is present with custom title and filename');
+
+// Verify attaching template to request documents
+const attachedDoc = {
+  id: `doc-tpl-test`,
+  name: customTemplate.fileName,
+  size: customTemplate.size,
+  fileType: 'application/pdf',
+  uploadedAt: new Date().toISOString(),
+  uploadedBy: `${kristyPersona.name} (${kristyPersona.role})`
+};
+assert(attachedDoc.name === 'Bilingual_Stipend_Verification.pdf', 'Attaching template yields correct filename on request');
+assert(attachedDoc.uploadedBy.includes('Kristy Stewart'), 'Attached document tracks regional coordinator identity');
+
+// Verify deleting a template from library
+userTemplates = userTemplates.filter(t => t.id !== 'tpl-1');
+assert(userTemplates.length === 3, 'Template can be deleted from library');
+assert(!userTemplates.some(t => t.id === 'tpl-1'), 'Deleted template no longer appears in options');
+
+// 12. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

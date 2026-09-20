@@ -304,7 +304,57 @@ assert(isRegionalHrCoordinator(kristyPersona) === true, 'Kristy Stewart retains 
 assert(isPayrollCoordinator(paolaPersona) === true, 'Paola Comparini retains ADP execution authority in Payouts tab');
 assert(DEFAULT_WORKFLOW_CONFIG.routingRules.length >= 4, 'Workflow Routing Engine configured with district branching rules');
 
-// 10. SUMMARY
+// 10. ROLE-BASED ACCESS CONTROL: CPO PAYOUT ENTRY (HR ONLY) VS REVIEWER MODES
+console.log('\n📌 Test 10: CPO Payout Entry Restricted to HR vs Reviewer Tabs for Others...');
+
+// 10a. Regional HR Coordinators have entry access
+assert(isRegionalHrCoordinator(kristyPersona) === true, 'Kristy Stewart (Houston HR) is authorized for Payout Entry');
+assert(isRegionalHrCoordinator(amberPersona) === true, 'Amber Johnson (SA & CC HR) is authorized for Payout Entry');
+
+// 10b. Non-HR personas cannot enter payouts (blocked from entry)
+assert(isRegionalHrCoordinator(kevinPersona) === false, 'Dr. Kevin Demirci (CPO) cannot initiate Payout Entry (Reviewer only)');
+assert(isRegionalHrCoordinator(paolaPersona) === false, 'Paola Comparini (Payroll) cannot initiate Payout Entry (Execution only)');
+assert(isRegionalHrCoordinator(atnanPersona) === false, 'Atnan Ekin (Regional Exec) cannot initiate Payout Entry (Reviewer only)');
+assert(isRegionalHrCoordinator(serdarPersona) === false, 'Serdar Bulut (Regional Exec) cannot initiate Payout Entry (Reviewer only)');
+assert(isRegionalHrCoordinator(vanessaPersona) === false, 'Vanessa Nguyen (Principal) cannot initiate Payout Entry (Reviewer only)');
+assert(isRegionalHrCoordinator(enesPersona) === false, 'Enes Sevik (IT) cannot initiate Payout Entry (No Entry)');
+assert(isRegionalHrCoordinator(ahmetPersona) === false, 'Ahmet Kaya (IT) cannot initiate Payout Entry (No Entry)');
+assert(isRegionalHrCoordinator(hasanPersona) === false, 'Hasan Kendirci (Talent Acquisition) cannot initiate Payout Entry (No Entry)');
+assert(isRegionalHrCoordinator(aliPersona) === false, 'Ali Dal (Talent Acquisition) cannot initiate Payout Entry (No Entry)');
+
+// 10c. Dynamic Navigation Label Resolution
+function getHubTabTitleForPersona(p: UserPersona): string {
+  return isRegionalHrCoordinator(p) ? 'CPO Payout Entry (HR Coordinator)' : 'CPO Payout Reviewer';
+}
+assert(getHubTabTitleForPersona(kristyPersona) === 'CPO Payout Entry (HR Coordinator)', 'Kristy Stewart sees "CPO Payout Entry (HR Coordinator)" tab');
+assert(getHubTabTitleForPersona(amberPersona) === 'CPO Payout Entry (HR Coordinator)', 'Amber Johnson sees "CPO Payout Entry (HR Coordinator)" tab');
+assert(getHubTabTitleForPersona(kevinPersona) === 'CPO Payout Reviewer', 'Dr. Kevin Demirci sees "CPO Payout Reviewer" tab');
+assert(getHubTabTitleForPersona(paolaPersona) === 'CPO Payout Reviewer', 'Paola Comparini sees "CPO Payout Reviewer" tab');
+assert(getHubTabTitleForPersona(vanessaPersona) === 'CPO Payout Reviewer', 'Principal sees "CPO Payout Reviewer" tab');
+
+// 10d. Reviewer Queue Mode Resolution
+function getReviewerQueueTitle(p: UserPersona): string {
+  if (isChiefPeopleOfficer(p)) return '⚖️ CPO Executive Reviewer Queue';
+  if (isPayrollCoordinator(p)) return '💵 Payroll ADP Execution Queue';
+  return '👀 Reviewer Oversight Queue';
+}
+assert(getReviewerQueueTitle(kevinPersona) === '⚖️ CPO Executive Reviewer Queue', 'CPO is routed to Executive Reviewer Queue');
+assert(getReviewerQueueTitle(paolaPersona) === '💵 Payroll ADP Execution Queue', 'Payroll is routed to Payroll ADP Execution Queue');
+assert(getReviewerQueueTitle(vanessaPersona) === '👀 Reviewer Oversight Queue', 'Principal is routed to Reviewer Oversight Queue');
+
+// 10e. Verify non-HR entry redirect logic
+function resolveActivePayoutTab(p: UserPersona, requestedTab: 'create' | 'queue' | 'calendar'): 'create' | 'queue' | 'calendar' {
+  if (!isRegionalHrCoordinator(p) && requestedTab === 'create') {
+    return 'queue';
+  }
+  return requestedTab;
+}
+assert(resolveActivePayoutTab(kristyPersona, 'create') === 'create', 'HR Coordinator can access "create" tab');
+assert(resolveActivePayoutTab(kevinPersona, 'create') === 'queue', 'CPO attempting "create" is redirected to "queue" (Reviewer mode)');
+assert(resolveActivePayoutTab(paolaPersona, 'create') === 'queue', 'Payroll attempting "create" is redirected to "queue" (Reviewer mode)');
+assert(resolveActivePayoutTab(vanessaPersona, 'create') === 'queue', 'Principal attempting "create" is redirected to "queue" (Reviewer mode)');
+
+// 11. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

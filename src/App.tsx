@@ -929,10 +929,10 @@ export function App() {
                       ? 'bg-rose-600 text-white border-rose-500 shadow-md'
                       : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/40'
                   }`}
-                  title="Open CPO Payout & Deduction Approval Studio"
+                  title="Open CPO Payout Reviewer Queue (Executive Review & Approval)"
                 >
                   <DollarSign className="w-3.5 h-3.5 text-rose-300" />
-                  <span>CPO Payouts</span>
+                  <span>CPO Reviewer Queue</span>
                   {pendingPayoutsCount > 0 && (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
                       {pendingPayoutsCount}
@@ -967,10 +967,10 @@ export function App() {
                       ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
                       : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border-emerald-400/40'
                   }`}
-                  title="Request staff payment or payroll deduction for upcoming cut-off"
+                  title="Staff payout and deduction entry form for upcoming payroll cut-off (HR Coordinator Entry)"
                 >
                   <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
-                  <span>Request Staff Payout / Deduction</span>
+                  <span>+ CPO Payout Entry</span>
                 </button>
                 <button
                   onClick={() => setActiveHubTab('directory')}
@@ -986,18 +986,32 @@ export function App() {
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => setActiveHubTab('directory')}
-                className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
-                  activeHubTab === 'directory'
-                    ? 'bg-white text-[#0f2352] font-bold border-white'
-                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                }`}
-                title="View the SST approver directory"
-              >
-                <Users className="w-3.5 h-3.5 text-blue-200" />
-                <span>SST Directory</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveHubTab('payouts')}
+                  className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'payouts'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-md'
+                      : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/40'
+                  }`}
+                  title="View staff payout and deduction records in Reviewer mode"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-rose-300" />
+                  <span>Payout Reviewer</span>
+                </button>
+                <button
+                  onClick={() => setActiveHubTab('directory')}
+                  className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
+                    activeHubTab === 'directory'
+                      ? 'bg-white text-[#0f2352] font-bold border-white'
+                      : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                  }`}
+                  title="View the SST approver directory"
+                >
+                  <Users className="w-3.5 h-3.5 text-blue-200" />
+                  <span>SST Directory</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => setActiveHubTab('workflow')}
@@ -1033,18 +1047,30 @@ export function App() {
               </span>
             </button>
 
-            {/* Tab 2: CPO Payout & Deduction Approvals */}
+            {/* Tab 2: CPO Payout Entry (HR) vs CPO Payout Reviewer (Other) */}
             <button
               onClick={() => setActiveHubTab('payouts')}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
                 activeHubTab === 'payouts'
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                  ? isRegionalHrCoordinator(currentPersona)
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-700/20'
+                    : 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>CPO Payout & Deduction Approvals</span>
-              {pendingPayoutsCount > 0 ? (
+              <span>
+                {isRegionalHrCoordinator(currentPersona)
+                  ? 'CPO Payout Entry (HR Coordinator)'
+                  : 'CPO Payout Reviewer'}
+              </span>
+              {isRegionalHrCoordinator(currentPersona) ? (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  activeHubTab === 'payouts' ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  HR Entry Active
+                </span>
+              ) : pendingPayoutsCount > 0 ? (
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse ${
                   activeHubTab === 'payouts' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
                 }`}>
@@ -1054,7 +1080,7 @@ export function App() {
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                   activeHubTab === 'payouts' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
                 }`}>
-                  {payouts.length}
+                  {payouts.length} Records
                 </span>
               )}
             </button>

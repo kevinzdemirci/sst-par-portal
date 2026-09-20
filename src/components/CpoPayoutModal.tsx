@@ -65,12 +65,19 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const isHr = isRegionalHrCoordinator(currentPersona);
   const isPayroll = isPayrollCoordinator(currentPersona);
 
-  const [activeTab, setActiveTab] = useState<'queue' | 'create'>('queue');
+  const [activeTab, setActiveTab] = useState<'queue' | 'create' | 'calendar'>(isHr ? 'create' : 'queue');
   const [selectedPayout, setSelectedPayout] = useState<CpoPayoutRequest | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
+  // Guard: non-HR personas cannot access or stay on the 'create' entry tab
+  React.useEffect(() => {
+    if (!isHr && activeTab === 'create') {
+      setActiveTab('queue');
+    }
+  }, [isHr, activeTab]);
+
   // Document preview state
   const [previewDoc, setPreviewDoc] = useState<PayoutSupportingDoc | null>(null);
 
@@ -479,41 +486,103 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       </div>
 
         {/* Sub-Navigation Tabs */}
-        <div className="px-6 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setActiveTab('queue')}
-              className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 ${
-                activeTab === 'queue'
-                  ? 'border-[#0f2352] text-[#0f2352]'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Payout & Deduction Queue</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
-                {payouts.length}
-              </span>
-            </button>
+        <div className="px-6 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex space-x-2 overflow-x-auto py-1">
+            {isHr ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 shrink-0 ${
+                    activeTab === 'create'
+                      ? 'border-emerald-600 text-emerald-800 bg-emerald-50/50 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Plus className="w-4 h-4 text-emerald-600" />
+                  <span>📝 New Payout / Deduction Request (HR Entry)</span>
+                </button>
 
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 ${
-                activeTab === 'create'
-                  ? 'border-[#0f2352] text-[#0f2352]'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Plus className="w-4 h-4 text-emerald-600" />
-              <span>+ New Payout / Deduction Request</span>
-            </button>
+                <button
+                  onClick={() => setActiveTab('queue')}
+                  className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 shrink-0 ${
+                    activeTab === 'queue'
+                      ? 'border-[#0f2352] text-[#0f2352] bg-white/60 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-[#0f2352]" />
+                  <span>📋 My Regional Submissions</span>
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                    {payouts.length}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab('queue')}
+                  className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 shrink-0 ${
+                    activeTab === 'queue'
+                      ? 'border-[#0f2352] text-[#0f2352] bg-white/60 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {isCpo ? (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-purple-600" />
+                      <span>⚖️ CPO Executive Reviewer Queue</span>
+                      {metrics.pendingCpoCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                          {metrics.pendingCpoCount} Pending
+                        </span>
+                      )}
+                    </>
+                  ) : isPayroll ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>💵 Payroll ADP Execution Queue</span>
+                      {metrics.approvedCount > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white">
+                          {metrics.approvedCount} Ready
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4 text-slate-600" />
+                      <span>👀 Reviewer Oversight Queue</span>
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                        {payouts.length}
+                      </span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('calendar')}
+                  className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-colors flex items-center space-x-2 shrink-0 ${
+                    activeTab === 'calendar'
+                      ? 'border-[#0f2352] text-[#0f2352] bg-white/60 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4 text-amber-600" />
+                  <span>📅 Payroll Cut-Off Schedule & Deadlines</span>
+                </button>
+              </>
+            )}
           </div>
 
-          <div className="text-xs font-semibold text-slate-600 flex items-center space-x-1.5">
-            <span className="text-slate-400">Current Viewer:</span>
+          <div className="text-xs font-semibold text-slate-600 flex items-center space-x-1.5 shrink-0 py-1">
+            <span className="text-slate-400">Viewing As:</span>
             <strong className="text-slate-900">{currentPersona.name}</strong>
-            <span className="text-[11px] px-2 py-0.5 rounded-md bg-blue-100 text-[#0f2352] font-bold">
-              {isCpo ? '👑 Chief People Officer' : isHr ? '📋 Regional HR Coordinator' : isPayroll ? '💵 Payroll Coordinator' : currentPersona.role}
+            <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold ${
+              isHr ? 'bg-emerald-100 text-emerald-800' :
+              isCpo ? 'bg-purple-100 text-purple-800' :
+              isPayroll ? 'bg-indigo-100 text-indigo-800' :
+              'bg-slate-200 text-slate-800'
+            }`}>
+              {isHr ? '📋 Regional HR (Entry Authorized)' : isCpo ? '👑 CPO Reviewer (Approver)' : isPayroll ? '💵 Payroll Reviewer (ADP)' : '👀 Reviewer Mode'}
             </span>
           </div>
         </div>
@@ -525,6 +594,72 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
           {activeTab === 'queue' && (
             <div className="space-y-6">
               
+              {/* Persona Mode Guidance Banner */}
+              {isHr ? (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/40 to-slate-50 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center space-x-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900 flex items-center space-x-2">
+                        <span>📋 Regional HR Entry & Submissions Mode</span>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-emerald-100 border border-emerald-300 text-emerald-800">
+                          {currentPersona.region || 'Regional HR Coordinator'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        You have permission to create staff payment and deduction entries. Track your submitted items through Chief People Officer authorization and ADP batch closeout.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('create')}
+                    className="shrink-0 inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ New Payout Entry</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/30 to-purple-50/50 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center space-x-3.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs text-white ${
+                      isCpo ? 'bg-purple-700' : isPayroll ? 'bg-indigo-700' : 'bg-[#0f2352]'
+                    }`}>
+                      {isCpo ? <ShieldCheck className="w-5 h-5" /> : isPayroll ? <DollarSign className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900 flex items-center space-x-2">
+                        <span>
+                          {isCpo 
+                            ? '⚖️ Executive Reviewer Mode: CPO Authorization Portal' 
+                            : isPayroll 
+                              ? '💵 Payroll Reviewer Mode: ADP Batch Execution' 
+                              : '👀 Reviewer Oversight Mode: District Payout Inspection'}
+                        </span>
+                        <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                          Reviewer Tab Active
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        {isCpo 
+                          ? 'Review and digitally authorize staff compensation adjustments submitted by Regional HR Coordinators ahead of the semi-monthly cut-off. Direct payout entry is reserved for Regional HR.'
+                          : isPayroll
+                            ? 'Verify CPO digital authorization signatures and record official ADP payroll batch numbers upon execution. Direct payout entry is reserved for Regional HR.'
+                            : 'Inspecting district staff payout and payroll deduction records. Direct payout entry is reserved for Regional HR Coordinators.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[11px] font-bold text-slate-600 shadow-2xs">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Entry: Regional HR Only</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Metric KPI Row */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-2xl border border-rose-200 shadow-2xs">
@@ -604,13 +739,60 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   </select>
                 </div>
 
-                <button
-                  onClick={() => setActiveTab('create')}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Request Staff Payout / Deduction</span>
-                </button>
+                {/* Entry vs Reviewer Actions */}
+                {isHr ? (
+                  <button
+                    onClick={() => setActiveTab('create')}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Request Staff Payout / Deduction</span>
+                  </button>
+                ) : isCpo ? (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setStatusFilter(statusFilter === 'pending_cpo' ? 'all' : 'pending_cpo')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center space-x-1.5 ${
+                        statusFilter === 'pending_cpo' 
+                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs' 
+                          : 'bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{statusFilter === 'pending_cpo' ? 'Showing Pending CPO' : `Filter: ${metrics.pendingCpoCount} Pending CPO`}</span>
+                    </button>
+                    {statusFilter !== 'all' && (
+                      <button 
+                        onClick={() => setStatusFilter('all')}
+                        className="px-2 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                ) : isPayroll ? (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setStatusFilter(statusFilter === 'approved_by_cpo' ? 'all' : 'approved_by_cpo')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center space-x-1.5 ${
+                        statusFilter === 'approved_by_cpo' 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs' 
+                          : 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{statusFilter === 'approved_by_cpo' ? 'Showing Ready for ADP' : `Filter: ${metrics.approvedCount} Ready for ADP`}</span>
+                    </button>
+                    {statusFilter !== 'all' && (
+                      <button 
+                        onClick={() => setStatusFilter('all')}
+                        className="px-2 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               {/* Requests Table / Cards */}
@@ -765,6 +947,24 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
           {/* TAB 2: NEW PAYOUT / DEDUCTION FORM */}
           {activeTab === 'create' && (
+            !isHr ? (
+              <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-3xl border border-rose-200 text-center space-y-4 shadow-sm">
+                <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center mx-auto">
+                  <Lock className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Payout Entry Restricted</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Staff payout and deduction entry is strictly reserved for <strong>Regional HR Coordinators</strong> (Kristy Stewart & Amber Johnson). As <strong>{currentPersona.name} ({currentPersona.role})</strong>, your access is configured in <strong>Reviewer Mode</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('queue')}
+                  className="px-5 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                >
+                  Go to Reviewer Queue
+                </button>
+              </div>
+            ) : (
             <div className="max-w-3xl mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
               <div className="border-b border-slate-200 pb-4 mb-6">
                 <div className="flex items-center justify-between">
@@ -1084,6 +1284,113 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   </button>
                 </div>
               </form>
+            </div>
+            )
+          )}
+
+          {/* TAB 3: PAYROLL CUT-OFF CALENDAR (FOR REVIEWERS & AUDIT) */}
+          {activeTab === 'calendar' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div className="border-b border-slate-200 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-5 h-5 text-amber-600" />
+                      <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                        SST Semi-Monthly Payroll Cut-Off Schedule (2026–2027)
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      District deadlines for Regional HR compensation entry, Chief People Officer authorization, and ADP payroll execution.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-xl">
+                    <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                    <div className="text-xs font-bold text-amber-900">
+                      Next Cut-Off: <strong>Sept 25, 2026 (5 Days Left)</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline Process Steps */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200">
+                    <div className="flex items-center space-x-2 text-xs font-black text-emerald-900">
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">1</span>
+                      <span>Regional HR Entry</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 mt-1.5 leading-snug">
+                      Regional HR coordinators submit staff payout or deduction entries and attach required documents by <strong>5:00 PM on the cut-off date</strong>.
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50/60 p-4 rounded-2xl border border-purple-200">
+                    <div className="flex items-center space-x-2 text-xs font-black text-purple-900">
+                      <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">2</span>
+                      <span>CPO Review & Digital E-Sign</span>
+                    </div>
+                    <p className="text-[11px] text-purple-800 mt-1.5 leading-snug">
+                      Chief People Officer (Dr. Kevin Demirci) reviews the employee compensation dossier and signs with PIN verification.
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-50/60 p-4 rounded-2xl border border-blue-200">
+                    <div className="flex items-center space-x-2 text-xs font-black text-blue-900">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">3</span>
+                      <span>Payroll ADP Batching</span>
+                    </div>
+                    <p className="text-[11px] text-blue-800 mt-1.5 leading-snug">
+                      Payroll Coordinator (Paola Comparini) pulls approved requests, enters adjustments into ADP Workforce Now, and logs confirmation numbers.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Pay Cycle Table */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="px-4 py-3">Payroll Cycle</th>
+                        <th className="px-4 py-3">Regional HR Cut-Off Date</th>
+                        <th className="px-4 py-3">Target Pay Date</th>
+                        <th className="px-4 py-3">Cycle Status</th>
+                        <th className="px-4 py-3 text-right">Remaining Window</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {SST_PAYROLL_CYCLES.map(cycle => (
+                        <tr key={cycle.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3 font-bold text-slate-900">
+                            {cycle.cycleName}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-slate-800">
+                            {formatDate(cycle.cutoffDate)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {formatDate(cycle.payDate)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              cycle.status === 'upcoming' 
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {cycle.status === 'upcoming' ? '⏳ Active Submission Window' : 'Scheduled'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-700">
+                            {cycle.status === 'upcoming' ? (
+                              <span className="text-amber-800 font-black">5 Days Remaining</span>
+                            ) : (
+                              <span className="text-slate-400">Scheduled</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </div>

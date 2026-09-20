@@ -253,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* CPO Payout & Deduction Approval System */}
+            {/* CPO Payout Entry (HR) vs Payout Reviewer (Others) */}
             {(onSelectHubTab || onOpenPayoutModal) && (
               <button
                 type="button"
@@ -266,7 +266,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
                 className={`relative inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
                   activeHubTab === 'payouts'
-                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                    ? isHr
+                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                      : 'bg-rose-600 text-white border-rose-600 shadow-xs'
                     : isCpo
                       ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-900'
                       : isHr
@@ -274,22 +276,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
                 title={
-                  isCpo
-                    ? 'Review and approve staff payout and payroll deduction requests'
-                    : isHr
-                      ? 'Submit staff payout or deduction requests for upcoming payroll cut-off'
+                  isHr
+                    ? 'Submit staff payout or deduction entries for upcoming payroll cut-off (HR Coordinator Entry)'
+                    : isCpo
+                      ? 'Review and digitally authorize staff payout and deduction requests (CPO Reviewer)'
                       : isPayroll
-                        ? 'Execute CPO-approved payouts in ADP Payroll'
-                        : 'View CPO staff payout & deduction approvals'
+                        ? 'Review CPO-authorized payouts and record ADP batch numbers (Payroll Reviewer)'
+                        : 'Review staff payout and deduction records (Reviewer Mode)'
                 }
               >
                 <DollarSign className={`w-4 h-4 ${
-                  activeHubTab === 'payouts' ? 'text-white' : isCpo ? 'text-rose-600' : isHr ? 'text-emerald-600' : 'text-slate-600'
+                  activeHubTab === 'payouts' ? 'text-white' : isHr ? 'text-emerald-600' : isCpo ? 'text-rose-600' : 'text-slate-600'
                 }`} />
                 <span className="hidden sm:inline">
-                  {isCpo ? 'CPO Payouts' : isHr ? 'Request Payout' : isPayroll ? 'Payout Closeout' : 'Payouts'}
+                  {isHr ? 'Payout Entry' : isCpo ? 'CPO Reviewer' : isPayroll ? 'Payroll Reviewer' : 'Payout Reviewer'}
                 </span>
-                {pendingPayoutsCount > 0 && (
+                {pendingPayoutsCount > 0 && !isHr && (
                   <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-black shadow-xs ${
                     activeHubTab === 'payouts' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
                   }`}>

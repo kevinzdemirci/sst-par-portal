@@ -8,7 +8,8 @@ import {
   Check, 
   ShieldCheck, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react';
 
 interface ActivationEmailModalProps {
@@ -55,9 +56,17 @@ Human Capital & HR Systems
 School of Science and Technology Charter District`;
 
   const mailtoUrl = `mailto:${encodeURIComponent(role.email)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+  const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(role.email)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+  const outlookWebUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(role.email)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(emailBodyText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const handleCopyLinkOnly = () => {
+    navigator.clipboard.writeText(activationUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };
@@ -185,35 +194,79 @@ School of Science and Technology Charter District`;
         </div>
 
         {/* Modal Action Bar */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <a
-              href={mailtoUrl}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-colors shadow-2xs"
-              title="Open your email client (Outlook, Gmail, Apple Mail) with this message pre-filled"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Send via Outlook / Gmail</span>
-            </a>
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col gap-3 shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Dispatch to Approver ({role.email}):
+            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleCopyLinkOnly}
+                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors inline-flex items-center space-x-1"
+                title="Copy only the direct activation URL"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                <span>Copy Link Only</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors inline-flex items-center space-x-1"
+                title="Copy full official invitation letter text"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                <span>Copy Full Email</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Mail App */}
+              <a
+                href={mailtoUrl}
+                className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl transition-colors shadow-2xs"
+                title="Launch default email app (Apple Mail, Outlook, Thunderbird)"
+              >
+                <Send className="w-3.5 h-3.5 text-amber-300" />
+                <span>Send via Mail App</span>
+              </a>
+
+              {/* Gmail Web */}
+              <a
+                href={gmailWebUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition-colors"
+                title="Open new draft in Gmail Web (Google Workspace)"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-red-600" />
+                <span>Open Gmail Web</span>
+              </a>
+
+              {/* Outlook 365 Web */}
+              <a
+                href={outlookWebUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl transition-colors"
+                title="Open new draft in Outlook 365 Web"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                <span>Open Outlook 365</span>
+              </a>
+            </div>
 
             <button
               type="button"
-              onClick={handleCopy}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors"
-              title="Copy the full email message and activation link"
+              onClick={onClose}
+              className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors ml-auto"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-600" />}
-              <span>{copied ? 'Copied to Clipboard!' : 'Copy Link & Text'}</span>
+              Done / Close
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors"
-          >
-            Close
-          </button>
         </div>
 
       </div>

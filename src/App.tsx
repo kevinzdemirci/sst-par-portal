@@ -137,6 +137,7 @@ export function App() {
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
+  const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   
   // Notification Toast
@@ -200,6 +201,7 @@ export function App() {
         const matchedAppr = workflowConfig.approvers.find((a) => a.id === activateId);
         if (matchedAppr) {
           setTargetAccountRole(matchedAppr);
+          setIsActivationFlow(true);
           setIsAccountModalOpen(true);
         } else {
           const matchedPersona = availablePersonas.find((p) => p.id === activateId);
@@ -220,6 +222,7 @@ export function App() {
               signingPin: matchedPersona.signingPin,
               signatureImage: matchedPersona.signatureImage
             });
+            setIsActivationFlow(true);
             setIsAccountModalOpen(true);
           }
         }
@@ -613,11 +616,12 @@ export function App() {
       };
     });
 
-    // 3. Switch active persona ONLY if editing own account or if user is not Super Admin
-    if (!isChiefPeopleOfficer(currentPersona) || newPersona.id === currentPersona.id) {
+    // 3. Switch active persona if editing own account, or if user is not Super Admin, or if activating from invite
+    if (!isChiefPeopleOfficer(currentPersona) || newPersona.id === currentPersona.id || isActivationFlow) {
       setCurrentPersona(newPersona);
       setFilterActionQueue(true);
-      showToast(`🎉 Account activated for ${newPersona.name}! Digital signature and PIN saved for ${newPersona.role}.`, 'success');
+      showToast(`🎉 Welcome to SST, ${newPersona.name}! Digital signature and PIN activated for ${newPersona.role}.`, 'success');
+      setIsActivationFlow(false);
     } else {
       showToast(`🎉 Profile details and picture updated for ${newPersona.name} (${newPersona.role})!`, 'success');
     }
@@ -1014,13 +1018,21 @@ export function App() {
           workflowConfig={workflowConfig}
           currentPersona={currentPersona}
           initialRole={targetAccountRole || undefined}
+          isActivationFlow={isActivationFlow}
           onClose={() => {
             setIsAccountModalOpen(false);
             setTargetAccountRole(null);
+            setIsActivationFlow(false);
           }}
           onAccountCreated={handleAccountCreated}
           onDeleteRole={handleDeleteRole}
           onDeactivateAccount={handleDeactivateRoleAccount}
+          onSendActivationEmail={(appr) => {
+            setIsAccountModalOpen(false);
+            setTargetAccountRole(null);
+            setIsActivationFlow(false);
+            setActivationEmailTarget(appr);
+          }}
         />
       )}
 
@@ -1075,6 +1087,7 @@ export function App() {
                 });
               }
             }
+            setIsActivationFlow(true);
             setIsAccountModalOpen(true);
           }}
         />

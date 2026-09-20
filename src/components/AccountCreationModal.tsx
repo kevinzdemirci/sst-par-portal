@@ -14,7 +14,8 @@ import {
   Check, 
   Lock, 
   CheckCircle2,
-  Trash2
+  Trash2,
+  Mail
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { compressImageFile } from '../utils/imageCompressor';
@@ -28,6 +29,8 @@ interface AccountCreationModalProps {
   onAccountCreated: (newPersona: UserPersona, updatedApprover: ApproverRoleConfig) => void;
   onDeleteRole?: (roleId: string) => void;
   onDeactivateAccount?: (roleId: string) => void;
+  onSendActivationEmail?: (role: ApproverRoleConfig) => void;
+  isActivationFlow?: boolean;
 }
 
 const PRESET_AVATARS = [
@@ -47,13 +50,16 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   onClose,
   onAccountCreated,
   onDeleteRole,
-  onDeactivateAccount
+  onDeactivateAccount,
+  onSendActivationEmail,
+  isActivationFlow = false
 }) => {
   const isCpo = isChiefPeopleOfficer(currentPersona);
+  const isEffectiveCpo = isCpo && !isActivationFlow;
 
   // Determine initial role
   const defaultRole = initialRole || (currentPersona ? workflowConfig.approvers.find(a => a.id === currentPersona.id) : null) || workflowConfig.approvers[0];
-  const [selectedRoleId, setSelectedRoleId] = useState<string>(defaultRole?.id || (isCpo ? 'new-custom' : workflowConfig.approvers[0]?.id));
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(defaultRole?.id || (isEffectiveCpo ? 'new-custom' : workflowConfig.approvers[0]?.id));
   const activeSelectedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
 
   // Profile Information
@@ -211,6 +217,77 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
     setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=${randomBg}&color=fff&size=160&bold=true`);
   };
 
+  // Save new approver role and dispatch activation email invitation
+  const handleSaveAndSendInvite = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!name.trim()) {
+      alert('Please enter the full name for this role.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+    if (!title.trim()) {
+      alert('Please enter an official title.');
+      return;
+    }
+
+    const matchedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
+    const personaId = matchedApprover ? matchedApprover.id : `appr-${Date.now().toString(36)}`;
+    const signerId = matchedApprover?.signerId || `SST-SIG-${Math.floor(100000 + Math.random() * 900000)}`;
+    const canReviewStages: WorkflowStage[] = matchedApprover?.canReviewStages || [
+      'supervisor_review',
+      'regional_review', 
+      'hr_review', 
+      'cpo_review',
+      'benefits_review', 
+      'payroll_action'
+    ];
+
+    const newPersona: UserPersona = {
+      id: personaId,
+      name: name.trim(),
+      role: title.trim() || 'Designated Approver',
+      department: department.trim() || 'Central Administration',
+      email: email.trim().toLowerCase(),
+      campus: campus.trim() || 'District Central Office',
+      region: region.trim() || 'All SST Schools',
+      avatar,
+      canReviewStages,
+      ipAddress: matchedApprover?.ipAddress || '208.184.164.228',
+      signerId,
+      signingPin: securityPin || '123456',
+      signatureStyle,
+      signatureImage: signatureMode === 'drawn' ? drawnSignatureData || undefined : undefined,
+      isAccountActivated: false
+    };
+
+    const updatedApprover: ApproverRoleConfig = {
+      id: personaId,
+      roleKey: matchedApprover?.roleKey || 'custom',
+      title: newPersona.role,
+      name: newPersona.name,
+      email: newPersona.email,
+      department: newPersona.department,
+      campus: newPersona.campus,
+      region: newPersona.region || 'All SST Schools',
+      signerId,
+      ipAddress: newPersona.ipAddress,
+      avatar,
+      canReviewStages,
+      signingPin: newPersona.signingPin,
+      signatureImage: newPersona.signatureImage,
+      isAccountActivated: false
+    };
+
+    onAccountCreated(newPersona, updatedApprover);
+    if (onSendActivationEmail) {
+      onSendActivationEmail(updatedApprover);
+    }
+  };
+
   // Submit / Activate
   const handleActivateAccount = (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,16 +387,22 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold tracking-tight">
-                  {isCpo ? 'SST Approver Account Creation & Role Activation' : 'My Electronic Signature & Approver Profile'}
+                  {isActivationFlow 
+                    ? 'SST Approver Self-Onboarding & Signature Activation'
+                    : isEffectiveCpo 
+                      ? 'SST Approver Account Creation & Role Activation' 
+                      : 'My Electronic Signature & Approver Profile'}
                 </h2>
                 <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-blue-950">
-                  {isCpo ? 'District Super Admin' : 'Designated Approver'}
+                  {isActivationFlow ? 'Self-Onboarding' : isEffectiveCpo ? 'District Super Admin' : 'Designated Approver'}
                 </span>
               </div>
               <p className="text-xs text-blue-100">
-                {isCpo 
-                  ? 'Add or claim workflow roles, configure digital signatures, and register district approvers.' 
-                  : 'Configure your personal electronic signature, signature style, and secure 6-digit signing PIN.'}
+                {isActivationFlow
+                  ? 'Complete your self-onboarding, establish your 4-6 digit signing PIN, and activate your electronic signature profile.'
+                  : isEffectiveCpo 
+                    ? 'Add or claim workflow roles, configure digital signatures, and register district approvers.' 
+                    : 'Configure your personal electronic signature, signature style, and secure 6-digit signing PIN.'}
               </p>
             </div>
           </div>
@@ -340,16 +423,16 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
             <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center space-x-2">
                 <span className="w-5 h-5 rounded-full bg-[#0f2352] text-white flex items-center justify-center text-[10px]">1</span>
-                <span>{isCpo ? 'Select the Workflow Role You Are Claiming' : 'Assigned Approver Role (Locked)'}</span>
+                <span>{isEffectiveCpo ? 'Select the Workflow Role You Are Claiming' : 'Assigned Approver Role (Designated)'}</span>
               </div>
-              {!isCpo && (
+              {!isEffectiveCpo && (
                 <span className="text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
-                  Managed by CPO
+                  {isActivationFlow ? 'Invited Approver' : 'Managed by CPO'}
                 </span>
               )}
             </div>
 
-            {isCpo ? (
+            {isEffectiveCpo ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
@@ -745,7 +828,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
             </div>
 
             {/* Right-side Cancel & Submit buttons */}
-            <div className="flex items-center space-x-3 self-end sm:self-auto">
+            <div className="flex flex-wrap items-center gap-2.5 self-end sm:self-auto">
               <button
                 type="button"
                 onClick={onClose}
@@ -754,12 +837,32 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
                 Cancel
               </button>
 
+              {isEffectiveCpo && onSendActivationEmail && (
+                <button
+                  type="button"
+                  onClick={handleSaveAndSendInvite}
+                  className="inline-flex items-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95"
+                  title="Save role definition and immediately open the official activation email invitation"
+                >
+                  <Mail className="w-4 h-4 text-amber-300" />
+                  <span>Save & Send Activation Email</span>
+                </button>
+              )}
+
               <button
                 type="submit"
-                className="inline-flex items-center space-x-2 px-6 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white font-black text-xs rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95"
+                className={`inline-flex items-center space-x-2 px-6 py-2.5 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 ${
+                  isEffectiveCpo ? 'bg-[#0f2352] hover:bg-[#1a3880]' : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
               >
                 <Check className="w-4 h-4" />
-                <span>{isCpo ? 'Complete Setup & Activate Role' : 'Save My Digital Signature & PIN'}</span>
+                <span>
+                  {isActivationFlow 
+                    ? 'Confirm & Activate My Approver Account'
+                    : isEffectiveCpo 
+                      ? 'Activate Immediately' 
+                      : 'Save My Digital Signature & PIN'}
+                </span>
               </button>
             </div>
           </div>

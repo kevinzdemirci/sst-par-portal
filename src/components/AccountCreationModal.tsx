@@ -65,6 +65,23 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   const [region, setRegion] = useState<string>(defaultRole?.region || 'All SST Schools');
   const [avatar, setAvatar] = useState<string>(defaultRole?.avatar || PRESET_AVATARS[0].url);
 
+  // Synchronize state whenever initialRole prop changes
+  useEffect(() => {
+    if (initialRole) {
+      setSelectedRoleId(initialRole.id);
+      setName(initialRole.name);
+      setEmail(initialRole.email);
+      setTitle(initialRole.title);
+      setDepartment(initialRole.department || 'Central Administration');
+      setCampus(initialRole.campus || 'District Central Office');
+      setRegion(initialRole.region || 'All SST Schools');
+      setAvatar(initialRole.avatar || PRESET_AVATARS[0].url);
+      if (initialRole.signingPin) {
+        setSecurityPin(initialRole.signingPin);
+      }
+    }
+  }, [initialRole]);
+
   // Security & Signature
   const [securityPin, setSecurityPin] = useState<string>('123456');
   const [signatureMode, setSignatureMode] = useState<'typed' | 'drawn'>('typed');
@@ -81,9 +98,13 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   const handleRoleSelect = (roleId: string) => {
     setSelectedRoleId(roleId);
     if (roleId === 'new-custom') {
+      setName('');
+      setEmail('');
       setTitle('');
       setDepartment('Central Administration');
+      setCampus('District Central Office');
       setRegion('All SST Campuses');
+      setAvatar(PRESET_AVATARS[0].url);
     } else {
       const role = workflowConfig.approvers.find(a => a.id === roleId);
       if (role) {
@@ -94,6 +115,9 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
         setCampus(role.campus || 'District Central Office');
         setRegion(role.region);
         setAvatar(role.avatar);
+        if (role.signingPin) {
+          setSecurityPin(role.signingPin);
+        }
       }
     }
   };

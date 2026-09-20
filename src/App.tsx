@@ -124,7 +124,8 @@ export function App() {
     } catch {
       // ignore
     }
-    return USER_PERSONAS[0]; // Vanessa Nguyen (Principal)
+    const cpoPersona = USER_PERSONAS.find((p) => p.email.toLowerCase() === 'kdemirci@ssttx.org') || USER_PERSONAS[0];
+    return cpoPersona; // Default to Dr. Kevin Demirci (Chief People Officer / Super Admin)
   });
 
   // UI state
@@ -612,13 +613,33 @@ export function App() {
       };
     });
 
-    // 3. Switch current active persona to this newly activated account
-    setCurrentPersona(newPersona);
+    // 3. Switch active persona ONLY if editing own account or if user is not Super Admin
+    if (!isChiefPeopleOfficer(currentPersona) || newPersona.id === currentPersona.id) {
+      setCurrentPersona(newPersona);
+      setFilterActionQueue(true);
+      showToast(`🎉 Account activated for ${newPersona.name}! Digital signature and PIN saved for ${newPersona.role}.`, 'success');
+    } else {
+      showToast(`🎉 Profile details and picture updated for ${newPersona.name} (${newPersona.role})!`, 'success');
+    }
+  };
 
-    // 4. Focus their pending actions queue
-    setFilterActionQueue(true);
+  // Directly update photo/picture for any role in the district
+  const handleUpdateRolePhoto = (roleId: string, newPhoto: string) => {
+    // 1. Update in workflowConfig.approvers
+    setWorkflowConfig((prev) => ({
+      ...prev,
+      approvers: prev.approvers.map((a) => (a.id === roleId ? { ...a, avatar: newPhoto } : a))
+    }));
 
-    showToast(`🎉 Account activated for ${newPersona.name}! Digital signature and PIN saved for ${newPersona.role}.`, 'success');
+    // 2. Update in availablePersonas
+    setAvailablePersonas((prev) => prev.map((p) => (p.id === roleId ? { ...p, avatar: newPhoto } : p)));
+
+    // 3. Update current persona if it matches
+    if (currentPersona.id === roleId) {
+      setCurrentPersona((prev) => ({ ...prev, avatar: newPhoto }));
+    }
+
+    showToast('📸 Profile picture updated successfully!', 'success');
   };
 
   // Delete / Remove Approver Role entirely (Chief People Officer Only)
@@ -997,6 +1018,7 @@ export function App() {
           onSelectPersona={setCurrentPersona}
           onDeleteRole={handleDeleteRole}
           onDeactivateAccount={handleDeactivateRoleAccount}
+          onUpdateRolePhoto={handleUpdateRolePhoto}
           onSendActivationEmail={(role) => setActivationEmailTarget(role)}
           onOpenAccountModal={(role) => {
             setIsRoleManagerOpen(false);

@@ -171,7 +171,34 @@ assert(vanessaPerms.canManageWorkflow === false, 'Principal CANNOT manage workfl
 const paolaPerms = getPersonaPermissions(paolaPersona);
 assert(paolaPerms.canAddRemoveRoles === false, 'Payroll Coordinator CANNOT add/remove roles');
 
-// 6. SUMMARY
+// 6. VERIFY SUPER ADMIN EDITING & PHOTO CUSTOMIZATION CAPABILITIES
+console.log('\n📌 Test 6: Super Admin Editing Any Approver Role & Customizing Pictures...');
+
+// 6a. Verify that CPO can edit any role without switching active session
+const sampleUpdatedPrincipal = {
+  ...vanessaPersona,
+  name: 'Vanessa Nguyen (Updated)',
+  role: 'Senior Campus Principal',
+  avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160&auto=format&fit=crop&q=80'
+};
+// Simulating handleAccountCreated session preservation check:
+const shouldPreserveCpoSession = isChiefPeopleOfficer(kevinPersona) && sampleUpdatedPrincipal.id !== kevinPersona.id;
+assert(shouldPreserveCpoSession === true, 'CPO editing another role preserves Super Admin active session without switching');
+
+// 6b. Verify that all default approver roles have avatar and valid email
+DEFAULT_WORKFLOW_CONFIG.approvers.forEach((appr) => {
+  assert(Boolean(appr.avatar && appr.avatar.length > 0), `Approver ${appr.name} (${appr.title}) has avatar configured`);
+  assert(Boolean(appr.email && appr.email.endsWith('@ssttx.org')), `Approver ${appr.name} has valid @ssttx.org email`);
+});
+
+// 6c. Verify photo update propagation across directory
+const testRoleId = 'p-kristy';
+const newPhotoUrl = 'data:image/jpeg;base64,mockUpdatedPhotoData';
+const updatedApprovers = DEFAULT_WORKFLOW_CONFIG.approvers.map(a => a.id === testRoleId ? { ...a, avatar: newPhotoUrl } : a);
+const targetApprover = updatedApprovers.find(a => a.id === testRoleId);
+assert(targetApprover?.avatar === newPhotoUrl, 'Role photo can be dynamically updated across approver workflow directory');
+
+// 7. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

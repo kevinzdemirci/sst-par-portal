@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
-import { canPersonaActOnPar } from '../utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer } from '../utils/formatters';
 import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2 } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 
@@ -39,6 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   districtName
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
+  const isCpo = isChiefPeopleOfficer(currentPersona);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
@@ -91,7 +92,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onChange={(e) => {
                   if (e.target.value === '__NEW_ACCOUNT__') {
                     if (onOpenAccountModal) onOpenAccountModal();
-                  } else if (e.target.value === '__MANAGE_ROLES__') {
+                  } else if (e.target.value === '__MY_ESIGN__') {
+                    // Non-CPO self-onboarding: opens their own profile
+                    const matchedAppr = currentPersona ? {
+                      id: currentPersona.id,
+                      name: currentPersona.name,
+                      title: currentPersona.role,
+                      roleKey: 'custom',
+                      email: currentPersona.email,
+                      department: currentPersona.department,
+                      campus: currentPersona.campus,
+                      region: currentPersona.region || 'All SST Campuses',
+                      avatar: currentPersona.avatar,
+                      signerId: currentPersona.signerId,
+                      ipAddress: currentPersona.ipAddress,
+                      isAccountActivated: currentPersona.isAccountActivated,
+                      signingPin: currentPersona.signingPin,
+                      signatureImage: currentPersona.signatureImage,
+                      canReviewStages: currentPersona.canReviewStages
+                    } : undefined;
+                    if (onOpenAccountModal) onOpenAccountModal(matchedAppr as any);
+                  } else if (e.target.value === '__MANAGE_ROLES__' || e.target.value === '__VIEW_DIRECTORY__') {
                     if (onOpenRoleManagerModal) onOpenRoleManagerModal();
                   } else {
                     const found = availablePersonas.find(p => p.id === e.target.value);
@@ -108,9 +129,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Account Setup & Directory">
-                  <option value="__NEW_ACCOUNT__">+ Activate Role / Create Approver Account...</option>
-                  <option value="__MANAGE_ROLES__">⚙️ Manage / Remove Roles...</option>
+                <optgroup label={isCpo ? "District Administration Controls" : "My Account & Directory"}>
+                  {isCpo ? (
+                    <>
+                      <option value="__NEW_ACCOUNT__">+ Add Approver Role / Create Account...</option>
+                      <option value="__MANAGE_ROLES__">⚙️ Manage & Remove Roles...</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="__MY_ESIGN__">✍️ Configure My E-Sign Profile...</option>
+                      <option value="__VIEW_DIRECTORY__">👥 View Approvers Directory...</option>
+                    </>
+                  )}
                 </optgroup>
               </select>
 
@@ -120,28 +150,59 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* Manage / Remove Roles Button */}
+            {/* Manage Roles (CPO Only) or View Directory (All Roles) */}
             {onOpenRoleManagerModal && (
               <button
                 type="button"
                 onClick={onOpenRoleManagerModal}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 transition-colors shadow-2xs"
-                title="Manage and remove roles from the SST directory"
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs border ${
+                  isCpo 
+                    ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800' 
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                }`}
+                title={isCpo ? "Manage, add, and remove roles from the SST directory (CPO Admin)" : "View SST Approver Directory"}
               >
-                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                <span className="hidden sm:inline">Manage Roles</span>
+                {isCpo ? <Trash2 className="w-3.5 h-3.5 text-rose-600" /> : <Users className="w-3.5 h-3.5 text-slate-600" />}
+                <span className="hidden sm:inline">{isCpo ? 'Manage Roles' : 'Directory'}</span>
               </button>
             )}
 
-            {/* Account Creation / Role Activation Button */}
+            {/* Activate Role (CPO) or Configure My E-Sign (Other Personas) */}
             {onOpenAccountModal && (
               <button
-                onClick={() => onOpenAccountModal()}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 transition-colors shadow-2xs"
-                title="Create account or activate your role"
+                onClick={() => {
+                  if (isCpo) {
+                    onOpenAccountModal();
+                  } else {
+                    const matchedAppr = currentPersona ? {
+                      id: currentPersona.id,
+                      name: currentPersona.name,
+                      title: currentPersona.role,
+                      roleKey: 'custom',
+                      email: currentPersona.email,
+                      department: currentPersona.department,
+                      campus: currentPersona.campus,
+                      region: currentPersona.region || 'All SST Campuses',
+                      avatar: currentPersona.avatar,
+                      signerId: currentPersona.signerId,
+                      ipAddress: currentPersona.ipAddress,
+                      isAccountActivated: currentPersona.isAccountActivated,
+                      signingPin: currentPersona.signingPin,
+                      signatureImage: currentPersona.signatureImage,
+                      canReviewStages: currentPersona.canReviewStages
+                    } : undefined;
+                    onOpenAccountModal(matchedAppr as any);
+                  }
+                }}
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs border ${
+                  isCpo
+                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
+                    : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-[#0f2352]'
+                }`}
+                title={isCpo ? "Add or activate approver roles" : "Configure your personal digital signature and signing PIN"}
               >
-                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden sm:inline">Activate Role</span>
+                <UserCheck className={`w-3.5 h-3.5 ${isCpo ? 'text-emerald-600' : 'text-blue-600'}`} />
+                <span className="hidden sm:inline">{isCpo ? 'Activate Role' : 'My E-Sign'}</span>
               </button>
             )}
 
@@ -176,15 +237,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden lg:inline">Routing Map</span>
             </button>
 
-            {/* Admin Tool: Workflow & Approver Config Button */}
-            <button
-              onClick={onOpenAdminModal}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#0f2352]/5 hover:bg-[#0f2352]/10 border border-[#0f2352]/20 text-[#0f2352] transition-colors shadow-2xs"
-              title="Open SST Workflow & Approver Admin Tool"
-            >
-              <Sliders className="w-3.5 h-3.5 text-[#b91c1c]" />
-              <span className="hidden sm:inline">Workflow Admin</span>
-            </button>
+            {/* Admin Tool: Workflow & Approver Config Button — RESTRICTED TO CHIEF PEOPLE OFFICER ONLY */}
+            {isCpo && (
+              <button
+                onClick={onOpenAdminModal}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#0f2352]/5 hover:bg-[#0f2352]/10 border border-[#0f2352]/20 text-[#0f2352] transition-colors shadow-2xs"
+                title="Open SST Workflow & Approver Admin Tool (Chief People Officer only)"
+              >
+                <Sliders className="w-3.5 h-3.5 text-[#b91c1c]" />
+                <span className="hidden sm:inline">Workflow Admin</span>
+              </button>
+            )}
 
             {/* Reset mock data */}
             <button

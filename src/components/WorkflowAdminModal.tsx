@@ -8,10 +8,12 @@ import {
   RuleRegionCondition,
   RuleVoluntaryCondition,
   ActionType,
-  SchoolLocation
+  SchoolLocation,
+  UserPersona
 } from '../types/par';
 import { DEFAULT_WORKFLOW_CONFIG, DEFAULT_SST_ROUTING_RULES, buildSstRouting } from '../data/mockData';
 import { compressImageFile } from '../utils/imageCompressor';
+import { isChiefPeopleOfficer } from '../utils/formatters';
 import { 
   X, 
   Settings, 
@@ -46,6 +48,7 @@ import {
 
 interface WorkflowAdminModalProps {
   config: WorkflowConfig;
+  currentPersona?: UserPersona;
   initialTab?: 'rules' | 'approvers' | 'stages' | 'branding' | 'backup';
   onSaveConfig: (newConfig: WorkflowConfig) => void;
   onResetConfig: () => void;
@@ -80,6 +83,7 @@ const STAGE_OPTIONS: { stage: WorkflowStage; label: string }[] = [
 
 export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   config,
+  currentPersona,
   initialTab = 'rules',
   onSaveConfig,
   onResetConfig,
@@ -87,6 +91,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   onActivateApproverAccount,
   onSendActivationEmail
 }) => {
+  const isCpo = isChiefPeopleOfficer(currentPersona);
   const [activeTab, setActiveTab] = useState<'rules' | 'approvers' | 'stages' | 'branding' | 'backup'>(initialTab);
   const [routingRules, setRoutingRules] = useState<SstRoutingRule[]>(config.routingRules || DEFAULT_SST_ROUTING_RULES);
   const [approvers, setApprovers] = useState<ApproverRoleConfig[]>(config.approvers);
@@ -359,6 +364,10 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
 
   // Save changes
   const handleSave = () => {
+    if (!isCpo) {
+      alert('Access Denied: Only the Chief People Officer (Dr. Kevin Demirci) has permission to edit and save workflow configurations.');
+      return;
+    }
     const updated: WorkflowConfig = {
       stages,
       approvers,
@@ -373,6 +382,10 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
 
   // Reset to factory defaults
   const handleReset = () => {
+    if (!isCpo) {
+      alert('Access Denied: Only the Chief People Officer can reset workflow configurations.');
+      return;
+    }
     if (window.confirm('Reset all workflow settings, routing rules, approver names, emails, and pictures back to official SST defaults?')) {
       onResetConfig();
       setApprovers(DEFAULT_WORKFLOW_CONFIG.approvers);
@@ -453,6 +466,21 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Scoped Role Notice for Non-CPO Approvers */}
+        {!isCpo && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between text-xs text-amber-900 shrink-0">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Read-Only Scoped Mode:</strong> You are viewing workflow configurations as <strong>{currentPersona?.name || 'Staff'}</strong> ({currentPersona?.role || 'Approver'}). Routing rules, approver assignments, and district policies can only be modified by the <strong>Chief People Officer (Dr. Kevin Demirci)</strong>.
+              </span>
+            </div>
+            <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300 shrink-0 ml-2">
+              Scoped Role Access
+            </span>
+          </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="px-6 pt-3 bg-white border-b border-slate-200 flex flex-wrap gap-4 text-xs font-bold">
@@ -1558,13 +1586,19 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
               Close
             </button>
 
-            <button
-              onClick={handleSave}
-              className="inline-flex items-center space-x-1.5 px-5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save & Apply Configuration</span>
-            </button>
+            {isCpo ? (
+              <button
+                onClick={handleSave}
+                className="inline-flex items-center space-x-1.5 px-5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save & Apply Configuration</span>
+              </button>
+            ) : (
+              <div className="text-xs text-slate-500 italic px-3.5 py-2 bg-slate-100 rounded-xl border border-slate-200">
+                🔒 Saving restricted to Chief People Officer
+              </div>
+            )}
           </div>
         </div>
 

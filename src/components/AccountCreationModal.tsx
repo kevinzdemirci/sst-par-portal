@@ -18,9 +18,11 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { compressImageFile } from '../utils/imageCompressor';
+import { isChiefPeopleOfficer } from '../utils/formatters';
 
 interface AccountCreationModalProps {
   workflowConfig: WorkflowConfig;
+  currentPersona?: UserPersona;
   initialRole?: ApproverRoleConfig | null;
   onClose: () => void;
   onAccountCreated: (newPersona: UserPersona, updatedApprover: ApproverRoleConfig) => void;
@@ -40,15 +42,18 @@ const PRESET_AVATARS = [
 
 export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   workflowConfig,
+  currentPersona,
   initialRole,
   onClose,
   onAccountCreated,
   onDeleteRole,
   onDeactivateAccount
 }) => {
+  const isCpo = isChiefPeopleOfficer(currentPersona);
+
   // Determine initial role
-  const defaultRole = initialRole || workflowConfig.approvers[0];
-  const [selectedRoleId, setSelectedRoleId] = useState<string>(defaultRole?.id || 'new-custom');
+  const defaultRole = initialRole || (currentPersona ? workflowConfig.approvers.find(a => a.id === currentPersona.id) : null) || workflowConfig.approvers[0];
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(defaultRole?.id || (isCpo ? 'new-custom' : workflowConfig.approvers[0]?.id));
   const activeSelectedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
 
   // Profile Information
@@ -281,14 +286,16 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold tracking-tight">
-                  SST Approver Account Creation & Role Activation
+                  {isCpo ? 'SST Approver Account Creation & Role Activation' : 'My Electronic Signature & Approver Profile'}
                 </h2>
                 <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-amber-400 text-blue-950">
-                  Self-Onboarding
+                  {isCpo ? 'District Super Admin' : 'Designated Approver'}
                 </span>
               </div>
               <p className="text-xs text-blue-100">
-                Claim your assigned workflow role, configure your digital signature, and activate your approval account
+                {isCpo 
+                  ? 'Add or claim workflow roles, configure digital signatures, and register district approvers.' 
+                  : 'Configure your personal electronic signature, signature style, and secure 6-digit signing PIN.'}
               </p>
             </div>
           </div>
@@ -306,48 +313,77 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
           
           {/* STEP 1: SELECT WORKFLOW ROLE */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs space-y-3">
-            <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2 border-b border-slate-100 pb-2">
-              <span className="w-5 h-5 rounded-full bg-[#0f2352] text-white flex items-center justify-center text-[10px]">1</span>
-              <span>Select the Workflow Role You Are Claiming</span>
+            <div className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center space-x-2">
+                <span className="w-5 h-5 rounded-full bg-[#0f2352] text-white flex items-center justify-center text-[10px]">1</span>
+                <span>{isCpo ? 'Select the Workflow Role You Are Claiming' : 'Assigned Approver Role (Locked)'}</span>
+              </div>
+              {!isCpo && (
+                <span className="text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
+                  Managed by CPO
+                </span>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                  Designated Workflow Role:
-                </label>
-                <select
-                  value={selectedRoleId}
-                  onChange={(e) => handleRoleSelect(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
-                >
-                  <optgroup label="Configured SST Workflow Roles">
-                    {workflowConfig.approvers.map(a => (
-                      <option key={a.id} value={a.id}>
-                        {a.title} ({a.name}) — {a.region}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Other Options">
-                    <option value="new-custom">+ Register a New Custom Workflow Role</option>
-                  </optgroup>
-                </select>
-              </div>
+            {isCpo ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Designated Workflow Role:
+                  </label>
+                  <select
+                    value={selectedRoleId}
+                    onChange={(e) => handleRoleSelect(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
+                  >
+                    <optgroup label="Configured SST Workflow Roles">
+                      {workflowConfig.approvers.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.title} ({a.name}) — {a.region}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Other Options">
+                      <option value="new-custom">+ Register a New Custom Workflow Role</option>
+                    </optgroup>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                  Official Title:
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Chief People Officer / Regional Exec Director"
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
-                />
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Official Title:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Chief People Officer / Regional Exec Director"
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Designated Approver Name & Role:
+                  </label>
+                  <div className="w-full bg-slate-100 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    {name} — {title}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                    Department & Assigned Region:
+                  </label>
+                  <div className="w-full bg-slate-100 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-700 font-medium">
+                    {department} • {region}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* STEP 2: PERSONAL IDENTITY & CONTACT */}
@@ -647,7 +683,8 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
             
             {/* Left-side role removal & e-sign deactivation options */}
             <div className="flex items-center space-x-2 self-start sm:self-auto">
-              {activeSelectedApprover && onDeleteRole && (
+              {/* Only Chief People Officer can delete roles from workflow */}
+              {isCpo && activeSelectedApprover && onDeleteRole && (
                 <button
                   type="button"
                   onClick={() => {
@@ -657,14 +694,15 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
                     }
                   }}
                   className="inline-flex items-center space-x-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition-colors"
-                  title="Permanently remove this role from the workflow"
+                  title="Permanently remove this role from the workflow (CPO Admin)"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                   <span>Remove Role</span>
                 </button>
               )}
 
-              {activeSelectedApprover?.isAccountActivated && onDeactivateAccount && (
+              {/* Deactivate digital signature: CPO for anyone, non-CPO for self only */}
+              {activeSelectedApprover?.isAccountActivated && onDeactivateAccount && (isCpo || activeSelectedApprover.id === currentPersona?.id) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -697,7 +735,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
                 className="inline-flex items-center space-x-2 px-6 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white font-black text-xs rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95"
               >
                 <Check className="w-4 h-4" />
-                <span>Complete Setup & Activate Role</span>
+                <span>{isCpo ? 'Complete Setup & Activate Role' : 'Save My Digital Signature & PIN'}</span>
               </button>
             </div>
           </div>

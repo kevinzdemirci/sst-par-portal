@@ -10,7 +10,7 @@ import {
   ApproverRoleConfig
 } from './types/par';
 import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG } from './data/mockData';
-import { canPersonaActOnPar } from './utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -23,7 +23,7 @@ import { WorkflowAdminModal } from './components/WorkflowAdminModal';
 import { AccountCreationModal } from './components/AccountCreationModal';
 import { RoleManagerModal } from './components/RoleManagerModal';
 import { ActivationEmailModal } from './components/ActivationEmailModal';
-import { CheckCircle, AlertCircle, Info, Trash2 } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, Trash2, Users } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
 const PERSONA_KEY = 'sst_par_persona_v2';
@@ -232,8 +232,12 @@ export function App() {
     setToastMessage({ text, type });
   };
 
-  // Handle saving workflow configuration from the Admin Tool
+  // Handle saving workflow configuration from the Admin Tool (Chief People Officer Only)
   const handleSaveWorkflowConfig = (newConfig: WorkflowConfig) => {
+    if (!isChiefPeopleOfficer(currentPersona)) {
+      showToast('Unauthorized: Only the Chief People Officer (Dr. Kevin Demirci) can edit workflow configurations.', 'warning');
+      return;
+    }
     setWorkflowConfig(newConfig);
 
     // Identify current approver IDs and emails in the saved config
@@ -617,8 +621,13 @@ export function App() {
     showToast(`🎉 Account activated for ${newPersona.name}! Digital signature and PIN saved for ${newPersona.role}.`, 'success');
   };
 
-  // Delete / Remove Approver Role entirely
+  // Delete / Remove Approver Role entirely (Chief People Officer Only)
   const handleDeleteRole = (roleId: string) => {
+    if (!isChiefPeopleOfficer(currentPersona)) {
+      showToast('Unauthorized: Only the Chief People Officer (Dr. Kevin Demirci) can remove roles from the workflow.', 'warning');
+      return;
+    }
+
     const roleToDelete = workflowConfig.approvers.find((a) => a.id === roleId);
     if (!roleToDelete) return;
 
@@ -659,6 +668,11 @@ export function App() {
 
   // Deactivate Approver Account (resets signature and PIN while keeping role definition)
   const handleDeactivateRoleAccount = (roleId: string) => {
+    if (!isChiefPeopleOfficer(currentPersona) && currentPersona.id !== roleId) {
+      showToast('Unauthorized: You can only deactivate your own digital signature profile.', 'warning');
+      return;
+    }
+
     setWorkflowConfig((prev) => ({
       ...prev,
       approvers: prev.approvers.map((a) => a.id === roleId ? {
@@ -783,35 +797,62 @@ export function App() {
               className="w-12 h-12 rounded-full object-cover border-2 border-amber-300 shadow-md shrink-0 ring-2 ring-white/20" 
             />
             <div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap">
                 <span className="text-xs uppercase font-bold tracking-wider text-blue-200">Active SST Persona:</span>
-                <span className="text-xs font-black bg-blue-500/30 px-2.5 py-0.5 rounded text-white border border-blue-400/30">
-                  {currentPersona.name} • {currentPersona.role}
-                </span>
+                {isChiefPeopleOfficer(currentPersona) ? (
+                  <span className="text-xs font-black bg-amber-400/20 text-amber-300 px-2.5 py-0.5 rounded-lg border border-amber-400/40 flex items-center space-x-1.5 shadow-xs">
+                    <span>👑 Super Admin:</span>
+                    <strong className="text-white">{currentPersona.name}</strong>
+                    <span>•</span>
+                    <span>{currentPersona.role}</span>
+                  </span>
+                ) : (
+                  <span className="text-xs font-black bg-blue-500/30 px-2.5 py-0.5 rounded-lg text-white border border-blue-400/30 flex items-center space-x-1.5">
+                    <span>🔒 Scoped Approver:</span>
+                    <span>{currentPersona.name}</span>
+                    <span>•</span>
+                    <span>{currentPersona.role}</span>
+                  </span>
+                )}
                 <span className="text-[10px] text-blue-300 hidden md:inline">({currentPersona.email})</span>
               </div>
               <p className="text-xs text-slate-200 mt-0.5">
                 School of Science and Technology • Simulating <strong className="text-white">{currentPersona.department}</strong>. 
-                Approving any request records electronic signature with IP <span className="font-mono text-blue-200">{currentPersona.ipAddress}</span> and advances to the next reviewer.
+                {isChiefPeopleOfficer(currentPersona) 
+                  ? ' Full administrative privileges: adding/removing roles, workflow routing, and executive approval.'
+                  : ' Permissions scoped strictly to your designated department and workflow stage sign-offs.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsRoleManagerOpen(true)}
-              className="text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/30 flex items-center space-x-1.5"
-              title="Manage and remove roles from the SST directory"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-300" />
-              <span>Manage / Remove Roles</span>
-            </button>
-            <button
-              onClick={() => setIsWorkflowAdminOpen(true)}
-              className="text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 px-3.5 py-2 rounded-xl transition-colors border border-amber-400/30 flex items-center space-x-1.5"
-            >
-              <span>⚙️ Workflow Admin</span>
-            </button>
+            {isChiefPeopleOfficer(currentPersona) ? (
+              <>
+                <button
+                  onClick={() => setIsRoleManagerOpen(true)}
+                  className="text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 px-3.5 py-2 rounded-xl transition-colors border border-rose-400/30 flex items-center space-x-1.5"
+                  title="Manage and remove roles from the SST directory (CPO Admin)"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-300" />
+                  <span>Manage / Remove Roles</span>
+                </button>
+                <button
+                  onClick={() => setIsWorkflowAdminOpen(true)}
+                  className="text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 px-3.5 py-2 rounded-xl transition-colors border border-amber-400/30 flex items-center space-x-1.5"
+                >
+                  <span>⚙️ Workflow Admin</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsRoleManagerOpen(true)}
+                className="text-xs font-medium bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20 flex items-center space-x-1.5"
+                title="View the SST approver directory"
+              >
+                <Users className="w-3.5 h-3.5 text-blue-200" />
+                <span>SST Directory</span>
+              </button>
+            )}
             <button
               onClick={() => setIsWorkflowModalOpen(true)}
               className="text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition-colors border border-white/20"
@@ -922,6 +963,7 @@ export function App() {
       {isWorkflowAdminOpen && (
         <WorkflowAdminModal
           config={workflowConfig}
+          currentPersona={currentPersona}
           onClose={() => setIsWorkflowAdminOpen(false)}
           onSaveConfig={handleSaveWorkflowConfig}
           onResetConfig={handleResetWorkflowConfig}
@@ -934,6 +976,7 @@ export function App() {
       {isAccountModalOpen && (
         <AccountCreationModal
           workflowConfig={workflowConfig}
+          currentPersona={currentPersona}
           initialRole={targetAccountRole || undefined}
           onClose={() => {
             setIsAccountModalOpen(false);

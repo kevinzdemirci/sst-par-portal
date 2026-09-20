@@ -272,3 +272,45 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
 
   return false;
 }
+
+/**
+ * Role-Based Access Control: Determines if the given persona is the Chief People Officer (Dr. Kevin Demirci).
+ * Chief People Officer has full administrative privileges: workflow administration, adding/removing roles,
+ * deactivating accounts, and editing district approval rules.
+ */
+export function isChiefPeopleOfficer(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  return (
+    persona.email.toLowerCase() === 'kdemirci@ssttx.org' ||
+    persona.role.toLowerCase().includes('chief people officer') ||
+    persona.id === 'p-kevin'
+  );
+}
+
+export interface PersonaPermissions {
+  isCpo: boolean;
+  canManageWorkflow: boolean;
+  canAddRemoveRoles: boolean;
+  canSendInvites: boolean;
+  canCreatePar: boolean;
+  canConfigureOwnEsign: boolean;
+  roleBadgeText: string;
+}
+
+export function getPersonaPermissions(persona: UserPersona): PersonaPermissions {
+  const isCpo = isChiefPeopleOfficer(persona);
+  const isPrincipalOrSupervisor = persona.role.includes('Principal') || persona.role.includes('Supervisor') || persona.canReviewStages.includes('supervisor_review');
+
+  return {
+    isCpo,
+    canManageWorkflow: isCpo,
+    canAddRemoveRoles: isCpo,
+    canSendInvites: isCpo,
+    canCreatePar: isCpo || isPrincipalOrSupervisor,
+    canConfigureOwnEsign: true,
+    roleBadgeText: isCpo 
+      ? 'Chief People Officer (Super Admin)' 
+      : `${persona.role} (${persona.department})`
+  };
+}
+

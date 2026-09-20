@@ -10,8 +10,10 @@ import {
   ShieldCheck, 
   AlertTriangle,
   CheckCircle2,
-  Mail
+  Mail,
+  Info
 } from 'lucide-react';
+import { isChiefPeopleOfficer } from '../utils/formatters';
 
 interface RoleManagerModalProps {
   availablePersonas: UserPersona[];
@@ -37,6 +39,7 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
   onClose
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const isCpo = isChiefPeopleOfficer(currentPersona);
 
   // Unify all roles from both availablePersonas and workflowConfig.approvers
   const allRoles = useMemo(() => {
@@ -142,32 +145,45 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
         <div className="p-6 bg-gradient-to-r from-[#0f2352] to-[#1a3880] text-white flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20">
-              <ShieldCheck className="w-6 h-6 text-amber-300" />
+              <ShieldCheck className={`w-6 h-6 ${isCpo ? 'text-amber-300' : 'text-blue-300'}`} />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-black tracking-tight">SST Role & Approver Directory Manager</h3>
-                <span className="text-[11px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">
-                  {allRoles.length} Total Roles
+                <h3 className="text-lg font-black tracking-tight">
+                  {isCpo ? 'SST Role & Approver Directory Manager' : 'SST Approver Directory'}
+                </h3>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                  isCpo 
+                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/30' 
+                    : 'bg-blue-400/20 text-blue-200 border-blue-400/30'
+                }`}>
+                  {isCpo ? 'Super Admin' : 'Read-Only View'}
+                </span>
+                <span className="text-[11px] font-bold bg-white/10 text-white px-2 py-0.5 rounded-full border border-white/20">
+                  {allRoles.length} Roles
                 </span>
               </div>
               <p className="text-xs text-blue-200 mt-0.5">
-                Remove any listed role, claim or activate electronic signatures, or configure custom approvers.
+                {isCpo 
+                  ? 'Add or remove approver roles, invite team members, and manage digital signature credentials.' 
+                  : 'SST executive & campus approver directory. Role creation, deletion, and routing are managed by the Chief People Officer.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => {
-                onClose();
-                onOpenAccountModal();
-              }}
-              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add / Claim Role</span>
-            </button>
+            {isCpo && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenAccountModal();
+                }}
+                className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs flex items-center space-x-1.5 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Add Approver Role</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-2 text-blue-200 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
@@ -190,9 +206,20 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
             />
           </div>
 
-          <div className="text-[11px] text-slate-500 flex items-center space-x-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Removing a role automatically preserves and reassigns any assigned routing rules.</span>
+          <div className="text-[11px] flex items-center space-x-1.5">
+            {isCpo ? (
+              <>
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="text-slate-600">Removing a role automatically preserves and reassigns any assigned routing rules.</span>
+              </>
+            ) : (
+              <>
+                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span className="text-slate-600">
+                  Viewing directory as <strong>{currentPersona.name}</strong> ({currentPersona.role}). Role addition/removal restricted to CPO.
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -282,8 +309,8 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                       </button>
                     )}
 
-                    {/* Send Activation Email */}
-                    {onSendActivationEmail && (
+                    {/* Send Activation Email (Chief People Officer Only) */}
+                    {isCpo && onSendActivationEmail && (
                       <button
                         type="button"
                         onClick={() => {
@@ -310,22 +337,28 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                       </button>
                     )}
 
-                    {/* Configure / Activate E-Sign */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        onOpenAccountModal(role.approverConfig);
-                      }}
-                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0f2352] border border-blue-200 font-bold text-xs rounded-xl transition-colors flex items-center space-x-1"
-                      title="Edit role credentials or digital signature"
-                    >
-                      <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{role.isAccountActivated ? 'Edit E-Sign' : 'Activate'}</span>
-                    </button>
+                    {/* Configure / Activate E-Sign: CPO for anyone, non-CPO for self only */}
+                    {(isCpo || isCurrent) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenAccountModal(role.approverConfig);
+                        }}
+                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0f2352] border border-blue-200 font-bold text-xs rounded-xl transition-colors flex items-center space-x-1"
+                        title={isCurrent ? "Configure your digital signature and signing PIN" : "Edit role credentials or digital signature"}
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <span>
+                          {isCurrent 
+                            ? (role.isAccountActivated ? 'My E-Sign' : 'Setup My Signature') 
+                            : (role.isAccountActivated ? 'Edit E-Sign' : 'Activate')}
+                        </span>
+                      </button>
+                    )}
 
-                    {/* Deactivate button if activated */}
-                    {role.isAccountActivated && (
+                    {/* Deactivate button: CPO for anyone, non-CPO for self only */}
+                    {role.isAccountActivated && (isCpo || isCurrent) && (
                       <button
                         type="button"
                         onClick={() => handleDeactivateClick(role)}
@@ -337,16 +370,18 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                       </button>
                     )}
 
-                    {/* Prominent Red Remove Role Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteClick(role)}
-                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs rounded-xl transition-all shadow-2xs hover:scale-105 active:scale-95 flex items-center space-x-1.5"
-                      title={`Permanently remove ${role.name} (${role.role})`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                      <span>Remove Role</span>
-                    </button>
+                    {/* Prominent Red Remove Role Button (Chief People Officer ONLY) */}
+                    {isCpo && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClick(role)}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs rounded-xl transition-all shadow-2xs hover:scale-105 active:scale-95 flex items-center space-x-1.5"
+                        title={`Permanently remove ${role.name} (${role.role})`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Remove Role</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );

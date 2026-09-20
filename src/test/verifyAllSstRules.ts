@@ -2,6 +2,8 @@ import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouti
 import { canPersonaActOnPar } from '../utils/formatters';
 import { PersonnelActionRequest, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 
+declare const process: { exit: (code?: number) => void };
+
 let passed = 0;
 let failed = 0;
 
@@ -95,6 +97,10 @@ const kevinPersona = USER_PERSONAS.find(p => p.email === 'kdemirci@ssttx.org')!;
 const atnanPersona = USER_PERSONAS.find(p => p.email === 'aekin@ssttx.org')!;
 const kristyPersona = USER_PERSONAS.find(p => p.email === 'kstewart@ssttx.org')!;
 const paolaPersona = USER_PERSONAS.find(p => p.email === 'pcomparini@ssttx.org')!;
+const vanessaPersona = USER_PERSONAS.find(p => p.email === 'vnguyen@ssttx.org')!;
+const serdarPersona = USER_PERSONAS.find(p => p.email === 'sbulut@ssttx.org')!;
+const amberPersona = USER_PERSONAS.find(p => p.email === 'ajohnson@ssttx.org')!;
+const ursulaPersona = USER_PERSONAS.find(p => p.email === 'uvillanueva@ssttx.org')!;
 
 // Mock Involuntary PAR at CPO review
 const mockCpoPar: PersonnelActionRequest = {
@@ -132,7 +138,44 @@ const mockPayrollPar: PersonnelActionRequest = {
 };
 assert(canPersonaActOnPar(paolaPersona, mockPayrollPar), 'Paola Comparini can sign final Payroll closeout');
 
-// 5. SUMMARY
+// 5. VERIFY CHIEF PEOPLE OFFICER RBAC PRIVILEGES (CPO EXCLUSIVITY)
+console.log('\n📌 Test 5: Chief People Officer Exclusive Super Admin Privileges...');
+import { isChiefPeopleOfficer, getPersonaPermissions } from '../utils/formatters';
+
+// 5a. isChiefPeopleOfficer check
+assert(isChiefPeopleOfficer(kevinPersona) === true, 'Dr. Kevin Demirci is recognized as Chief People Officer (Super Admin)');
+assert(isChiefPeopleOfficer(vanessaPersona) === false, 'Vanessa Nguyen (Principal) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(atnanPersona) === false, 'Atnan Ekin (Regional Exec) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(serdarPersona) === false, 'Serdar Bulut (Regional Exec) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(kristyPersona) === false, 'Kristy Stewart (Regional HR) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(amberPersona) === false, 'Amber Johnson (Regional HR) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(ursulaPersona) === false, 'Ursula Villanueva (Benefits) is NOT Chief People Officer');
+assert(isChiefPeopleOfficer(paolaPersona) === false, 'Paola Comparini (Payroll) is NOT Chief People Officer');
+
+// 5b. getPersonaPermissions check
+const kevinPerms = getPersonaPermissions(kevinPersona);
+assert(kevinPerms.canManageWorkflow === true, 'CPO can manage workflow routing');
+assert(kevinPerms.canAddRemoveRoles === true, 'CPO can add and remove approver roles');
+assert(kevinPerms.canSendInvites === true, 'CPO can send activation email invitations');
+assert(kevinPerms.isCpo === true, 'CPO permission flag is true');
+
+const atnanPerms = getPersonaPermissions(atnanPersona);
+assert(atnanPerms.canManageWorkflow === false, 'Regional Exec CANNOT manage workflow routing');
+assert(atnanPerms.canAddRemoveRoles === false, 'Regional Exec CANNOT add/remove roles');
+assert(atnanPerms.canSendInvites === false, 'Regional Exec CANNOT send invites');
+
+const vanessaPerms = getPersonaPermissions(vanessaPersona);
+assert(vanessaPerms.canAddRemoveRoles === false, 'Principal CANNOT add/remove roles');
+assert(vanessaPerms.canManageWorkflow === false, 'Principal CANNOT manage workflow routing');
+
+const paolaPerms = getPersonaPermissions(paolaPersona);
+assert(paolaPerms.canAddRemoveRoles === false, 'Payroll Coordinator CANNOT add/remove roles');
+
+// 6. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');
+
+if (failed > 0) {
+  process.exit(1);
+}

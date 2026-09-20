@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { UserPersona } from '../types/par';
 import { CpoPayoutRequest, PayoutType, PayoutSupportingDoc, PayoutStatus } from '../types/payout';
-import { MOCK_EMPLOYEES } from '../data/mockData';
 import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES } from '../data/mockPayoutData';
 import { 
   formatCurrency, 
@@ -82,13 +81,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const [previewDoc, setPreviewDoc] = useState<PayoutSupportingDoc | null>(null);
 
   // Form State for New Request
-  const [formEmployeeId, setFormEmployeeId] = useState<string>('');
   const [formEmployeeName, setFormEmployeeName] = useState<string>('');
   const [formAdpId, setFormAdpId] = useState<string>('');
   const [formCampus, setFormCampus] = useState<string>('SST Champions Elementary');
   const [formRegion, setFormRegion] = useState<string>('Houston Area');
   const [formJobTitle, setFormJobTitle] = useState<string>('');
-  const [formSalary, setFormSalary] = useState<number>(55000);
   const [formPayoutType, setFormPayoutType] = useState<PayoutType>('payment');
   const [formCategory, setFormCategory] = useState<string>(PAYOUT_CATEGORIES.payment[0]);
   const [formAmount, setFormAmount] = useState<string>('');
@@ -107,25 +104,6 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const [payrollExecNotes, setPayrollExecNotes] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-fill employee details when selecting from directory
-  const handleEmployeeSelect = (empId: string) => {
-    setFormEmployeeId(empId);
-    const emp = MOCK_EMPLOYEES.find(e => e.id === empId);
-    if (emp) {
-      setFormEmployeeName(`${emp.firstName} ${emp.lastName}`);
-      setFormAdpId(emp.adpId);
-      setFormCampus(emp.campus);
-      setFormJobTitle(emp.title);
-      setFormSalary(emp.currentSalary);
-      const isHou = emp.campus.toLowerCase().includes('champions') || 
-                    emp.campus.toLowerCase().includes('spring') || 
-                    emp.campus.toLowerCase().includes('sugar') || 
-                    emp.campus.toLowerCase().includes('woodlands') || 
-                    emp.campus.toLowerCase().includes('advancement');
-      setFormRegion(isHou ? 'Houston Area' : 'San Antonio & Corpus Christi');
-    }
-  };
 
   // Switch category list when Payout Type changes
   const handleTypeChange = (newType: PayoutType) => {
@@ -197,13 +175,13 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       id: `payout-${Date.now()}`,
       trackingNumber: tracking,
       payoutType: formPayoutType,
-      employeeId: formEmployeeId || `emp-${Date.now()}`,
+      employeeId: `emp-${Date.now()}`,
       employeeName: formEmployeeName,
       adpId: formAdpId || `ADP-SST-${Math.floor(10000 + Math.random() * 90000)}`,
       campus: formCampus,
       region: formRegion,
       jobTitle: formJobTitle || 'Staff Member',
-      currentSalary: formSalary,
+      currentSalary: 55000,
       amount: numAmount,
       category: formCategory,
       reason: formReason,
@@ -1038,30 +1016,14 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Target Staff Selection */}
+                {/* 2. Target Staff Details */}
                 <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200 space-y-3">
                   <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                     <span>2. Target Staff Member Details</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Select from directory or enter manually</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Enter staff compensation details</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Select from SST Directory:</label>
-                      <select
-                        value={formEmployeeId}
-                        onChange={(e) => handleEmployeeSelect(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
-                      >
-                        <option value="">-- Choose Employee (Optional) --</option>
-                        {MOCK_EMPLOYEES.map(emp => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.firstName} {emp.lastName} — {emp.title} ({emp.campus})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
                     <div>
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">Staff Full Name: *</label>
                       <input 
@@ -1073,36 +1035,48 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                       />
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">ADP Associate ID:</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ADP Associate ID:</label>
                       <input 
                         type="text"
                         placeholder="ADP-SST-XXXXX"
                         value={formAdpId}
                         onChange={(e) => setFormAdpId(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Campus / Location:</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Campus / Location: *</label>
                       <input 
                         type="text"
+                        required
+                        placeholder="e.g. SST Champions Elementary"
                         value={formCampus}
-                        onChange={(e) => setFormCampus(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                        onChange={(e) => {
+                          setFormCampus(e.target.value);
+                          const isHou = e.target.value.toLowerCase().includes('champions') || 
+                                        e.target.value.toLowerCase().includes('spring') || 
+                                        e.target.value.toLowerCase().includes('sugar') || 
+                                        e.target.value.toLowerCase().includes('woodlands') || 
+                                        e.target.value.toLowerCase().includes('advancement');
+                          setFormRegion(isHou ? 'Houston Area' : 'San Antonio & Corpus Christi');
+                        }}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">Job Title:</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Job Title:</label>
                       <input 
                         type="text"
                         placeholder="e.g. Science Lead Teacher"
                         value={formJobTitle}
                         onChange={(e) => setFormJobTitle(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                       />
                     </div>
                   </div>

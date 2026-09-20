@@ -58,19 +58,18 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   const isCpo = isChiefPeopleOfficer(currentPersona);
   const isEffectiveCpo = isCpo && !isActivationFlow;
 
-  // Determine initial role
-  const defaultRole = initialRole || (currentPersona ? workflowConfig.approvers.find(a => a.id === currentPersona.id) : null) || workflowConfig.approvers[0];
-  const [selectedRoleId, setSelectedRoleId] = useState<string>(defaultRole?.id || (isEffectiveCpo ? 'new-custom' : workflowConfig.approvers[0]?.id));
+  // Determine initial role: if initialRole is not provided, start as new custom user with blank fields
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(initialRole ? initialRole.id : 'new-custom');
   const activeSelectedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
 
   // Profile Information
-  const [name, setName] = useState<string>(defaultRole?.name || '');
-  const [email, setEmail] = useState<string>(defaultRole?.email || '');
-  const [title, setTitle] = useState<string>(defaultRole?.title || '');
-  const [department, setDepartment] = useState<string>(defaultRole?.department || 'Central Administration');
-  const [campus, setCampus] = useState<string>(defaultRole?.campus || 'Central Office');
-  const [region, setRegion] = useState<string>(defaultRole?.region || 'All SST Schools');
-  const [avatar, setAvatar] = useState<string>(defaultRole?.avatar || PRESET_AVATARS[0].url);
+  const [name, setName] = useState<string>(initialRole?.name || '');
+  const [email, setEmail] = useState<string>(initialRole?.email || '');
+  const [title, setTitle] = useState<string>(initialRole?.title || '');
+  const [department, setDepartment] = useState<string>(initialRole?.department || 'Central Administration');
+  const [campus, setCampus] = useState<string>(initialRole?.campus || 'Central Office');
+  const [region, setRegion] = useState<string>(initialRole?.region || 'All SST Schools');
+  const [avatar, setAvatar] = useState<string>(initialRole?.avatar || PRESET_AVATARS[0].url);
 
   // Synchronize state whenever initialRole prop changes
   useEffect(() => {
@@ -86,6 +85,16 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       if (initialRole.signingPin) {
         setSecurityPin(initialRole.signingPin);
       }
+    } else {
+      setSelectedRoleId('new-custom');
+      setName('');
+      setEmail('');
+      setTitle('');
+      setDepartment('Central Administration');
+      setCampus('District Central Office');
+      setRegion('All SST Schools');
+      setAvatar(PRESET_AVATARS[0].url);
+      setSecurityPin('123456');
     }
   }, [initialRole]);
 
@@ -235,8 +244,9 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       return;
     }
 
-    const matchedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
-    const personaId = matchedApprover ? matchedApprover.id : `appr-${Date.now().toString(36)}`;
+    const isNewCustom = selectedRoleId === 'new-custom';
+    const matchedApprover = isNewCustom ? null : workflowConfig.approvers.find(a => a.id === selectedRoleId);
+    let personaId = matchedApprover ? matchedApprover.id : `appr-${Date.now().toString(36)}`;
     const signerId = matchedApprover?.signerId || `SST-SIG-${Math.floor(100000 + Math.random() * 900000)}`;
     const canReviewStages: WorkflowStage[] = matchedApprover?.canReviewStages || [
       'supervisor_review',
@@ -247,12 +257,27 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       'payroll_action'
     ];
 
+    let safeName = name.trim();
+    let safeTitle = title.trim() || 'Designated Approver';
+    let safeEmail = email.trim().toLowerCase();
+
+    // Guard Dr. Kevin Demirci (Chief People Officer • Super Admin)
+    if (matchedApprover?.id === 'p-kevin' || safeEmail === 'kdemirci@ssttx.org') {
+      if (safeName.toUpperCase().includes('TEST') || (!safeName.toLowerCase().includes('demirci') && !safeName.toLowerCase().includes('kevin'))) {
+        personaId = `appr-${Date.now().toString(36)}`;
+      } else {
+        safeName = 'Dr. Kevin Demirci';
+        safeTitle = 'Chief People Officer';
+        safeEmail = 'kdemirci@ssttx.org';
+      }
+    }
+
     const newPersona: UserPersona = {
       id: personaId,
-      name: name.trim(),
-      role: title.trim() || 'Designated Approver',
+      name: safeName,
+      role: safeTitle,
       department: department.trim() || 'Central Administration',
-      email: email.trim().toLowerCase(),
+      email: safeEmail,
       campus: campus.trim() || 'District Central Office',
       region: region.trim() || 'All SST Schools',
       avatar,
@@ -306,8 +331,9 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       return;
     }
 
-    const matchedApprover = workflowConfig.approvers.find(a => a.id === selectedRoleId);
-    const personaId = matchedApprover ? matchedApprover.id : `p-${Date.now().toString(36)}`;
+    const isNewCustom = selectedRoleId === 'new-custom';
+    const matchedApprover = isNewCustom ? null : workflowConfig.approvers.find(a => a.id === selectedRoleId);
+    let personaId = matchedApprover ? matchedApprover.id : `p-${Date.now().toString(36)}`;
     const signerId = matchedApprover?.signerId || crypto.randomUUID();
     const canReviewStages: WorkflowStage[] = matchedApprover?.canReviewStages || [
       'cpo_review', 
@@ -317,10 +343,25 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       'payroll_action'
     ];
 
+    let safeName = name.trim();
+    let safeTitle = title.trim() || 'Designated Approver';
+    let safeEmail = email.trim().toLowerCase();
+
+    // Guard Dr. Kevin Demirci (Chief People Officer • Super Admin)
+    if (matchedApprover?.id === 'p-kevin' || safeEmail === 'kdemirci@ssttx.org') {
+      if (safeName.toUpperCase().includes('TEST') || (!safeName.toLowerCase().includes('demirci') && !safeName.toLowerCase().includes('kevin'))) {
+        personaId = `p-${Date.now().toString(36)}`;
+      } else {
+        safeName = 'Dr. Kevin Demirci';
+        safeTitle = 'Chief People Officer';
+        safeEmail = 'kdemirci@ssttx.org';
+      }
+    }
+
     const newPersona: UserPersona = {
       id: personaId,
-      name: name.trim(),
-      role: title.trim() || 'Designated Approver',
+      name: safeName,
+      role: safeTitle,
       department: department.trim() || 'Administration',
       email: email.trim().toLowerCase(),
       campus: campus.trim() || 'Central Office',

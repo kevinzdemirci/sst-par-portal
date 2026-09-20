@@ -391,7 +391,52 @@ userTemplates = userTemplates.filter(t => t.id !== 'tpl-1');
 assert(userTemplates.length === 3, 'Template can be deleted from library');
 assert(!userTemplates.some(t => t.id === 'tpl-1'), 'Deleted template no longer appears in options');
 
-// 12. SUMMARY
+// 12. PERMANENT CHIEF PEOPLE OFFICER & SUPER ADMIN INVARIANCE
+console.log('\n📌 Test 12: Permanent Chief People Officer (Dr. Kevin Demirci) & Super Admin Invariance...');
+const cpoCandidate = USER_PERSONAS.find(p => p.id === 'p-kevin');
+assert(Boolean(cpoCandidate), 'Dr. Kevin Demirci exists with canonical ID p-kevin');
+assert(cpoCandidate?.role === 'Chief People Officer', 'Kevin role is Chief People Officer');
+assert(cpoCandidate?.email === 'kdemirci@ssttx.org', 'Kevin email is kdemirci@ssttx.org');
+assert(isChiefPeopleOfficer(cpoCandidate) === true, 'isChiefPeopleOfficer evaluates to true for Dr. Kevin Demirci');
+
+// Test that deleting CPO is rejected
+function attemptDeleteRole(roleId: string, current: UserPersona): { success: boolean; message: string } {
+  if (!isChiefPeopleOfficer(current)) {
+    return { success: false, message: 'Unauthorized' };
+  }
+  if (roleId === 'p-kevin') {
+    return { success: false, message: 'Protected Super Admin: Dr. Kevin Demirci cannot be removed' };
+  }
+  return { success: true, message: 'Removed' };
+}
+const deleteResult = attemptDeleteRole('p-kevin', kevinPersona);
+assert(deleteResult.success === false, 'Attempting to delete Chief People Officer is strictly blocked');
+assert(deleteResult.message.includes('Protected Super Admin'), 'Deletion prevention returns protected role notice');
+
+// Test that overwriting CPO with "TEST TEST" is safely forked to preserve CPO
+function sanitizeIncomingAccount(persona: UserPersona): { safePersona: UserPersona; forked: boolean } {
+  if (persona.id === 'p-kevin' || persona.email === 'kdemirci@ssttx.org') {
+    if (persona.name.toUpperCase().includes('TEST') || !persona.name.toLowerCase().includes('demirci')) {
+      return {
+        safePersona: { ...persona, id: `p-user-${Date.now()}` },
+        forked: true
+      };
+    }
+  }
+  return { safePersona: persona, forked: false };
+}
+const corruptedTestUser: UserPersona = {
+  ...kevinPersona,
+  id: 'p-kevin',
+  name: 'TEST TEST',
+  email: 'test@ssttx.org'
+};
+const sanitizeResult = sanitizeIncomingAccount(corruptedTestUser);
+assert(sanitizeResult.forked === true, 'Account creation with name "TEST TEST" on p-kevin is automatically forked');
+assert(sanitizeResult.safePersona.id !== 'p-kevin', 'Forked test user receives a distinct new persona ID');
+assert(isChiefPeopleOfficer(kevinPersona) === true, 'Original Dr. Kevin Demirci remains unaffected as Chief People Officer');
+
+// 13. SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================\n');

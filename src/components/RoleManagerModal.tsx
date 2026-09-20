@@ -144,6 +144,11 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
   }, [allRoles, searchQuery]);
 
   const handleDeleteClick = (role: typeof allRoles[0]) => {
+    if (role.id === 'p-kevin' || role.email.toLowerCase() === 'kdemirci@ssttx.org' || role.role.toLowerCase().includes('chief people officer')) {
+      alert('The Chief People Officer (Dr. Kevin Demirci) is the root Super Admin of the district and cannot be removed.');
+      return;
+    }
+
     if (allRoles.length <= 1) {
       alert('Cannot delete the last remaining role. At least one user/approver must exist in the system.');
       return;
@@ -484,8 +489,13 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                         </button>
                       )}
 
-                      {/* Prominent Red Remove Role Button (Chief People Officer ONLY) */}
-                      {isCpo && (
+                      {/* Chief People Officer is the permanent root Super Admin and CANNOT be removed */}
+                      {role.id === 'p-kevin' || role.email.toLowerCase() === 'kdemirci@ssttx.org' || role.role.toLowerCase().includes('chief people officer') ? (
+                        <span className="px-2.5 py-1.5 bg-amber-50 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl flex items-center space-x-1 shadow-2xs" title="Chief People Officer is the permanent root Super Admin and cannot be removed">
+                          <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Super Admin</span>
+                        </span>
+                      ) : isCpo && (
                         <button
                           type="button"
                           onClick={() => handleDeleteClick(role)}

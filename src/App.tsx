@@ -36,6 +36,38 @@ const PERSONAS_CONFIG_KEY = 'sst_approver_personas_v2';
 const PAYOUTS_KEY = 'sst_cpo_payouts_v1';
 const HUB_TAB_KEY = 'sst_active_hub_tab_v1';
 
+export const CPO_CANONICAL_PERSONA: UserPersona = {
+  id: 'p-kevin',
+  name: 'Dr. Kevin Demirci',
+  role: 'Chief People Officer',
+  department: 'Central Administration',
+  campus: 'Central Office',
+  region: 'All SST Schools',
+  email: 'kdemirci@ssttx.org',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+  canReviewStages: ['cpo_review'],
+  signerId: '7a374357-998f-4203-8874-8b95cb88898d',
+  ipAddress: '208.184.164.228',
+  isAccountActivated: true,
+  signingPin: '1234'
+};
+
+export const CPO_CANONICAL_APPROVER: ApproverRoleConfig = {
+  id: 'p-kevin',
+  roleKey: 'cpo',
+  title: 'Chief People Officer',
+  name: 'Dr. Kevin Demirci',
+  email: 'kdemirci@ssttx.org',
+  department: 'Central Administration',
+  region: 'All SST Schools (Involuntary & Executive)',
+  signerId: '7a374357-998f-4203-8874-8b95cb88898d',
+  ipAddress: '208.184.164.228',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+  canReviewStages: ['cpo_review'],
+  isAccountActivated: true,
+  signingPin: '1234'
+};
+
 export function App() {
   const [pars, setPars] = useState<PersonnelActionRequest[]>(() => {
     try {
@@ -48,91 +80,125 @@ export function App() {
   });
 
   const [availablePersonas, setAvailablePersonas] = useState<UserPersona[]>(() => {
+    let list = USER_PERSONAS;
     try {
       const saved = localStorage.getItem(PERSONAS_CONFIG_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed;
+        }
       }
     } catch {
       // ignore
     }
-    return USER_PERSONAS;
+
+    // SANITIZE & REPAIR: Ensure Dr. Kevin Demirci is NEVER corrupted, removed, or overwritten with "TEST TEST"
+    const hasCpo = list.some(p => p.id === 'p-kevin' || p.email.toLowerCase() === 'kdemirci@ssttx.org');
+    if (!hasCpo) {
+      list = [CPO_CANONICAL_PERSONA, ...list];
+    } else {
+      list = list.map(p => {
+        if (p.id === 'p-kevin' || p.email.toLowerCase() === 'kdemirci@ssttx.org') {
+          return {
+            ...p,
+            id: 'p-kevin',
+            name: 'Dr. Kevin Demirci',
+            role: 'Chief People Officer',
+            email: 'kdemirci@ssttx.org',
+            department: 'Central Administration',
+            avatar: p.avatar || CPO_CANONICAL_PERSONA.avatar,
+            isAccountActivated: true
+          };
+        }
+        return p;
+      });
+    }
+
+    try {
+      localStorage.setItem(PERSONAS_CONFIG_KEY, JSON.stringify(list));
+    } catch {}
+
+    return list;
   });
 
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig>(() => {
+    let config = DEFAULT_WORKFLOW_CONFIG;
     try {
       const saved = localStorage.getItem(WORKFLOW_CONFIG_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.routingRules || !Array.isArray(parsed.routingRules) || parsed.routingRules.length === 0) {
-          parsed.routingRules = DEFAULT_WORKFLOW_CONFIG.routingRules;
-        }
-        // Ensure all standard SST approvers exist so no roles are hidden from removal
-        if (!Array.isArray(parsed.approvers)) {
-          parsed.approvers = DEFAULT_WORKFLOW_CONFIG.approvers;
-        } else {
-          const currentIds = new Set(parsed.approvers.map((a: any) => a.id));
-          DEFAULT_WORKFLOW_CONFIG.approvers.forEach((defAppr) => {
-            if (!currentIds.has(defAppr.id)) {
-              parsed.approvers.push(defAppr);
-            }
-          });
-        }
-        parsed.districtLogo = getNormalizedLogoUrl(parsed.districtLogo);
-        return parsed;
+        config = parsed;
       }
     } catch {
       // ignore
     }
-    return DEFAULT_WORKFLOW_CONFIG;
+
+    if (!config.routingRules || !Array.isArray(config.routingRules) || config.routingRules.length === 0) {
+      config.routingRules = DEFAULT_WORKFLOW_CONFIG.routingRules;
+    }
+    if (!Array.isArray(config.approvers)) {
+      config.approvers = DEFAULT_WORKFLOW_CONFIG.approvers;
+    }
+
+    // SANITIZE & REPAIR APPROVERS: Ensure Dr. Kevin Demirci is restored to Chief People Officer
+    const cpoIdx = config.approvers.findIndex(a => a.id === 'p-kevin' || a.email.toLowerCase() === 'kdemirci@ssttx.org');
+    if (cpoIdx === -1) {
+      config.approvers.unshift(CPO_CANONICAL_APPROVER);
+    } else {
+      const existing = config.approvers[cpoIdx];
+      config.approvers[cpoIdx] = {
+        ...existing,
+        id: 'p-kevin',
+        roleKey: 'cpo',
+        title: 'Chief People Officer',
+        name: 'Dr. Kevin Demirci',
+        email: 'kdemirci@ssttx.org',
+        department: 'Central Administration',
+        canReviewStages: ['cpo_review'],
+        isAccountActivated: true
+      };
+    }
+
+    // Ensure all standard SST approvers exist so no roles are hidden from removal
+    const currentIds = new Set(config.approvers.map((a: any) => a.id));
+    DEFAULT_WORKFLOW_CONFIG.approvers.forEach((defAppr) => {
+      if (!currentIds.has(defAppr.id)) {
+        config.approvers.push(defAppr);
+      }
+    });
+
+    config.districtLogo = getNormalizedLogoUrl(config.districtLogo);
+
+    try {
+      localStorage.setItem(WORKFLOW_CONFIG_KEY, JSON.stringify(config));
+    } catch {}
+
+    return config;
   });
 
   const [currentPersona, setCurrentPersona] = useState<UserPersona>(() => {
     try {
       const saved = localStorage.getItem(PERSONA_KEY);
       if (saved) {
-        // Look in saved available personas first (to preserve custom avatars & names)
+        // If the saved persona was p-kevin, return the restored canonical CPO persona
+        if (saved === 'p-kevin') return CPO_CANONICAL_PERSONA;
+
+        // Look in saved available personas
         const savedPersonasStr = localStorage.getItem(PERSONAS_CONFIG_KEY);
         if (savedPersonasStr) {
           const list: UserPersona[] = JSON.parse(savedPersonasStr);
-          const foundInList = list.find((p) => p.id === saved);
+          const foundInList = list.find((p) => p.id === saved && !p.name.toUpperCase().includes('TEST TEST'));
           if (foundInList) return foundInList;
         }
 
-        // Fallback to saved workflowConfig approvers
-        const savedWorkflowStr = localStorage.getItem(WORKFLOW_CONFIG_KEY);
-        if (savedWorkflowStr) {
-          const wf = JSON.parse(savedWorkflowStr);
-          const appr = wf.approvers?.find((a: any) => a.id === saved);
-          if (appr) {
-            return {
-              id: appr.id,
-              name: appr.name,
-              email: appr.email,
-              role: appr.title || appr.role,
-              campus: appr.campus || 'Central Office',
-              region: appr.region,
-              department: appr.department || 'Administration',
-              avatar: appr.avatar,
-              signerId: appr.signerId,
-              ipAddress: appr.ipAddress,
-              canReviewStages: appr.canReviewStages || ['cpo_review', 'regional_review', 'hr_review'],
-              isAccountActivated: appr.isAccountActivated,
-              signingPin: appr.signingPin,
-              signatureImage: appr.signatureImage
-            };
-          }
-        }
-
         const found = USER_PERSONAS.find(p => p.id === saved);
-        if (found) return found;
+        if (found && found.id !== 'p-kevin') return found;
       }
     } catch {
       // ignore
     }
-    const cpoPersona = USER_PERSONAS.find((p) => p.email.toLowerCase() === 'kdemirci@ssttx.org') || USER_PERSONAS[0];
-    return cpoPersona; // Default to Dr. Kevin Demirci (Chief People Officer / Super Admin)
+    return CPO_CANONICAL_PERSONA; // Default to Dr. Kevin Demirci (Chief People Officer / Super Admin)
   });
 
   // UI state
@@ -640,25 +706,57 @@ export function App() {
 
   // Handle Account Created / Role Claimed
   const handleAccountCreated = (newPersona: UserPersona, updatedApprover: ApproverRoleConfig) => {
+    let safePersona = { ...newPersona };
+    let safeApprover = { ...updatedApprover };
+
+    // GUARD: Ensure Dr. Kevin Demirci (Chief People Officer • Super Admin) is never overwritten by test users
+    if (safePersona.id === 'p-kevin' || safeApprover.id === 'p-kevin' || safePersona.email.toLowerCase() === 'kdemirci@ssttx.org') {
+      if (safePersona.name.toUpperCase().includes('TEST') || (!safePersona.name.toLowerCase().includes('demirci') && !safePersona.name.toLowerCase().includes('kevin'))) {
+        // Fork test user into a distinct new ID so CPO is preserved
+        const forkedId = `p-user-${Date.now().toString(36)}`;
+        safePersona = {
+          ...safePersona,
+          id: forkedId,
+          role: safePersona.role || 'Designated Approver',
+          canReviewStages: safePersona.canReviewStages && safePersona.canReviewStages.length > 0 ? safePersona.canReviewStages : ['supervisor_review']
+        };
+        safeApprover = {
+          ...safeApprover,
+          id: forkedId,
+          title: safeApprover.title || 'Designated Approver'
+        };
+        showToast(`Created new user "${safePersona.name}" while keeping Dr. Kevin Demirci as Chief People Officer & Super Admin.`, 'info');
+      } else {
+        safePersona.id = 'p-kevin';
+        safePersona.name = 'Dr. Kevin Demirci';
+        safePersona.role = 'Chief People Officer';
+        safePersona.email = 'kdemirci@ssttx.org';
+        safeApprover.id = 'p-kevin';
+        safeApprover.name = 'Dr. Kevin Demirci';
+        safeApprover.title = 'Chief People Officer';
+        safeApprover.email = 'kdemirci@ssttx.org';
+      }
+    }
+
     // 1. Update available personas list
     setAvailablePersonas((prev) => {
-      const exists = prev.some((p) => p.id === newPersona.id || p.email.toLowerCase() === newPersona.email.toLowerCase());
+      const exists = prev.some((p) => p.id === safePersona.id || p.email.toLowerCase() === safePersona.email.toLowerCase());
       if (exists) {
         return prev.map((p) =>
-          (p.id === newPersona.id || p.email.toLowerCase() === newPersona.email.toLowerCase()) ? newPersona : p
+          (p.id === safePersona.id || p.email.toLowerCase() === safePersona.email.toLowerCase()) ? safePersona : p
         );
       }
-      return [...prev, newPersona];
+      return [...prev, safePersona];
     });
 
     // 2. Update workflow config approvers directory
     setWorkflowConfig((prev) => {
-      const exists = prev.approvers.some((a) => a.id === updatedApprover.id);
+      const exists = prev.approvers.some((a) => a.id === safeApprover.id);
       let updatedApprovers: ApproverRoleConfig[];
       if (exists) {
-        updatedApprovers = prev.approvers.map((a) => (a.id === updatedApprover.id ? updatedApprover : a));
+        updatedApprovers = prev.approvers.map((a) => (a.id === safeApprover.id ? safeApprover : a));
       } else {
-        updatedApprovers = [...prev.approvers, updatedApprover];
+        updatedApprovers = [...prev.approvers, safeApprover];
       }
       return {
         ...prev,
@@ -666,14 +764,19 @@ export function App() {
       };
     });
 
-    // 3. Switch active persona if editing own account, or if user is not Super Admin, or if activating from invite
-    if (!isChiefPeopleOfficer(currentPersona) || newPersona.id === currentPersona.id || isActivationFlow) {
-      setCurrentPersona(newPersona);
+    // 3. Switch active persona: If CPO created another user, stay as CPO
+    if (isActivationFlow) {
+      setCurrentPersona(safePersona);
       setFilterActionQueue(true);
-      showToast(`🎉 Welcome to SST, ${newPersona.name}! Digital signature and PIN activated for ${newPersona.role}.`, 'success');
+      showToast(`🎉 Welcome to SST, ${safePersona.name}! Digital signature and PIN activated for ${safePersona.role}.`, 'success');
       setIsActivationFlow(false);
+    } else if (isChiefPeopleOfficer(currentPersona) && safePersona.id !== 'p-kevin') {
+      showToast(`🎉 User "${safePersona.name}" (${safePersona.role}) saved to district directory!`, 'success');
+    } else if (safePersona.id === currentPersona.id) {
+      setCurrentPersona(safePersona);
+      showToast(`🎉 Profile details and picture updated for ${safePersona.name} (${safePersona.role})!`, 'success');
     } else {
-      showToast(`🎉 Profile details and picture updated for ${newPersona.name} (${newPersona.role})!`, 'success');
+      showToast(`🎉 Profile details and picture updated for ${safePersona.name} (${safePersona.role})!`, 'success');
     }
   };
 
@@ -705,6 +808,11 @@ export function App() {
 
     const roleToDelete = workflowConfig.approvers.find((a) => a.id === roleId);
     if (!roleToDelete) return;
+
+    if (roleId === 'p-kevin' || roleToDelete.email.toLowerCase() === 'kdemirci@ssttx.org' || isChiefPeopleOfficer(roleToDelete as any)) {
+      showToast('Protected Super Admin: Dr. Kevin Demirci (Chief People Officer) cannot be removed from the district.', 'warning');
+      return;
+    }
 
     if (workflowConfig.approvers.length <= 1) {
       showToast('Cannot remove the last remaining approver role.', 'warning');

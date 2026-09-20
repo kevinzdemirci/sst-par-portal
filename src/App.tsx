@@ -9,7 +9,7 @@ import {
   WorkflowConfig,
   ApproverRoleConfig
 } from './types/par';
-import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG } from './data/mockData';
+import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
 import { canPersonaActOnPar, isChiefPeopleOfficer } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
@@ -73,6 +73,7 @@ export function App() {
             }
           });
         }
+        parsed.districtLogo = getNormalizedLogoUrl(parsed.districtLogo);
         return parsed;
       }
     } catch {
@@ -794,7 +795,7 @@ export function App() {
         pars={pars}
         filterActionQueue={filterActionQueue}
         onToggleActionQueue={() => setFilterActionQueue(!filterActionQueue)}
-        districtLogo={workflowConfig.districtLogo}
+        districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
         districtName={workflowConfig.districtName}
         onOpenAccountModal={() => handleOpenAccountCreation()}
         onOpenRoleManagerModal={() => setIsRoleManagerOpen(true)}

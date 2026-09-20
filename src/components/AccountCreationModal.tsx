@@ -18,6 +18,7 @@ import {
   Mail
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { compressImageFile } from '../utils/imageCompressor';
 import { isChiefPeopleOfficer } from '../utils/formatters';
 
@@ -40,7 +41,7 @@ const PRESET_AVATARS = [
   { label: 'Executive 4 (Professional)', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive 5 (Modern)', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive 6 (Formal)', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80' },
-  { label: 'SST Seal Monogram', url: '/sst-logo.jpg' }
+  { label: 'SST Seal Monogram', url: SST_DEFAULT_LOGO }
 ];
 
 export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({

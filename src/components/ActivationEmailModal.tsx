@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ApproverRoleConfig, UserPersona } from '../types/par';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { 
   X, 
   Mail, 
@@ -168,7 +169,7 @@ School of Science and Technology Charter District`;
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center space-x-3">
                 <img 
-                  src="/sst-logo.jpg" 
+                  src={SST_DEFAULT_LOGO} 
                   alt="SST Logo" 
                   className="w-14 h-14 object-contain rounded-lg border border-slate-200"
                 />

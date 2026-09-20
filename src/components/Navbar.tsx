@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
+import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, isChiefPeopleOfficer } from '../utils/formatters';
 import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2 } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
@@ -50,9 +51,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center space-x-3.5">
             <div className="flex items-center py-1">
               <img 
-                src={districtLogo || '/sst-logo.jpg'} 
+                src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
                 className="h-14 sm:h-[68px] w-auto object-contain rounded drop-shadow-xs"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
+                }}
               />
             </div>
             <div className="border-l border-slate-200 pl-3.5 hidden sm:block">

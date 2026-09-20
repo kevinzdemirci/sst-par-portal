@@ -9,6 +9,9 @@ import {
   SstRoutingRule
 } from '../types/par';
 import { getDepartmentNotificationRecipients } from '../utils/formatters';
+import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from './sstLogo';
+
+export { SST_DEFAULT_LOGO, getNormalizedLogoUrl };
 
 export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
   {
@@ -355,7 +358,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
     }
   ],
   districtName: 'School of Science and Technology (SST)',
-  districtLogo: '/sst-logo.jpg',
+  districtLogo: SST_DEFAULT_LOGO,
   hrNotificationEmail: 'hr@ssttx.org',
   emailWebhookUrl: ''
 };

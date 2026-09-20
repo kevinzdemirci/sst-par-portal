@@ -1,4 +1,5 @@
 import React from 'react';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { X, ArrowRight, CheckCircle2, RotateCcw, AlertOctagon, ShieldCheck, Bell, Laptop, UserPlus } from 'lucide-react';
 
 interface WorkflowDiagramModalProps {
@@ -14,7 +15,7 @@ export const WorkflowDiagramModal: React.FC<WorkflowDiagramModalProps> = ({ onCl
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
-            <img src="/sst-logo.jpg" alt="SST" className="h-14 w-auto object-contain" />
+            <img src={SST_DEFAULT_LOGO} alt="SST" className="h-14 w-auto object-contain" />
             <div>
               <h2 className="text-base font-bold text-slate-900 tracking-tight">
                 SST Multi-Department Approval Routing Engine

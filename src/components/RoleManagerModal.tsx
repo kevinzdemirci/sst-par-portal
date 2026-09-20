@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { UserPersona, ApproverRoleConfig, WorkflowConfig } from '../types/par';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { 
   X, 
   Trash2, 
@@ -33,7 +34,7 @@ const PRESET_AVATARS = [
   { label: 'Executive Female 5 (Formal)', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive Diverse 6', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive Diverse 7', url: 'https://images.unsplash.com/photo-1573497491765-dccce02b29df?w=160&auto=format&fit=crop&q=80' },
-  { label: 'SST School Crest Logo', url: '/sst-logo.jpg' }
+  { label: 'SST School Crest Logo', url: SST_DEFAULT_LOGO }
 ];
 
 interface RoleManagerModalProps {

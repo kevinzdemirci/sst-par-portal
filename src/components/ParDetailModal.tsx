@@ -3,6 +3,7 @@ import {
   PersonnelActionRequest, 
   UserPersona 
 } from '../types/par';
+import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { 
   formatCurrency, 
   formatDate, 
@@ -354,7 +355,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                 {/* Logo & Form Title */}
                 <div className="text-center mb-6">
                   <img 
-                    src="/sst-logo.jpg" 
+                    src={SST_DEFAULT_LOGO} 
                     alt="School of Science & Technology" 
                     className="h-[90px] mx-auto object-contain mb-3 drop-shadow-xs"
                   />

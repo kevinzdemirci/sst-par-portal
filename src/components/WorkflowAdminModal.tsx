@@ -12,6 +12,7 @@ import {
   UserPersona
 } from '../types/par';
 import { DEFAULT_WORKFLOW_CONFIG, DEFAULT_SST_ROUTING_RULES, buildSstRouting } from '../data/mockData';
+import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { compressImageFile } from '../utils/imageCompressor';
 import { isChiefPeopleOfficer } from '../utils/formatters';
 import { 
@@ -69,7 +70,7 @@ const PRESET_AVATARS = [
   { label: 'Executive Female 5 (Formal)', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive Diverse 6', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=160&auto=format&fit=crop&q=80' },
   { label: 'Executive Diverse 7', url: 'https://images.unsplash.com/photo-1573497491765-dccce02b29df?w=160&auto=format&fit=crop&q=80' },
-  { label: 'SST School Crest Logo', url: '/sst-logo.jpg' }
+  { label: 'SST School Crest Logo', url: SST_DEFAULT_LOGO }
 ];
 
 const STAGE_OPTIONS: { stage: WorkflowStage; label: string }[] = [
@@ -97,7 +98,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   const [approvers, setApprovers] = useState<ApproverRoleConfig[]>(config.approvers);
   const [stages, setStages] = useState<WorkflowStageSetting[]>(config.stages);
   const [districtName, setDistrictName] = useState(config.districtName || 'School of Science and Technology (SST)');
-  const [districtLogo, setDistrictLogo] = useState(config.districtLogo || '/sst-logo.jpg');
+  const [districtLogo, setDistrictLogo] = useState(getNormalizedLogoUrl(config.districtLogo));
   const [hrNotificationEmail, setHrNotificationEmail] = useState(config.hrNotificationEmail || 'hr@ssttx.org');
   const [emailWebhookUrl, setEmailWebhookUrl] = useState(config.emailWebhookUrl || '');
   
@@ -398,7 +399,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       setStages(DEFAULT_WORKFLOW_CONFIG.stages);
       setRoutingRules(DEFAULT_SST_ROUTING_RULES);
       setDistrictName(DEFAULT_WORKFLOW_CONFIG.districtName || 'School of Science and Technology (SST)');
-      setDistrictLogo(DEFAULT_WORKFLOW_CONFIG.districtLogo || '/sst-logo.jpg');
+      setDistrictLogo(getNormalizedLogoUrl(DEFAULT_WORKFLOW_CONFIG.districtLogo));
       setHrNotificationEmail(DEFAULT_WORKFLOW_CONFIG.hrNotificationEmail || 'hr@ssttx.org');
       setEmailWebhookUrl(DEFAULT_WORKFLOW_CONFIG.emailWebhookUrl || '');
       setIsSaved(true);
@@ -450,7 +451,14 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-blue-50/40 to-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
-            <img src={districtLogo} alt="SST" className="h-14 w-auto object-contain rounded" />
+            <img 
+              src={getNormalizedLogoUrl(districtLogo)} 
+              alt="SST" 
+              className="h-14 w-auto object-contain rounded" 
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
+              }}
+            />
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-base font-bold text-slate-900 tracking-tight">
@@ -1507,7 +1515,14 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                       District Logo Path / URL:
                     </label>
                     <div className="flex items-center space-x-2">
-                      <img src={districtLogo} alt="Logo" className="w-11 h-11 object-contain rounded border border-slate-200" />
+                      <img 
+                        src={getNormalizedLogoUrl(districtLogo)} 
+                        alt="Logo" 
+                        className="w-11 h-11 object-contain rounded border border-slate-200" 
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
+                        }}
+                      />
                       <input 
                         type="text"
                         value={districtLogo}

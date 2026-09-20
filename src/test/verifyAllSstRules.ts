@@ -1,6 +1,6 @@
 import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
 import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
-import { PersonnelActionRequest, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
+import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 
 declare const process: { exit: (code?: number) => void };

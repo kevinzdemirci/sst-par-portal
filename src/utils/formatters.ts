@@ -511,3 +511,11 @@ export function formatPayoutStatusBadge(status: PayoutStatus): {
   }
 }
 
+/**
+ * Generate a clean official SST initials avatar URL
+ */
+export function getInitialsAvatarUrl(name: string, bg: string = '0f2352'): string {
+  const safeName = (name || 'Approver').trim() || 'Approver';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=${bg}&color=fff&size=160&bold=true`;
+}
+

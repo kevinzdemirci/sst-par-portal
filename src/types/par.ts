@@ -296,6 +296,11 @@ export interface WorkflowStageSetting {
   stage: WorkflowStage;
   label: string;
   description: string;
+  department?: string;
+  color?: string;
+  requiresSignature?: boolean;
+  requiresPin?: boolean;
+  allowedRoles?: string[];
   isEnabled: boolean;
   requiredForActions: ActionType[];
 }

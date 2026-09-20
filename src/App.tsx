@@ -10,7 +10,7 @@ import {
   ApproverRoleConfig
 } from './types/par';
 import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
-import { canPersonaActOnPar, isChiefPeopleOfficer } from './utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -46,7 +46,7 @@ export const CPO_CANONICAL_PERSONA: UserPersona = {
   campus: 'Central Office',
   region: 'All SST Schools',
   email: 'kdemirci@ssttx.org',
-  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+  avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
   canReviewStages: ['cpo_review'],
   signerId: '7a374357-998f-4203-8874-8b95cb88898d',
   ipAddress: '208.184.164.228',
@@ -64,7 +64,7 @@ export const CPO_CANONICAL_APPROVER: ApproverRoleConfig = {
   region: 'All SST Schools (Involuntary & Executive)',
   signerId: '7a374357-998f-4203-8874-8b95cb88898d',
   ipAddress: '208.184.164.228',
-  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+  avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
   canReviewStages: ['cpo_review'],
   isAccountActivated: true,
   signingPin: '1234'

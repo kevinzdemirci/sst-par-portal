@@ -1,5 +1,5 @@
 import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
-import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator, isChiefPeopleOfficer, getPersonaPermissions, getDepartmentNotificationRecipients } from '../utils/formatters';
+import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator, isChiefPeopleOfficer, getPersonaPermissions, getDepartmentNotificationRecipients, getInitialsAvatarUrl } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
@@ -188,7 +188,7 @@ const sampleUpdatedPrincipal = {
   ...vanessaPersona,
   name: 'Vanessa Nguyen (Updated)',
   role: 'Senior Campus Principal',
-  avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160&auto=format&fit=crop&q=80'
+  avatar: getInitialsAvatarUrl('Vanessa Nguyen (Updated)', '1e3a8a')
 };
 // Simulating handleAccountCreated session preservation check:
 const shouldPreserveCpoSession = isChiefPeopleOfficer(kevinPersona) && sampleUpdatedPrincipal.id !== kevinPersona.id;

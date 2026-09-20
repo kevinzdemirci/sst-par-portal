@@ -14,7 +14,7 @@ import {
 import { DEFAULT_WORKFLOW_CONFIG, DEFAULT_SST_ROUTING_RULES, buildSstRouting } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { compressImageFile } from '../utils/imageCompressor';
-import { isChiefPeopleOfficer } from '../utils/formatters';
+import { isChiefPeopleOfficer, getInitialsAvatarUrl } from '../utils/formatters';
 import { 
   X, 
   Settings, 
@@ -60,21 +60,6 @@ interface WorkflowAdminModalProps {
   onSendActivationEmail?: (approver: ApproverRoleConfig) => void;
   onOpenGmailSettings?: () => void;
 }
-
-const PRESET_AVATARS = [
-  { label: 'Executive Male 1 (Dark Suit)', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Male 2 (Beard)', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Male 3 (Glasses)', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Male 4 (Modern)', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Female 1 (Professional)', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Female 2 (Smiley)', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Female 3 (Blazer)', url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Female 4 (Leader)', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Female 5 (Formal)', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Diverse 6', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive Diverse 7', url: 'https://images.unsplash.com/photo-1573497491765-dccce02b29df?w=160&auto=format&fit=crop&q=80' },
-  { label: 'SST School Crest Logo', url: SST_DEFAULT_LOGO }
-];
 
 const STAGE_OPTIONS: { stage: WorkflowStage; label: string }[] = [
   { stage: 'supervisor_review', label: 'Principal / Supervisor Endorsement' },
@@ -195,10 +180,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
 
   // Generate initials avatar
   const generateInitialsAvatar = (id: string, name: string) => {
-    const safeName = name.trim() || 'Approver';
-    const bgColors = ['0f2352', 'b91c1c', '1e3a8a', '047857', '7c3aed', 'b45309'];
-    const randomBg = bgColors[Math.abs(safeName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % bgColors.length];
-    const generatedUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=${randomBg}&color=fff&size=160&bold=true`;
+    const generatedUrl = getInitialsAvatarUrl(name);
     handleApproverChange(id, 'avatar', generatedUrl);
     setEditingPhotoForId(null);
   };
@@ -1144,84 +1126,43 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
 
                       {/* PHOTO EDITING PANEL (Expands when clicking "Change Photo") */}
                       {isEditingPhoto && (
-                        <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-blue-300 space-y-3.5 animate-fadeIn">
+                        <div className="p-4 bg-slate-50 rounded-2xl border-2 border-dashed border-blue-300 space-y-3 animate-fadeIn">
                           <div className="flex items-center justify-between">
                             <div className="font-bold text-slate-900 text-xs flex items-center space-x-1.5">
                               <ImageIcon className="w-4 h-4 text-blue-600" />
                               <span>Edit Picture for {appr.name}</span>
                             </div>
-                            <span className="text-[11px] text-slate-500">Upload a local file, paste a link, or pick an executive headshot</span>
+                            <span className="text-[11px] text-slate-500">Upload a picture from your computer or generate an initials monogram</span>
                           </div>
 
-                          {/* 3 Upload Options */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            
+                          {/* 2 Avatar Options: Upload or Initials */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {/* Option 1: Local File Upload */}
                             <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-center">
                               <div className="text-[11px] font-bold text-slate-700">Option 1: Upload from Computer</div>
-                              <p className="text-[10px] text-slate-400">Select any JPG, PNG, or WebP photo from your hard drive</p>
+                              <p className="text-[10px] text-slate-400">Select any JPG, PNG, or WebP photo (auto-compressed)</p>
                               <button
                                 type="button"
                                 onClick={() => triggerFileUpload(appr.id)}
-                                className="w-full py-2 px-3 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                                className="w-full py-2 px-3 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors shadow-xs"
                               >
                                 <Upload className="w-3.5 h-3.5" />
                                 <span>Browse & Upload File</span>
                               </button>
                             </div>
 
-                            {/* Option 2: Image URL Direct Input */}
-                            <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                              <div className="text-[11px] font-bold text-slate-700">Option 2: Direct Image URL</div>
-                              <input 
-                                type="text"
-                                value={appr.avatar}
-                                onChange={(e) => handleApproverChange(appr.id, 'avatar', e.target.value)}
-                                placeholder="https://example.com/photo.jpg"
-                                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-800 font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0f2352]"
-                              />
-                              <div className="text-[10px] text-slate-400 truncate">Paste any public image address</div>
-                            </div>
-
-                            {/* Option 3: Generate Initials Badge */}
+                            {/* Option 2: Generate Initials Badge */}
                             <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-center">
-                              <div className="text-[11px] font-bold text-slate-700">Option 3: Initials Badge</div>
+                              <div className="text-[11px] font-bold text-slate-700">Option 2: Initials Monogram</div>
                               <p className="text-[10px] text-slate-400">Auto-generate a clean charter initials avatar</p>
                               <button
                                 type="button"
                                 onClick={() => generateInitialsAvatar(appr.id, appr.name)}
-                                className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors border border-slate-200"
+                                className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors border border-slate-300 shadow-2xs"
                               >
                                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                                 <span>Generate Initials Avatar</span>
                               </button>
-                            </div>
-                          </div>
-
-                          {/* Quick Preset Headshot Gallery */}
-                          <div className="pt-2 border-t border-slate-200">
-                            <div className="text-[11px] font-bold text-slate-700 mb-2">Or Choose from Executive Presets:</div>
-                            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2">
-                              {PRESET_AVATARS.map((preset, pIdx) => (
-                                <button
-                                  key={pIdx}
-                                  type="button"
-                                  onClick={() => {
-                                    handleApproverChange(appr.id, 'avatar', preset.url);
-                                    setEditingPhotoForId(null);
-                                  }}
-                                  className={`relative group rounded-xl overflow-hidden border-2 transition-all p-0.5 ${
-                                    appr.avatar === preset.url ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-slate-200 hover:border-[#0f2352]'
-                                  }`}
-                                  title={preset.label}
-                                >
-                                  <img 
-                                    src={preset.url} 
-                                    alt={preset.label} 
-                                    className="w-full h-10 rounded-lg object-cover" 
-                                  />
-                                </button>
-                              ))}
                             </div>
                           </div>
                         </div>

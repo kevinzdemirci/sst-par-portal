@@ -8,7 +8,7 @@ import {
   WorkflowConfig,
   SstRoutingRule
 } from '../types/par';
-import { getDepartmentNotificationRecipients } from '../utils/formatters';
+import { getDepartmentNotificationRecipients, getInitialsAvatarUrl } from '../utils/formatters';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from './sstLogo';
 
 export { SST_DEFAULT_LOGO, getNormalizedLogoUrl };
@@ -29,10 +29,10 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
   },
   {
     id: 'rule-cpo-involuntary',
-    name: 'Involuntary Terminations — Chief People Officer',
-    description: 'All involuntary separations across all SST campuses must be approved by Dr. Kevin Demirci (CPO)',
+    name: 'Chief People Officer Review (Involuntary Terminations & Executive Actions)',
+    description: 'Direct executive review and statutory evaluation by Dr. Kevin Demirci (CPO)',
     stage: 'cpo_review',
-    stageLabel: 'Chief People Officer Approval (Involuntary)',
+    stageLabel: 'Chief People Officer Review',
     actionTypes: ['termination'],
     voluntaryCondition: 'involuntary_only',
     regionCondition: 'all',
@@ -41,11 +41,11 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     priorityOrder: 2
   },
   {
-    id: 'rule-regional-houston-voluntary',
-    name: 'Voluntary Resignations (Houston Campuses) — Regional Exec Director',
-    description: 'Voluntary resignations from Houston area schools are reviewed by Atnan Ekin',
+    id: 'rule-regional-houston',
+    name: 'Regional Executive Director Review (Houston Voluntary)',
+    description: 'Executive review by Atnan Ekin for voluntary resignations in Houston campuses',
     stage: 'regional_review',
-    stageLabel: 'Regional Exec Director Approval (Houston Area)',
+    stageLabel: 'Regional Executive Director Review',
     actionTypes: ['termination'],
     voluntaryCondition: 'voluntary_only',
     regionCondition: 'Houston',
@@ -54,11 +54,11 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     priorityOrder: 3
   },
   {
-    id: 'rule-regional-sacc-voluntary',
-    name: 'Voluntary Resignations (San Antonio & CC) — Regional Exec Director',
-    description: 'Voluntary resignations from San Antonio & Corpus Christi schools are reviewed by Serdar Bulut',
+    id: 'rule-regional-sacc',
+    name: 'Regional Executive Director Review (SA & CC Voluntary)',
+    description: 'Executive review by Serdar Bulut for voluntary resignations in SA & CC campuses',
     stage: 'regional_review',
-    stageLabel: 'Regional Exec Director Approval (SA & CC Area)',
+    stageLabel: 'Regional Executive Director Review',
     actionTypes: ['termination'],
     voluntaryCondition: 'voluntary_only',
     regionCondition: 'San Antonio & Corpus Christi',
@@ -67,82 +67,56 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     priorityOrder: 4
   },
   {
-    id: 'rule-cpo-compensation',
-    name: 'Executive Compensation & Advancement Review',
-    description: 'Salary adjustments, stipends, and promotions reviewed by Chief People Officer',
-    stage: 'cpo_review',
-    stageLabel: 'Chief People Officer Compensation Review',
-    actionTypes: ['salary_change', 'promotion'],
-    voluntaryCondition: 'all',
-    regionCondition: 'all',
-    assignedApproverId: 'p-kevin',
-    isEnabled: true,
-    priorityOrder: 5
-  },
-  {
-    id: 'rule-regional-transfer',
-    name: 'Campus Transfers & Staff Reassignments',
-    description: 'Staff transfers across campus locations reviewed by Regional Executive Directors',
-    stage: 'regional_review',
-    stageLabel: 'Regional Executive Director Transfer Approval',
-    actionTypes: ['campus_transfer', 'role_change'],
-    voluntaryCondition: 'all',
-    regionCondition: 'all',
-    assignedApproverId: 'p-atnan',
-    isEnabled: true,
-    priorityOrder: 6
-  },
-  {
     id: 'rule-hr-houston',
-    name: 'Regional HR Policy & PTO Audit (Houston Campuses)',
-    description: 'Houston campus Personnel Action Requests audited by Kristy Stewart',
+    name: 'Regional HR Coordinator Review (Houston)',
+    description: 'HR coordination and compliance verification by Kristy Stewart',
     stage: 'hr_review',
-    stageLabel: 'HR Policy, Rehire & PTO Audit (Houston)',
+    stageLabel: 'Regional HR Coordinator Review',
     actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
     voluntaryCondition: 'all',
     regionCondition: 'Houston',
     assignedApproverId: 'p-kristy',
     isEnabled: true,
-    priorityOrder: 7
+    priorityOrder: 5
   },
   {
     id: 'rule-hr-sacc',
-    name: 'Regional HR Policy & PTO Audit (San Antonio & CC)',
-    description: 'San Antonio & Corpus Christi requests audited by Amber Johnson',
+    name: 'Regional HR Coordinator Review (SA & CC)',
+    description: 'HR coordination and compliance verification by Amber Johnson',
     stage: 'hr_review',
-    stageLabel: 'HR Policy, Rehire & PTO Audit (SA & CC)',
+    stageLabel: 'Regional HR Coordinator Review',
     actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
     voluntaryCondition: 'all',
     regionCondition: 'San Antonio & Corpus Christi',
     assignedApproverId: 'p-amber',
     isEnabled: true,
-    priorityOrder: 8
+    priorityOrder: 6
   },
   {
-    id: 'rule-benefits',
-    name: 'Benefits & COBRA Separation Sign-Off',
-    description: 'Benefits separation, medical/dental cancellation, and COBRA verification by Ursula Villanueva',
+    id: 'rule-benefits-all',
+    name: 'Benefits & Leave Verification',
+    description: 'COBRA, TRS, and benefit calculations verification by Ursula Villanueva',
     stage: 'benefits_review',
-    stageLabel: 'Benefits & Leave Sign-Off',
+    stageLabel: 'Benefits & COBRA Verification',
     actionTypes: ['termination', 'leave_of_absence'],
     voluntaryCondition: 'all',
     regionCondition: 'all',
     assignedApproverId: 'p-ursula',
     isEnabled: true,
-    priorityOrder: 9
+    priorityOrder: 7
   },
   {
-    id: 'rule-payroll',
-    name: 'Payroll Final Check & ADP Execution',
-    description: 'Final wage calculation, deductions, and ADP profile closeout by Paola Comparini',
+    id: 'rule-payroll-final',
+    name: 'Payroll Execution & ADP Closeout',
+    description: 'Final wage calculation and ADP system execution by Paola Comparini',
     stage: 'payroll_action',
-    stageLabel: 'Payroll Final Check & ADP Execution',
+    stageLabel: 'Payroll & ADP Closeout',
     actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
     voluntaryCondition: 'all',
     regionCondition: 'all',
     assignedApproverId: 'p-paola',
     isEnabled: true,
-    priorityOrder: 10
+    priorityOrder: 8
   }
 ];
 
@@ -150,43 +124,81 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
   routingRules: DEFAULT_SST_ROUTING_RULES,
   stages: [
     {
-      id: 'ws-supervisor',
+      id: 'stg-supervisor',
       stage: 'supervisor_review',
-      label: 'Campus Principal / Supervisor',
-      description: 'Campus level review and administrative endorsement',
+      label: 'Principal / Supervisor Endorsement',
+      description: 'Campus administrator / direct supervisor initial verification and recommendation.',
+      department: 'Campus Leadership',
+      color: 'blue',
+      requiresSignature: true,
+      requiresPin: true,
       isEnabled: true,
+      allowedRoles: ['supervisor', 'custom'],
       requiredForActions: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence']
     },
     {
-      id: 'ws-executive',
+      id: 'stg-cpo',
       stage: 'cpo_review',
-      label: 'Executive Leadership (CPO / Regional Exec Directors)',
-      description: 'CPO for Involuntary/Modifications; Regional Execs for Voluntary Resignations',
+      label: 'Chief People Officer Review',
+      description: 'Executive legal and statutory evaluation by Dr. Kevin Demirci (CPO).',
+      department: 'Central Administration',
+      color: 'rose',
+      requiresSignature: true,
+      requiresPin: true,
       isEnabled: true,
-      requiredForActions: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence']
+      allowedRoles: ['cpo', 'custom'],
+      requiredForActions: ['termination']
     },
     {
-      id: 'ws-hr',
+      id: 'stg-regional',
+      stage: 'regional_review',
+      label: 'Regional Executive Director Review',
+      description: 'Regional Executive Director operational clearance (Atnan Ekin / Serdar Bulut).',
+      department: 'Regional Leadership',
+      color: 'indigo',
+      requiresSignature: true,
+      requiresPin: true,
+      isEnabled: true,
+      allowedRoles: ['regional_houston', 'regional_sacc', 'custom'],
+      requiredForActions: ['termination']
+    },
+    {
+      id: 'stg-hr',
       stage: 'hr_review',
-      label: 'Regional HR Policy, Rehire & PTO Audit',
-      description: 'Regional HR Coordinators (Kristy Stewart - Houston, Amber Johnson - SA & CC)',
+      label: 'Regional HR Coordinator Review',
+      description: 'Regional HR compliance review, certification, and personnel checklist validation.',
+      department: 'Human Resources',
+      color: 'purple',
+      requiresSignature: true,
+      requiresPin: true,
       isEnabled: true,
+      allowedRoles: ['hr_houston', 'hr_sacc', 'custom'],
       requiredForActions: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence']
     },
     {
-      id: 'ws-benefits',
+      id: 'stg-benefits',
       stage: 'benefits_review',
-      label: 'Benefits & Leave Verification',
-      description: 'COBRA election, benefits termination and health plan reconciliation',
+      label: 'Benefits & COBRA Review',
+      description: 'Benefits reconciliation, COBRA notification, and TRS state retirement report.',
+      department: 'Benefits & Total Rewards',
+      color: 'emerald',
+      requiresSignature: true,
+      requiresPin: true,
       isEnabled: true,
+      allowedRoles: ['benefits', 'custom'],
       requiredForActions: ['termination', 'leave_of_absence']
     },
     {
-      id: 'ws-payroll',
+      id: 'stg-payroll',
       stage: 'payroll_action',
-      label: 'Payroll ADP Execution & Wage Settlement',
-      description: 'Final check calculation, deduction adjustments, and ADP profile closeout',
+      label: 'Payroll & ADP Closeout',
+      description: 'Final payroll execution, wage adjustment, and ADP Workforce Now system synchronization.',
+      department: 'Payroll Department',
+      color: 'amber',
+      requiresSignature: true,
+      requiresPin: true,
       isEnabled: true,
+      allowedRoles: ['payroll', 'custom'],
       requiredForActions: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence']
     }
   ],
@@ -202,7 +214,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Houston Area Campuses',
       signerId: '1024226a-f233-42a5-8683-51395806dcc7',
       ipAddress: '12.238.48.90',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Vanessa Nguyen', '0f2352'),
       canReviewStages: ['draft', 'supervisor_review']
     },
     {
@@ -215,7 +227,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'All SST Schools (Involuntary & Executive)',
       signerId: '7a374357-998f-4203-8874-8b95cb88898d',
       ipAddress: '208.184.164.228',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
       canReviewStages: ['cpo_review']
     },
     {
@@ -228,7 +240,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Houston Area Campuses (Voluntary Resignations)',
       signerId: '5b194821-3910-4820-9921-8841a0294821',
       ipAddress: '208.184.164.230',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Atnan Ekin', '1e3a8a'),
       canReviewStages: ['regional_review']
     },
     {
@@ -241,7 +253,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'San Antonio & Corpus Christi Campuses (Voluntary Resignations)',
       signerId: '6c295832-4021-5931-0032-9952b1305932',
       ipAddress: '208.184.164.231',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Serdar Bulut', '1e3a8a'),
       canReviewStages: ['regional_review']
     },
     {
@@ -254,7 +266,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Houston Area Campuses',
       signerId: '8cee36a3-eb8d-4b04-96ec-0fcd6397c6fc',
       ipAddress: '108.65.54.105',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Kristy Stewart', '047857'),
       canReviewStages: ['hr_review', 'revision_requested']
     },
     {
@@ -267,7 +279,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'San Antonio & Corpus Christi Campuses',
       signerId: '9bee47b4-fc9e-5c15-07fd-1fde7408d7fd',
       ipAddress: '208.184.164.232',
-      avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Amber Johnson', '047857'),
       canReviewStages: ['hr_review', 'revision_requested']
     },
     {
@@ -280,7 +292,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Central Office / All SST Schools',
       signerId: '0e97e30e-841a-4263-a558-61ffac5f61b3',
       ipAddress: '208.184.164.228',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Ursula Villanueva', '7c2d12'),
       canReviewStages: ['benefits_review']
     },
     {
@@ -293,7 +305,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Central Office / All SST Schools',
       signerId: '4f291ab8-7612-4a01-9871-3312cb889021',
       ipAddress: '208.184.164.228',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Paola Comparini', 'b91c1c'),
       canReviewStages: ['payroll_action']
     },
     {
@@ -306,7 +318,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Houston Area Campuses',
       signerId: 'SST-NOTIF-ENES',
       ipAddress: '108.65.54.120',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Enes Sevik', '4338ca'),
       canReviewStages: [],
       isNotificationOnly: true,
       notificationRoleType: 'it'
@@ -321,7 +333,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'San Antonio & Corpus Christi Campuses',
       signerId: 'SST-NOTIF-AHMET',
       ipAddress: '208.184.164.240',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Ahmet Kaya', '4338ca'),
       canReviewStages: [],
       isNotificationOnly: true,
       notificationRoleType: 'it'
@@ -336,7 +348,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'Houston Area Campuses',
       signerId: 'SST-NOTIF-HASAN',
       ipAddress: '108.65.54.122',
-      avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Hasan Kendirci', '0d9488'),
       canReviewStages: [],
       isNotificationOnly: true,
       notificationRoleType: 'talent_acquisition'
@@ -351,7 +363,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       region: 'San Antonio & Corpus Christi Campuses',
       signerId: 'SST-NOTIF-ALI',
       ipAddress: '208.184.164.242',
-      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
+      avatar: getInitialsAvatarUrl('Ali Dal', '0d9488'),
       canReviewStages: [],
       isNotificationOnly: true,
       notificationRoleType: 'talent_acquisition'
@@ -372,7 +384,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Champions Elementary',
     region: 'Houston Area',
     email: 'vnguyen@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Vanessa Nguyen', '0f2352'),
     canReviewStages: ['draft', 'supervisor_review'],
     signerId: '1024226a-f233-42a5-8683-51395806dcc7',
     ipAddress: '12.238.48.90'
@@ -385,7 +397,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'Central Office',
     region: 'All SST Schools',
     email: 'kdemirci@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
     canReviewStages: ['cpo_review'],
     signerId: '7a374357-998f-4203-8874-8b95cb88898d',
     ipAddress: '208.184.164.228'
@@ -398,7 +410,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Houston Regional Office',
     region: 'Houston Area',
     email: 'aekin@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Atnan Ekin', '1e3a8a'),
     canReviewStages: ['regional_review'],
     signerId: '5b194821-3910-4820-9921-8841a0294821',
     ipAddress: '208.184.164.230'
@@ -411,7 +423,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Central Office (District Administration)',
     region: 'San Antonio & Corpus Christi',
     email: 'sbulut@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Serdar Bulut', '1e3a8a'),
     canReviewStages: ['regional_review'],
     signerId: '6c295832-4021-5931-0032-9952b1305932',
     ipAddress: '208.184.164.231'
@@ -424,7 +436,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Houston Regional Office',
     region: 'Houston Area',
     email: 'kstewart@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Kristy Stewart', '047857'),
     canReviewStages: ['hr_review', 'revision_requested'],
     signerId: '8cee36a3-eb8d-4b04-96ec-0fcd6397c6fc',
     ipAddress: '108.65.54.105'
@@ -437,7 +449,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Central Office (District Administration)',
     region: 'San Antonio & Corpus Christi',
     email: 'ajohnson@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Amber Johnson', '047857'),
     canReviewStages: ['hr_review', 'revision_requested'],
     signerId: '9bee47b4-fc9e-5c15-07fd-1fde7408d7fd',
     ipAddress: '208.184.164.232'
@@ -450,7 +462,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'Central Office',
     region: 'All SST Schools',
     email: 'uvillanueva@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Ursula Villanueva', '7c2d12'),
     canReviewStages: ['benefits_review'],
     signerId: '0e97e30e-841a-4263-a558-61ffac5f61b3',
     ipAddress: '208.184.164.228'
@@ -463,7 +475,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'Central Office',
     region: 'All SST Schools',
     email: 'pcomparini@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Paola Comparini', 'b91c1c'),
     canReviewStages: ['payroll_action'],
     signerId: '4f291ab8-7612-4a01-9871-3312cb889021',
     ipAddress: '208.184.164.228'
@@ -476,7 +488,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Houston Regional Office',
     region: 'Houston Area',
     email: 'esevik@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Enes Sevik', '4338ca'),
     canReviewStages: [],
     isNotificationOnly: true,
     notificationRoleType: 'it',
@@ -491,7 +503,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Central Office (District Administration)',
     region: 'San Antonio & Corpus Christi',
     email: 'akaya@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Ahmet Kaya', '4338ca'),
     canReviewStages: [],
     isNotificationOnly: true,
     notificationRoleType: 'it',
@@ -506,7 +518,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Houston Regional Office',
     region: 'Houston Area',
     email: 'hkendirci@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Hasan Kendirci', '0d9488'),
     canReviewStages: [],
     isNotificationOnly: true,
     notificationRoleType: 'talent_acquisition',
@@ -521,7 +533,7 @@ export const USER_PERSONAS: UserPersona[] = [
     campus: 'SST Central Office (District Administration)',
     region: 'San Antonio & Corpus Christi',
     email: 'adal@ssttx.org',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
+    avatar: getInitialsAvatarUrl('Ali Dal', '0d9488'),
     canReviewStages: [],
     isNotificationOnly: true,
     notificationRoleType: 'talent_acquisition',
@@ -632,7 +644,7 @@ export function buildSstRouting(
   for (const rule of activeRules) {
     // 1. Check if the stage is globally enabled in config.stages
     const stageSetting = config.stages?.find(s => s.stage === rule.stage);
-    if (stageSetting && !stageSetting.isEnabled) {
+    if (stageSetting && stageSetting.isEnabled === false) {
       continue;
     }
 

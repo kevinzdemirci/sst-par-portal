@@ -18,9 +18,8 @@ import {
   Mail
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { compressImageFile } from '../utils/imageCompressor';
-import { isChiefPeopleOfficer } from '../utils/formatters';
+import { isChiefPeopleOfficer, getInitialsAvatarUrl } from '../utils/formatters';
 
 interface AccountCreationModalProps {
   workflowConfig: WorkflowConfig;
@@ -33,16 +32,6 @@ interface AccountCreationModalProps {
   onSendActivationEmail?: (role: ApproverRoleConfig) => void;
   isActivationFlow?: boolean;
 }
-
-const PRESET_AVATARS = [
-  { label: 'Executive 1 (Suit)', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive 2 (Blazer)', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive 3 (Leader)', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive 4 (Professional)', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive 5 (Modern)', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=160&auto=format&fit=crop&q=80' },
-  { label: 'Executive 6 (Formal)', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80' },
-  { label: 'SST Seal Monogram', url: SST_DEFAULT_LOGO }
-];
 
 export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   workflowConfig,
@@ -69,7 +58,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
   const [department, setDepartment] = useState<string>(initialRole?.department || 'Central Administration');
   const [campus, setCampus] = useState<string>(initialRole?.campus || 'Central Office');
   const [region, setRegion] = useState<string>(initialRole?.region || 'All SST Schools');
-  const [avatar, setAvatar] = useState<string>(initialRole?.avatar || PRESET_AVATARS[0].url);
+  const [avatar, setAvatar] = useState<string>(initialRole?.avatar || getInitialsAvatarUrl(initialRole?.name || 'Approver'));
 
   // Synchronize state whenever initialRole prop changes
   useEffect(() => {
@@ -81,7 +70,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       setDepartment(initialRole.department || 'Central Administration');
       setCampus(initialRole.campus || 'District Central Office');
       setRegion(initialRole.region || 'All SST Schools');
-      setAvatar(initialRole.avatar || PRESET_AVATARS[0].url);
+      setAvatar(initialRole.avatar || getInitialsAvatarUrl(initialRole.name || 'Approver'));
       if (initialRole.signingPin) {
         setSecurityPin(initialRole.signingPin);
       }
@@ -93,7 +82,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       setDepartment('Central Administration');
       setCampus('District Central Office');
       setRegion('All SST Schools');
-      setAvatar(PRESET_AVATARS[0].url);
+      setAvatar(getInitialsAvatarUrl('Approver'));
       setSecurityPin('123456');
     }
   }, [initialRole]);
@@ -120,7 +109,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
       setDepartment('Central Administration');
       setCampus('District Central Office');
       setRegion('All SST Campuses');
-      setAvatar(PRESET_AVATARS[0].url);
+      setAvatar(getInitialsAvatarUrl('Approver'));
     } else {
       const role = workflowConfig.approvers.find(a => a.id === roleId);
       if (role) {
@@ -130,7 +119,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
         setDepartment(role.department);
         setCampus(role.campus || 'District Central Office');
         setRegion(role.region);
-        setAvatar(role.avatar);
+        setAvatar(role.avatar || getInitialsAvatarUrl(role.name));
         if (role.signingPin) {
           setSecurityPin(role.signingPin);
         }
@@ -222,9 +211,7 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
 
   const generateInitialsAvatar = () => {
     const safeName = name.trim() || 'Approver';
-    const bgColors = ['0f2352', 'b91c1c', '1e3a8a', '047857', '7c3aed'];
-    const randomBg = bgColors[Math.abs(safeName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)) % bgColors.length];
-    setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=${randomBg}&color=fff&size=160&bold=true`);
+    setAvatar(getInitialsAvatarUrl(safeName));
   };
 
   // Save new approver role and dispatch activation email invitation
@@ -624,28 +611,6 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
                     className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Presets for Avatars */}
-            <div>
-              <span className="text-[10px] text-slate-500 font-bold uppercase block mb-1.5">
-                Or select an executive preset headshot:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {PRESET_AVATARS.map((preset, i) => (
-                  <button
-                    type="button"
-                    key={i}
-                    onClick={() => setAvatar(preset.url)}
-                    className={`p-1 rounded-full border-2 transition-all ${
-                      avatar === preset.url ? 'border-[#0f2352] ring-2 ring-[#0f2352]/20 scale-105' : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                    title={preset.label}
-                  >
-                    <img src={preset.url} alt={preset.label} className="w-8 h-8 rounded-full object-cover" />
-                  </button>
-                ))}
               </div>
             </div>
           </div>

@@ -308,3 +308,18 @@ export interface WorkflowConfig {
   districtLogo?: string;
 }
 
+export interface ActivationInvitation {
+  id: string;
+  recipientName: string;
+  recipientEmail: string;
+  roleId: string;
+  roleTitle: string;
+  department: string;
+  campus?: string;
+  region?: string;
+  invitationToken: string;
+  activationUrl: string;
+  sentAt: string;
+  status: 'sent' | 'opened' | 'activated';
+}
+

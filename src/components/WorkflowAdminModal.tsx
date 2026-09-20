@@ -11,6 +11,7 @@ import {
   SchoolLocation
 } from '../types/par';
 import { DEFAULT_WORKFLOW_CONFIG, DEFAULT_SST_ROUTING_RULES, buildSstRouting } from '../data/mockData';
+import { compressImageFile } from '../utils/imageCompressor';
 import { 
   X, 
   Settings, 
@@ -50,6 +51,7 @@ interface WorkflowAdminModalProps {
   onResetConfig: () => void;
   onClose: () => void;
   onActivateApproverAccount?: (approver: ApproverRoleConfig) => void;
+  onSendActivationEmail?: (approver: ApproverRoleConfig) => void;
 }
 
 const PRESET_AVATARS = [
@@ -82,7 +84,8 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   onSaveConfig,
   onResetConfig,
   onClose,
-  onActivateApproverAccount
+  onActivateApproverAccount,
+  onSendActivationEmail
 }) => {
   const [activeTab, setActiveTab] = useState<'rules' | 'approvers' | 'stages' | 'branding' | 'backup'>(initialTab);
   const [routingRules, setRoutingRules] = useState<SstRoutingRule[]>(config.routingRules || DEFAULT_SST_ROUTING_RULES);
@@ -145,25 +148,29 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
     setIsSaved(false);
   };
 
-  // File upload for picture
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // File upload for picture with automatic compression
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !targetUploadId) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Selected image file is larger than 2MB. Please select a smaller photo.');
-      return;
+    try {
+      // Compress to 256x256 JPEG (~15-25KB) so it permanently fits in localStorage without quota error
+      const compressedDataUrl = await compressImageFile(file, 256, 256, 0.85);
+      handleApproverChange(targetUploadId, 'avatar', compressedDataUrl);
+      setEditingPhotoForId(null);
+      setTargetUploadId(null);
+    } catch (err) {
+      console.error('Failed to compress avatar photo, falling back to direct reader:', err);
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        if (uploadEvent.target?.result) {
+          handleApproverChange(targetUploadId, 'avatar', uploadEvent.target.result as string);
+          setEditingPhotoForId(null);
+          setTargetUploadId(null);
+        }
+      };
+      reader.readAsDataURL(file);
     }
-
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      if (uploadEvent.target?.result) {
-        handleApproverChange(targetUploadId, 'avatar', uploadEvent.target.result as string);
-        setEditingPhotoForId(null);
-        setTargetUploadId(null);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const triggerFileUpload = (id: string) => {
@@ -222,11 +229,14 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       region: 'All SST Campuses',
       signerId: crypto.randomUUID(),
       ipAddress: '208.184.164.228',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+      avatar: 'https://ui-avatars.com/api/?name=New+Approver&background=0f2352&color=fff&size=160&bold=true',
       canReviewStages: ['cpo_review', 'regional_review', 'hr_review']
     };
     setApprovers([...approvers, newAppr]);
     setIsSaved(false);
+    if (onSendActivationEmail) {
+      onSendActivationEmail(newAppr);
+    }
   };
 
   // Delete approver role with rule cleanup
@@ -1013,6 +1023,18 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-2">
+                          {onSendActivationEmail && (
+                            <button
+                              type="button"
+                              onClick={() => onSendActivationEmail(appr)}
+                              className="px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-colors border bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 shadow-2xs"
+                              title={`Send activation email invitation with direct link to ${appr.email}`}
+                            >
+                              <Mail className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="hidden sm:inline">Send Invite</span>
+                            </button>
+                          )}
+
                           {onActivateApproverAccount && (
                             <button
                               type="button"

@@ -17,6 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { compressImageFile } from '../utils/imageCompressor';
 
 interface AccountCreationModalProps {
   workflowConfig: WorkflowConfig;
@@ -153,21 +154,25 @@ export const AccountCreationModal: React.FC<AccountCreationModalProps> = ({
     setDrawnSignatureData(null);
   };
 
-  // Avatar upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Avatar upload with auto-compression
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Selected image file is larger than 2MB. Please select a smaller photo.');
-      return;
+
+    try {
+      // Compress to 256x256 jpeg ~15-25KB so it persists permanently in localStorage
+      const compressedDataUrl = await compressImageFile(file, 256, 256, 0.85);
+      setAvatar(compressedDataUrl);
+    } catch (err) {
+      console.error('Failed to compress avatar photo:', err);
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        if (uploadEvent.target?.result) {
+          setAvatar(uploadEvent.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
     }
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      if (uploadEvent.target?.result) {
-        setAvatar(uploadEvent.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const generateInitialsAvatar = () => {

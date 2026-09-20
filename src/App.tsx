@@ -22,6 +22,7 @@ import { WorkflowDiagramModal } from './components/WorkflowDiagramModal';
 import { WorkflowAdminModal } from './components/WorkflowAdminModal';
 import { AccountCreationModal } from './components/AccountCreationModal';
 import { RoleManagerModal } from './components/RoleManagerModal';
+import { ActivationEmailModal } from './components/ActivationEmailModal';
 import { CheckCircle, AlertCircle, Info, Trash2 } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
@@ -84,6 +85,39 @@ export function App() {
     try {
       const saved = localStorage.getItem(PERSONA_KEY);
       if (saved) {
+        // Look in saved available personas first (to preserve custom avatars & names)
+        const savedPersonasStr = localStorage.getItem(PERSONAS_CONFIG_KEY);
+        if (savedPersonasStr) {
+          const list: UserPersona[] = JSON.parse(savedPersonasStr);
+          const foundInList = list.find((p) => p.id === saved);
+          if (foundInList) return foundInList;
+        }
+
+        // Fallback to saved workflowConfig approvers
+        const savedWorkflowStr = localStorage.getItem(WORKFLOW_CONFIG_KEY);
+        if (savedWorkflowStr) {
+          const wf = JSON.parse(savedWorkflowStr);
+          const appr = wf.approvers?.find((a: any) => a.id === saved);
+          if (appr) {
+            return {
+              id: appr.id,
+              name: appr.name,
+              email: appr.email,
+              role: appr.title || appr.role,
+              campus: appr.campus || 'Central Office',
+              region: appr.region,
+              department: appr.department || 'Administration',
+              avatar: appr.avatar,
+              signerId: appr.signerId,
+              ipAddress: appr.ipAddress,
+              canReviewStages: appr.canReviewStages || ['cpo_review', 'regional_review', 'hr_review'],
+              isAccountActivated: appr.isAccountActivated,
+              signingPin: appr.signingPin,
+              signatureImage: appr.signatureImage
+            };
+          }
+        }
+
         const found = USER_PERSONAS.find(p => p.id === saved);
         if (found) return found;
       }
@@ -101,6 +135,7 @@ export function App() {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
+  const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   
   // Notification Toast
@@ -154,6 +189,44 @@ export function App() {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  // Handle URL activation link (e.g., from an email invitation: ?activate=<roleId>)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const activateId = params.get('activate');
+      if (activateId) {
+        const matchedAppr = workflowConfig.approvers.find((a) => a.id === activateId);
+        if (matchedAppr) {
+          setTargetAccountRole(matchedAppr);
+          setIsAccountModalOpen(true);
+        } else {
+          const matchedPersona = availablePersonas.find((p) => p.id === activateId);
+          if (matchedPersona) {
+            setTargetAccountRole({
+              id: matchedPersona.id,
+              name: matchedPersona.name,
+              title: matchedPersona.role,
+              roleKey: 'custom',
+              email: matchedPersona.email,
+              department: matchedPersona.department,
+              campus: matchedPersona.campus,
+              region: matchedPersona.region || 'All SST Campuses',
+              avatar: matchedPersona.avatar,
+              signerId: matchedPersona.signerId,
+              ipAddress: matchedPersona.ipAddress,
+              isAccountActivated: matchedPersona.isAccountActivated,
+              signingPin: matchedPersona.signingPin,
+              signatureImage: matchedPersona.signatureImage
+            });
+            setIsAccountModalOpen(true);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [workflowConfig.approvers, availablePersonas]);
 
   const showToast = (text: string, type: 'success' | 'warning' | 'info' = 'success') => {
     setToastMessage({ text, type });
@@ -853,6 +926,7 @@ export function App() {
           onSaveConfig={handleSaveWorkflowConfig}
           onResetConfig={handleResetWorkflowConfig}
           onActivateApproverAccount={handleOpenAccountCreation}
+          onSendActivationEmail={(appr) => setActivationEmailTarget(appr)}
         />
       )}
 
@@ -880,11 +954,49 @@ export function App() {
           onSelectPersona={setCurrentPersona}
           onDeleteRole={handleDeleteRole}
           onDeactivateAccount={handleDeactivateRoleAccount}
+          onSendActivationEmail={(role) => setActivationEmailTarget(role)}
           onOpenAccountModal={(role) => {
             setIsRoleManagerOpen(false);
             handleOpenAccountCreation(role);
           }}
           onClose={() => setIsRoleManagerOpen(false)}
+        />
+      )}
+
+      {/* Activation Email Invitation Modal */}
+      {activationEmailTarget && (
+        <ActivationEmailModal
+          role={activationEmailTarget}
+          onClose={() => setActivationEmailTarget(null)}
+          onOpenActivationPortal={(role) => {
+            setActivationEmailTarget(null);
+            if ('title' in role) {
+              setTargetAccountRole(role as ApproverRoleConfig);
+            } else {
+              const matched = workflowConfig.approvers.find((a) => a.id === role.id);
+              if (matched) {
+                setTargetAccountRole(matched);
+              } else {
+                setTargetAccountRole({
+                  id: role.id,
+                  name: role.name,
+                  title: role.role,
+                  roleKey: 'custom',
+                  email: role.email,
+                  department: role.department,
+                  campus: role.campus,
+                  region: role.region || 'All SST Campuses',
+                  avatar: role.avatar,
+                  signerId: role.signerId,
+                  ipAddress: role.ipAddress,
+                  isAccountActivated: role.isAccountActivated,
+                  signingPin: role.signingPin,
+                  signatureImage: role.signatureImage
+                });
+              }
+            }
+            setIsAccountModalOpen(true);
+          }}
         />
       )}
 

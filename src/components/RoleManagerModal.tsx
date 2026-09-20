@@ -9,7 +9,8 @@ import {
   Search, 
   ShieldCheck, 
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Mail
 } from 'lucide-react';
 
 interface RoleManagerModalProps {
@@ -20,6 +21,7 @@ interface RoleManagerModalProps {
   onDeleteRole: (roleId: string) => void;
   onDeactivateAccount: (roleId: string) => void;
   onOpenAccountModal: (role?: ApproverRoleConfig) => void;
+  onSendActivationEmail?: (role: ApproverRoleConfig | UserPersona) => void;
   onClose: () => void;
 }
 
@@ -31,6 +33,7 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
   onDeleteRole,
   onDeactivateAccount,
   onOpenAccountModal,
+  onSendActivationEmail,
   onClose
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,6 +279,34 @@ export const RoleManagerModal: React.FC<RoleManagerModalProps> = ({
                         title="Simulate this persona"
                       >
                         Simulate Role
+                      </button>
+                    )}
+
+                    {/* Send Activation Email */}
+                    {onSendActivationEmail && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetRole = role.approverConfig || role.persona || {
+                            id: role.id,
+                            name: role.name,
+                            role: role.role,
+                            department: role.department,
+                            campus: role.campus || 'Central Office',
+                            region: role.region || 'All SST Schools',
+                            email: role.email,
+                            avatar: role.avatar,
+                            canReviewStages: ['draft', 'supervisor_review', 'cpo_review', 'regional_review', 'hr_review'],
+                            signerId: `SST-${Date.now()}`,
+                            ipAddress: '208.184.164.228'
+                          };
+                          onSendActivationEmail(targetRole);
+                        }}
+                        className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold text-xs rounded-xl transition-colors flex items-center space-x-1"
+                        title={`Send activation email invitation to ${role.email}`}
+                      >
+                        <Mail className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="hidden sm:inline">Send Invite</span>
                       </button>
                     )}
 

@@ -3,8 +3,9 @@ import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
-import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
+import { getStoredGmailCredentials } from '../utils/gmailService';
 
 interface NavbarProps {
   currentPersona: UserPersona;
@@ -25,6 +26,7 @@ interface NavbarProps {
   districtName?: string;
   activeHubTab?: 'pars' | 'payouts' | 'directory' | 'workflow';
   onSelectHubTab?: (tab: 'pars' | 'payouts' | 'directory' | 'workflow') => void;
+  onOpenGmailSettings?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -45,12 +47,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   districtLogo,
   districtName,
   activeHubTab = 'pars',
-  onSelectHubTab
+  onSelectHubTab,
+  onOpenGmailSettings
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
   const isHr = isRegionalHrCoordinator(currentPersona);
   const isPayroll = isPayrollCoordinator(currentPersona);
+  const gmailCreds = getStoredGmailCredentials();
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
@@ -140,6 +144,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     } else if (onOpenRoleManagerModal) {
                       onOpenRoleManagerModal();
                     }
+                  } else if (e.target.value === '__GMAIL_SETTINGS__') {
+                    if (onOpenGmailSettings) onOpenGmailSettings();
                   } else {
                     const found = availablePersonas.find(p => p.id === e.target.value);
                     if (found) onSelectPersona(found);
@@ -169,11 +175,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <>
                       <option value="__NEW_ACCOUNT__">+ Add Approver Role / Create Account...</option>
                       <option value="__MANAGE_ROLES__">⚙️ Manage & Remove Roles...</option>
+                      <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
                     </>
                   ) : (
                     <>
                       <option value="__MY_ESIGN__">✍️ Configure My E-Sign Profile...</option>
                       <option value="__VIEW_DIRECTORY__">👥 View Approvers Directory...</option>
+                      <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
                     </>
                   )}
                 </optgroup>
@@ -351,6 +359,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Sliders className="w-3.5 h-3.5 text-[#b91c1c]" />
                 <span className="hidden sm:inline">Workflow Admin</span>
+              </button>
+            )}
+
+            {/* Gmail Dispatcher Setup Button */}
+            {onOpenGmailSettings && (
+              <button
+                type="button"
+                onClick={onOpenGmailSettings}
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
+                  gmailCreds.isEnabled
+                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
+                    : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+                }`}
+                title={`Configure SST Gmail Dispatcher (${gmailCreds.isEnabled ? `Active: ${gmailCreds.senderEmail}` : 'Setup Required'})`}
+              >
+                <Mail className="w-3.5 h-3.5 text-red-600" />
+                <span className="hidden xl:inline">Gmail Setup</span>
+                {gmailCreds.isEnabled ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" title="Active" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" title="Action Needed" />
+                )}
               </button>
             )}
 

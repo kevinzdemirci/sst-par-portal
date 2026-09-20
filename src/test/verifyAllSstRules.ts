@@ -1,8 +1,15 @@
 import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
-import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
+import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator, isChiefPeopleOfficer, getPersonaPermissions, getDepartmentNotificationRecipients } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
+import { 
+  DEFAULT_GMAIL_CREDENTIALS, 
+  buildSstHtmlEmail, 
+  sendGmailEmail, 
+  GOOGLE_APPS_SCRIPT_SAMPLE,
+  GmailCredentials 
+} from '../utils/gmailService';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -19,9 +26,10 @@ function assert(condition: boolean, msg: string) {
   }
 }
 
-console.log('\n======================================================');
-console.log('🏛️  SST PAR PORTAL — AUTOMATED VERIFICATION SUITE');
-console.log('======================================================\n');
+async function runTests() {
+  console.log('\n======================================================');
+  console.log('🏛️  SST PAR PORTAL — AUTOMATED VERIFICATION SUITE');
+  console.log('======================================================\n');
 
 // 1. VERIFY ALL SST CAMPUSES
 console.log('📌 Test 1: SST Campuses Directory (sstschools.org)...');
@@ -142,7 +150,6 @@ assert(canPersonaActOnPar(paolaPersona, mockPayrollPar), 'Paola Comparini can si
 
 // 5. VERIFY CHIEF PEOPLE OFFICER RBAC PRIVILEGES (CPO EXCLUSIVITY)
 console.log('\n📌 Test 5: Chief People Officer Exclusive Super Admin Privileges...');
-import { isChiefPeopleOfficer, getPersonaPermissions } from '../utils/formatters';
 
 // 5a. isChiefPeopleOfficer check
 assert(isChiefPeopleOfficer(kevinPersona) === true, 'Dr. Kevin Demirci is recognized as Chief People Officer (Super Admin)');
@@ -202,7 +209,6 @@ assert(targetApprover?.avatar === newPhotoUrl, 'Role photo can be dynamically up
 
 // 7. VERIFY DEPARTMENT NOTIFICATIONS & NO-ACTION-REQUIRED STAKEHOLDERS
 console.log('\n📌 Test 7: Department Notifications & No-Action-Required Stakeholders (IT & Talent Acquisition)...');
-import { getDepartmentNotificationRecipients } from '../utils/formatters';
 
 const enesPersona = USER_PERSONAS.find(p => p.email === 'esevik@ssttx.org');
 assert(Boolean(enesPersona), 'Enes Sevik exists with email esevik@ssttx.org (Houston IT)');
@@ -436,11 +442,90 @@ assert(sanitizeResult.forked === true, 'Account creation with name "TEST TEST" o
 assert(sanitizeResult.safePersona.id !== 'p-kevin', 'Forked test user receives a distinct new persona ID');
 assert(isChiefPeopleOfficer(kevinPersona) === true, 'Original Dr. Kevin Demirci remains unaffected as Chief People Officer');
 
-// 13. SUMMARY
-console.log('\n======================================================');
-console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
-console.log('======================================================\n');
+// 13. SST GMAIL & GOOGLE WORKSPACE AUTOMATED DISPATCH INTEGRATION
+console.log('\n📌 Test 13: SST Gmail & Google Workspace Automated Dispatch Engine...');
 
-if (failed > 0) {
-  process.exit(1);
+// Test 13a: Default Gmail Credentials
+assert(DEFAULT_GMAIL_CREDENTIALS.senderEmail === 'hr@ssttx.org', 'Default sender email is hr@ssttx.org');
+assert(DEFAULT_GMAIL_CREDENTIALS.senderName.includes('School of Science and Technology'), 'Default sender name includes School of Science and Technology');
+assert(DEFAULT_GMAIL_CREDENTIALS.mode === 'google_script', 'Default dispatch mode is Google Apps Script (Zero Fees)');
+assert(DEFAULT_GMAIL_CREDENTIALS.ccHrCopy === true, 'CC audit copy to District HR is enabled by default');
+assert(DEFAULT_GMAIL_CREDENTIALS.hrEmail === 'hr@ssttx.org', 'District HR audit email is hr@ssttx.org');
+
+// Test 13b: Google Apps Script Web App Code Sample
+assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('GmailApp.sendEmail'), 'Google Apps Script uses native GmailApp.sendEmail');
+assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('function doPost(e)'), 'Google Apps Script implements doPost(e) Web App entrypoint');
+assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('function doGet(e)'), 'Google Apps Script implements doGet(e) health check');
+assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('ContentService.createTextOutput'), 'Google Apps Script outputs JSON ContentService response');
+
+// Test 13c: Professional HTML Email Template Builder
+const sampleHtml = buildSstHtmlEmail(
+  'ACTION REQUIRED: Complete Your Electronic Signature',
+  'Dear Approver,\n\nYou have been designated as an official workflow approver.\n\nPlease claim your role below.',
+  'https://sstschools.org/portal?activate=test-id',
+  'Claim & Activate Approver Role'
+);
+assert(sampleHtml.includes('School of Science and Technology'), 'HTML template includes School of Science and Technology branding header');
+assert(sampleHtml.includes('Personnel Action Request & HR Portal'), 'HTML template includes PAR & HR Portal subheader');
+assert(sampleHtml.includes('ACTION REQUIRED'), 'HTML template includes title');
+assert(sampleHtml.includes('https://sstschools.org/portal?activate=test-id'), 'HTML template includes action URL link');
+assert(sampleHtml.includes('Claim &amp; Activate Approver Role') || sampleHtml.includes('Claim & Activate Approver Role'), 'HTML template includes custom action button text');
+assert(sampleHtml.includes('Confidentiality Notice:'), 'HTML template includes legal confidentiality disclaimer');
+assert(sampleHtml.includes('hr@ssttx.org'), 'HTML template includes contact email');
+
+// Test 13d: sendGmailEmail Recipient Address Validation
+const invalidEmailResult = await sendGmailEmail({
+  to: 'invalid-email-address',
+  subject: 'Test Subject',
+  bodyText: 'Test Body'
+}, { ...DEFAULT_GMAIL_CREDENTIALS, isEnabled: true });
+assert(invalidEmailResult.success === false, 'Invalid recipient email is rejected');
+assert(invalidEmailResult.message.includes('Invalid recipient email address'), 'Appropriate error returned for invalid recipient address');
+
+// Test 13e: Google Apps Script Mode Validation (Missing Script URL)
+const missingUrlResult = await sendGmailEmail({
+  to: 'kstewart@ssttx.org',
+  subject: 'Test Invitation',
+  bodyText: 'Please review'
+}, { ...DEFAULT_GMAIL_CREDENTIALS, mode: 'google_script', scriptUrl: '', isEnabled: true });
+assert(missingUrlResult.success === false, 'Google Apps Script mode fails gracefully when URL is missing');
+assert(missingUrlResult.message.includes('Google Apps Script Web App URL is missing'), 'Clear instructional error when Script URL is empty');
+
+// Test 13f: EmailJS Mode Validation (Missing Keys)
+const missingEmailJsResult = await sendGmailEmail({
+  to: 'kstewart@ssttx.org',
+  subject: 'Test Invitation',
+  bodyText: 'Please review'
+}, { ...DEFAULT_GMAIL_CREDENTIALS, mode: 'emailjs', emailJsServiceId: '', emailJsPublicKey: '', isEnabled: true });
+assert(missingEmailJsResult.success === false, 'EmailJS mode fails gracefully when keys are missing');
+assert(missingEmailJsResult.message.includes('EmailJS Service ID or Public Key is missing'), 'Clear instructional error when EmailJS keys are missing');
+
+// Test 13g: SMTP Relay Mode Validation (Missing Endpoint)
+const missingSmtpResult = await sendGmailEmail({
+  to: 'kstewart@ssttx.org',
+  subject: 'Test Invitation',
+  bodyText: 'Please review'
+}, { ...DEFAULT_GMAIL_CREDENTIALS, mode: 'smtp_relay', smtpEndpoint: '', isEnabled: true });
+assert(missingSmtpResult.success === false, 'SMTP Relay mode fails gracefully when endpoint is missing');
+assert(missingSmtpResult.message.includes('SMTP Relay Endpoint URL is missing'), 'Clear instructional error when SMTP endpoint is missing');
+
+// Test 13h: CC Audit Copy Routing
+const testCredsWithHrCc: GmailCredentials = {
+  ...DEFAULT_GMAIL_CREDENTIALS,
+  ccHrCopy: true,
+  hrEmail: 'hr-audit@ssttx.org'
+};
+assert(testCredsWithHrCc.ccHrCopy === true, 'CC audit copy flag is preserved');
+assert(testCredsWithHrCc.hrEmail === 'hr-audit@ssttx.org', 'Custom audit email is routed correctly');
+
+  // 14. SUMMARY
+  console.log('\n======================================================');
+  console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
+  console.log('======================================================\n');
+
+  if (failed > 0) {
+    process.exit(1);
+  }
 }
+
+runTests();

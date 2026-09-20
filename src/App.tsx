@@ -24,6 +24,8 @@ import { AccountCreationModal } from './components/AccountCreationModal';
 import { RoleManagerModal } from './components/RoleManagerModal';
 import { ActivationEmailModal } from './components/ActivationEmailModal';
 import { CpoPayoutModal } from './components/CpoPayoutModal';
+import { GmailSettingsModal } from './components/GmailSettingsModal';
+import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { CpoPayoutRequest } from './types/payout';
 import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
 import { isRegionalHrCoordinator } from './utils/formatters';
@@ -209,6 +211,7 @@ export function App() {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
@@ -522,6 +525,29 @@ export function App() {
           );
         }
 
+        // Automated Gmail dispatch on stage transition or completion
+        const gmailCreds = getStoredGmailCredentials();
+        if (gmailCreds.isEnabled) {
+          const empFullName = `${par.firstName} ${par.lastName}`;
+          if (nextStage === 'completed') {
+            sendGmailEmail({
+              to: par.workEmail || gmailCreds.hrEmail,
+              toName: empFullName,
+              subject: `✅ [SST PAR COMPLETED]: ${par.trackingNumber} - ${empFullName}`,
+              bodyText: `Dear SST Team,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) has completed all approval stages and been executed in ADP payroll.\n\nAll departmental actions are complete.\n\nSchool of Science and Technology Human Resources`,
+              category: 'notification'
+            }, gmailCreds).catch(console.error);
+          } else if (nextPendingStep?.assignedEmail) {
+            sendGmailEmail({
+              to: nextPendingStep.assignedEmail,
+              toName: nextPendingStep.assignedRole,
+              subject: `⏳ [SST PAR PENDING YOUR REVIEW]: ${par.trackingNumber} - ${empFullName}`,
+              bodyText: `Dear ${nextPendingStep.assignedRole},\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) is now pending your endorsement in the "${nextPendingStep.stageLabel}" stage.\n\nPlease sign in to the SST HR Hub to review and execute your digital signature.\n\nSchool of Science and Technology Human Resources`,
+              category: 'notification'
+            }, gmailCreds).catch(console.error);
+          }
+        }
+
         return updatedPar;
       })
     );
@@ -778,6 +804,24 @@ export function App() {
     } else {
       showToast(`🎉 Profile details and picture updated for ${safePersona.name} (${safePersona.role})!`, 'success');
     }
+
+    // 4. Automated Gmail dispatch for new approver invitation if enabled
+    const gmailCreds = getStoredGmailCredentials();
+    if (gmailCreds.isEnabled && safePersona.email && !safePersona.isAccountActivated && safePersona.id !== 'p-kevin') {
+      const baseUrl = window.location.origin + window.location.pathname;
+      const activationUrl = `${baseUrl}?activate=${encodeURIComponent(safePersona.id)}`;
+      sendGmailEmail({
+        to: safePersona.email,
+        toName: safePersona.name,
+        subject: `ACTION REQUIRED: Complete Your Electronic Signature & Activate Approver Role (${safePersona.role})`,
+        bodyText: `Dear ${safePersona.name},\n\nYou have been designated as an official workflow approver for the School of Science and Technology (SST) Personnel Action Request (PAR) system.\n\nRole: ${safePersona.role}\nDepartment: ${safePersona.department}\nCampus: ${safePersona.campus || 'District-Wide'}\n\nPlease click below to establish your secure electronic signature profile and PIN:\n${activationUrl}\n\nSchool of Science and Technology\nHuman Capital Systems`,
+        category: 'activation'
+      }, gmailCreds).then((res) => {
+        if (res.success) {
+          showToast(`🚀 Activation invite automatically dispatched to ${safePersona.email} via Gmail!`, 'success');
+        }
+      }).catch(console.error);
+    }
   };
 
   // Directly update photo/picture for any role in the district
@@ -960,6 +1004,7 @@ export function App() {
         pendingPayoutsCount={pendingPayoutsCount}
         activeHubTab={activeHubTab}
         onSelectHubTab={setActiveHubTab}
+        onOpenGmailSettings={() => setIsGmailModalOpen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -1382,6 +1427,7 @@ export function App() {
           onResetConfig={handleResetWorkflowConfig}
           onActivateApproverAccount={handleOpenAccountCreation}
           onSendActivationEmail={(appr) => setActivationEmailTarget(appr)}
+          onOpenGmailSettings={() => setIsGmailModalOpen(true)}
         />
       )}
 
@@ -1435,6 +1481,7 @@ export function App() {
           hrNotificationEmail={workflowConfig.hrNotificationEmail}
           emailWebhookUrl={workflowConfig.emailWebhookUrl}
           onClose={() => setActivationEmailTarget(null)}
+          onOpenGmailSettings={() => setIsGmailModalOpen(true)}
           onOpenActivationPortal={(role) => {
             setActivationEmailTarget(null);
             if ('title' in role) {
@@ -1478,6 +1525,13 @@ export function App() {
         onToast={showToast}
         districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
         districtName={workflowConfig.districtName}
+      />
+
+      {/* SST Gmail & Google Workspace Configuration Modal */}
+      <GmailSettingsModal
+        isOpen={isGmailModalOpen}
+        onClose={() => setIsGmailModalOpen(false)}
+        onToast={showToast}
       />
 
     </div>

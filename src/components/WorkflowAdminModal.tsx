@@ -47,6 +47,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+import { getStoredGmailCredentials } from '../utils/gmailService';
+
 interface WorkflowAdminModalProps {
   config: WorkflowConfig;
   currentPersona?: UserPersona;
@@ -56,6 +58,7 @@ interface WorkflowAdminModalProps {
   onClose: () => void;
   onActivateApproverAccount?: (approver: ApproverRoleConfig) => void;
   onSendActivationEmail?: (approver: ApproverRoleConfig) => void;
+  onOpenGmailSettings?: () => void;
 }
 
 const PRESET_AVATARS = [
@@ -90,9 +93,11 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   onResetConfig,
   onClose,
   onActivateApproverAccount,
-  onSendActivationEmail
+  onSendActivationEmail,
+  onOpenGmailSettings
 }) => {
   const isCpo = isChiefPeopleOfficer(currentPersona);
+  const gmailCreds = getStoredGmailCredentials();
   const [activeTab, setActiveTab] = useState<'rules' | 'approvers' | 'stages' | 'branding' | 'backup'>(initialTab);
   const [routingRules, setRoutingRules] = useState<SstRoutingRule[]>(config.routingRules || DEFAULT_SST_ROUTING_RULES);
   const [approvers, setApprovers] = useState<ApproverRoleConfig[]>(config.approvers);
@@ -1571,6 +1576,46 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                     <span className="text-[10px] text-slate-400 mt-1 block">
                       Connect an SST Google Apps Script or webhook to send invitations automatically in the background from this HR address.
                     </span>
+                  </div>
+
+                  {/* Gmail & Google Workspace Dispatcher Setup Card */}
+                  <div className="pt-3 border-t border-slate-200">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 bg-gradient-to-r from-amber-50/70 to-blue-50/70 border border-amber-200 rounded-2xl gap-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-white rounded-xl border border-amber-200 shadow-2xs shrink-0">
+                          <Mail className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-slate-900">SST Gmail / Google Workspace Dispatcher</span>
+                            {gmailCreds.isEnabled ? (
+                              <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center space-x-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Active: {gmailCreds.senderEmail}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                                Setup Required
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-600 mt-0.5">
+                            Automate account activation invitations and notifications directly from your Gmail address with zero fees.
+                          </p>
+                        </div>
+                      </div>
+
+                      {onOpenGmailSettings && (
+                        <button
+                          type="button"
+                          onClick={onOpenGmailSettings}
+                          className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl transition-colors shadow-2xs shrink-0"
+                        >
+                          <Settings className="w-3.5 h-3.5 text-amber-300" />
+                          <span>{gmailCreds.isEnabled ? 'Manage Gmail Setup' : 'Configure Gmail'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

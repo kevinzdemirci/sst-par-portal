@@ -10,13 +10,20 @@ import {
   ShieldCheck, 
   Sparkles,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Settings,
+  Zap
 } from 'lucide-react';
+import { 
+  getStoredGmailCredentials, 
+  sendGmailEmail 
+} from '../utils/gmailService';
 
 interface ActivationEmailModalProps {
   role: ApproverRoleConfig | UserPersona;
   onClose: () => void;
   onOpenActivationPortal: (role: ApproverRoleConfig | UserPersona) => void;
+  onOpenGmailSettings?: () => void;
   hrNotificationEmail?: string;
   emailWebhookUrl?: string;
 }
@@ -25,14 +32,19 @@ export const ActivationEmailModal: React.FC<ActivationEmailModalProps> = ({
   role,
   onClose,
   onOpenActivationPortal,
+  onOpenGmailSettings,
   hrNotificationEmail = 'hr@ssttx.org',
   emailWebhookUrl
 }) => {
   const [copied, setCopied] = useState(false);
   const [isSendingWebhook, setIsSendingWebhook] = useState(false);
   const [webhookSent, setWebhookSent] = useState(false);
+  const [isSendingGmail, setIsSendingGmail] = useState(false);
+  const [gmailSent, setGmailSent] = useState(false);
+  const [gmailFeedback, setGmailFeedback] = useState<string | null>(null);
 
-  const hrEmail = hrNotificationEmail || 'hr@ssttx.org';
+  const gmailCreds = getStoredGmailCredentials();
+  const hrEmail = gmailCreds.isEnabled && gmailCreds.senderEmail ? gmailCreds.senderEmail : (hrNotificationEmail || 'hr@ssttx.org');
 
   // Build activation link
   const baseUrl = window.location.origin + window.location.pathname;
@@ -68,6 +80,41 @@ School of Science and Technology Charter District`;
   const mailtoUrl = `mailto:${encodeURIComponent(role.email)}?cc=${encodeURIComponent(hrEmail)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
   const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(role.email)}&cc=${encodeURIComponent(hrEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
   const outlookWebUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(role.email)}&cc=${encodeURIComponent(hrEmail)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+
+  const handleSendGmail = async () => {
+    const creds = getStoredGmailCredentials();
+    if (!creds.isEnabled || (!creds.scriptUrl && !creds.emailJsServiceId && !creds.smtpEndpoint)) {
+      if (onOpenGmailSettings) {
+        onOpenGmailSettings();
+      } else {
+        alert('Please configure your Gmail credentials first.');
+      }
+      return;
+    }
+
+    setIsSendingGmail(true);
+    setGmailFeedback(null);
+    try {
+      const result = await sendGmailEmail({
+        to: role.email,
+        toName: role.name,
+        subject: emailSubject,
+        bodyText: emailBodyText,
+        category: 'activation'
+      }, creds);
+
+      if (result.success) {
+        setGmailSent(true);
+        setGmailFeedback(`Dispatched from ${creds.senderEmail} via Gmail!`);
+      } else {
+        setGmailFeedback(`⚠️ ${result.message}`);
+      }
+    } catch (err: any) {
+      setGmailFeedback(`⚠️ Failed: ${err.message || 'Error reaching Gmail dispatcher'}`);
+    } finally {
+      setIsSendingGmail(false);
+    }
+  };
 
   const handleSendWebhook = async () => {
     if (!emailWebhookUrl) return;
@@ -146,7 +193,15 @@ School of Science and Technology Charter District`;
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <span className="text-slate-500 font-medium">From:</span>
-              <span className="font-semibold text-slate-800">SST Human Capital Systems &lt;noreply@ssttx.org&gt;</span>
+              <span className="font-semibold text-slate-800 flex items-center space-x-1.5">
+                <span>{gmailCreds.isEnabled ? `${gmailCreds.senderName} <${gmailCreds.senderEmail}>` : 'SST Human Capital Systems <noreply@ssttx.org>'}</span>
+                {gmailCreds.isEnabled && (
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center space-x-0.5">
+                    <Zap className="w-2.5 h-2.5 text-emerald-600" />
+                    <span>Gmail Active</span>
+                  </span>
+                )}
+              </span>
             </div>
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <span className="text-slate-500 font-medium">To (Designated Approver):</span>
@@ -262,17 +317,62 @@ School of Science and Technology Charter District`;
             </div>
           </div>
 
+          {/* Gmail Feedback Alert if sent/failed */}
+          {gmailFeedback && (
+            <div className={`p-2.5 rounded-xl text-xs flex items-center justify-between border ${
+              gmailSent 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                : 'bg-amber-50 text-amber-800 border-amber-200'
+            }`}>
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold">{gmailFeedback}</span>
+              </div>
+              {onOpenGmailSettings && (
+                <button
+                  type="button"
+                  onClick={onOpenGmailSettings}
+                  className="underline text-[11px] font-bold ml-2 hover:text-slate-900"
+                >
+                  Configure Gmail
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
             <div className="flex flex-wrap items-center gap-2">
-              {/* Mail App */}
-              <a
-                href={mailtoUrl}
-                className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl transition-colors shadow-2xs"
-                title="Launch default email app (Apple Mail, Outlook, Thunderbird)"
-              >
-                <Send className="w-3.5 h-3.5 text-amber-300" />
-                <span>Send via Mail App</span>
-              </a>
+              {/* Automated 1-Click Send via Gmail */}
+              {gmailCreds.isEnabled ? (
+                <button
+                  type="button"
+                  onClick={handleSendGmail}
+                  disabled={isSendingGmail || gmailSent}
+                  className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 disabled:from-emerald-400 disabled:to-teal-500 text-white font-bold text-xs rounded-xl transition-all shadow-md active:scale-95"
+                  title={`Send directly from authenticated Gmail account (${gmailCreds.senderEmail})`}
+                >
+                  <Send className="w-3.5 h-3.5 text-amber-300" />
+                  <span>
+                    {gmailSent 
+                      ? '✅ Sent via Gmail' 
+                      : isSendingGmail 
+                        ? 'Dispatching via Gmail...' 
+                        : `🚀 Send via Gmail (${gmailCreds.senderEmail})`}
+                  </span>
+                </button>
+              ) : (
+                onOpenGmailSettings && (
+                  <button
+                    type="button"
+                    onClick={onOpenGmailSettings}
+                    className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl transition-colors shadow-2xs"
+                    title="Configure your Gmail credentials to send invitations automatically"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-amber-600" />
+                    <span>⚙️ Setup Gmail Dispatcher</span>
+                  </button>
+                )
+              )}
 
               {/* Gmail Web */}
               <a
@@ -284,6 +384,16 @@ School of Science and Technology Charter District`;
               >
                 <ExternalLink className="w-3.5 h-3.5 text-red-600" />
                 <span>Open Gmail Web</span>
+              </a>
+
+              {/* Mail App */}
+              <a
+                href={mailtoUrl}
+                className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-[#0f2352] hover:bg-[#1a3880] text-white font-bold text-xs rounded-xl transition-colors shadow-2xs"
+                title="Launch default email app (Apple Mail, Outlook, Thunderbird)"
+              >
+                <Send className="w-3.5 h-3.5 text-amber-300" />
+                <span>Send via Mail App</span>
               </a>
 
               {/* Outlook 365 Web */}

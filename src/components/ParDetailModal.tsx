@@ -14,6 +14,7 @@ import {
   canPersonaActOnPar,
   getDepartmentNotificationRecipients
 } from '../utils/formatters';
+import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
 import { 
   X, 
   Printer, 
@@ -126,6 +127,31 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   const handleResendNotifications = () => {
     const itContact = deptNotifications.find(n => n.type === 'it');
     const taContact = deptNotifications.find(n => n.type === 'talent_acquisition');
+
+    // Automatically dispatch via configured Gmail if active
+    const creds = getStoredGmailCredentials();
+    if (creds.isEnabled) {
+      const empFullName = `${par.firstName} ${par.lastName}`;
+      if (itContact?.recipientEmail) {
+        sendGmailEmail({
+          to: itContact.recipientEmail,
+          toName: itContact.recipientName,
+          subject: `📢 [SST IT NOTIFICATION] Staff Action: ${empFullName} (${par.trackingNumber})`,
+          bodyText: `Dear ${itContact.recipientName},\n\nThis is an automated informational notification regarding personnel action ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}).\n\nAction Type: ${par.actionType}\nEffective Date: ${par.effectiveDate}\n\nNo approval action or signature is required from your department. Please review this notice for district IT hardware, account deactivation, or licensing tracking.\n\nSchool of Science and Technology HR Systems`,
+          category: 'notification'
+        }, creds).catch(console.error);
+      }
+      if (taContact?.recipientEmail) {
+        sendGmailEmail({
+          to: taContact.recipientEmail,
+          toName: taContact.recipientName,
+          subject: `📢 [SST TA NOTIFICATION] Staff Action: ${empFullName} (${par.trackingNumber})`,
+          bodyText: `Dear ${taContact.recipientName},\n\nThis is an automated informational notification regarding personnel action ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}).\n\nAction Type: ${par.actionType}\nEffective Date: ${par.effectiveDate}\n\nNo approval action or signature is required from your department. Please review this notice for campus vacancy tracking and talent pipeline management.\n\nSchool of Science and Technology HR Systems`,
+          category: 'notification'
+        }, creds).catch(console.error);
+      }
+    }
+
     const msg = `Automated notification emails successfully dispatched to ${itContact?.recipientName} (${itContact?.recipientEmail}) and ${taContact?.recipientName} (${taContact?.recipientEmail}) for informational processing (No Action Required).`;
     setNotificationsSentToast(msg);
     onAddComment(par.id, `[AUTOMATED NOTIFICATION]: Re-dispatched informational notice to IT (${itContact?.recipientName}) and Talent Acquisition (${taContact?.recipientName}). No action required.`, currentPersona);

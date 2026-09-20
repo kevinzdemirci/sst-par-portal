@@ -41,7 +41,7 @@ export const GmailSettingsModal: React.FC<GmailSettingsModalProps> = ({
 
   const [creds, setCreds] = useState<GmailCredentials>(() => getStoredGmailCredentials());
   const [copiedCode, setCopiedCode] = useState(false);
-  const [testRecipient, setTestRecipient] = useState(creds.senderEmail || 'hr@ssttx.org');
+  const [testRecipient, setTestRecipient] = useState(creds.senderEmail || 'sstpar@ssttx.org');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -201,11 +201,11 @@ export const GmailSettingsModal: React.FC<GmailSettingsModalProps> = ({
                   type="email"
                   value={creds.senderEmail}
                   onChange={(e) => setCreds(prev => ({ ...prev, senderEmail: e.target.value.trim().toLowerCase() }))}
-                  placeholder="e.g. hr@ssttx.org or yourname@gmail.com"
+                  placeholder="sstpar@ssttx.org"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
-                  All automated emails will display as originating from this address.
+                  All automated PAR and payout notification emails will dispatch from this SST PAR address.
                 </span>
               </div>
 
@@ -217,7 +217,7 @@ export const GmailSettingsModal: React.FC<GmailSettingsModalProps> = ({
                   type="text"
                   value={creds.senderName}
                   onChange={(e) => setCreds(prev => ({ ...prev, senderName: e.target.value }))}
-                  placeholder="e.g. School of Science and Technology HR"
+                  placeholder="School of Science and Technology (SST PAR)"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
@@ -243,7 +243,7 @@ export const GmailSettingsModal: React.FC<GmailSettingsModalProps> = ({
                 type="email"
                 value={creds.hrEmail}
                 onChange={(e) => setCreds(prev => ({ ...prev, hrEmail: e.target.value.trim().toLowerCase() }))}
-                placeholder="hr@ssttx.org"
+                placeholder="sstpar@ssttx.org"
                 className="w-48 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs text-slate-800"
               />
             </div>

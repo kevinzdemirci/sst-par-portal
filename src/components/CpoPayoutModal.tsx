@@ -19,7 +19,7 @@ import {
   Search, 
   DollarSign, 
   FileText, 
-  FilePlus,
+  FilePlus, 
   Paperclip, 
   Upload, 
   CheckCircle2, 
@@ -37,6 +37,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
 
 export interface PayoutTemplateItem {
   id: string;
@@ -274,6 +275,19 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     };
 
     onSavePayouts([newRequest, ...payouts]);
+
+    // Automated Gmail dispatch to CPO for new payout request
+    const gmailCreds = getStoredGmailCredentials();
+    if (gmailCreds.isEnabled) {
+      sendGmailEmail({
+        to: 'kdemirci@ssttx.org',
+        toName: 'Dr. Kevin Demirci (Chief People Officer)',
+        subject: `💵 [CPO APPROVAL REQUIRED]: ${newRequest.trackingNumber} - ${formEmployeeName} ($${numAmount.toLocaleString()})`,
+        bodyText: `Dear Dr. Kevin Demirci,\n\nA new staff compensation payout/deduction request has been submitted by ${currentPersona.name} (${currentPersona.role}) for the upcoming payroll cut-off (${formCutoffDate}).\n\nEmployee: ${formEmployeeName} (ADP: ${newRequest.adpId})\nCampus: ${formCampus}\nType: ${formPayoutType.toUpperCase()}\nAmount: $${numAmount.toLocaleString()}\nCategory: ${formCategory}\nReason: ${formReason}\n\nPlease sign in to the SST HR Hub under "CPO Payout Reviewer" to review and execute your approval.\n\nSchool of Science and Technology Human Resources`,
+        category: 'payout'
+      }, gmailCreds).catch(console.error);
+    }
+
     onToast(`Created ${newRequest.trackingNumber} for ${formEmployeeName} ($${numAmount.toLocaleString()}) — Queued for CPO Approval`, 'success');
 
     // Reset form
@@ -290,9 +304,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       return;
     }
     const nowIso = new Date().toISOString();
+    let approvedItem: CpoPayoutRequest | null = null;
+
     const updated = payouts.map(p => {
       if (p.id !== payoutId) return p;
-      return {
+      approvedItem = {
         ...p,
         status: 'approved_by_cpo' as PayoutStatus,
         cpoDecisionDate: nowIso,
@@ -313,9 +329,24 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
           }
         ]
       };
+      return approvedItem;
     });
 
     onSavePayouts(updated);
+
+    // Automated Gmail dispatch to Payroll Coordinator upon CPO approval
+    const gmailCreds = getStoredGmailCredentials();
+    if (gmailCreds.isEnabled && approvedItem) {
+      const target: CpoPayoutRequest = approvedItem;
+      sendGmailEmail({
+        to: 'pcomparini@ssttx.org',
+        toName: 'Paola Comparini (Payroll Coordinator)',
+        subject: `✅ [CPO APPROVED - EXECUTE IN ADP]: ${target.trackingNumber} - ${target.employeeName} ($${target.amount.toLocaleString()})`,
+        bodyText: `Dear Paola Comparini,\n\nDr. Kevin Demirci (Chief People Officer) has approved compensation request ${target.trackingNumber} for ${target.employeeName} (ADP: ${target.adpId}, ${target.campus}).\n\nAmount: $${target.amount.toLocaleString()}\nCategory: ${target.category}\nTarget Payroll Cut-Off: ${target.payrollCutoffDate} (${target.payrollCycleName})\nCPO Approval Notes: ${cpoNotes || 'Approved for payroll entry.'}\n\nPlease enter this transaction into ADP Workforce Now before the cut-off deadline.\n\nSchool of Science and Technology Human Resources`,
+        category: 'payout'
+      }, gmailCreds).catch(console.error);
+    }
+
     try {
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
     } catch {
@@ -393,9 +424,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       return;
     }
     const nowIso = new Date().toISOString();
+    let executedItem: CpoPayoutRequest | null = null;
+
     const updated = payouts.map(p => {
       if (p.id !== payoutId) return p;
-      return {
+      executedItem = {
         ...p,
         status: 'processed_payroll' as PayoutStatus,
         payrollProcessedAt: nowIso,
@@ -413,9 +446,26 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
           }
         ]
       };
+      return executedItem;
     });
 
     onSavePayouts(updated);
+
+    // Automated Gmail dispatch to Submitter confirming payroll entry
+    const gmailCreds = getStoredGmailCredentials();
+    if (gmailCreds.isEnabled && executedItem) {
+      const target: CpoPayoutRequest = executedItem;
+      if (target.submitterEmail) {
+        sendGmailEmail({
+          to: target.submitterEmail,
+          toName: target.submittedBy,
+          subject: `🎉 [ADP PAYROLL PROCESSED]: ${target.trackingNumber} - ${target.employeeName}`,
+          bodyText: `Dear ${target.submittedBy},\n\nYour compensation request ${target.trackingNumber} for ${target.employeeName} ($${target.amount.toLocaleString()}) has been finalized and processed in ADP Workforce Now by Payroll Coordinator ${currentPersona.name}.\n\nBatch Number: ${target.adpBatchNumber}\nCycle: ${target.payrollCycleName}\n\nSchool of Science and Technology Human Resources`,
+          category: 'payout'
+        }, gmailCreds).catch(console.error);
+      }
+    }
+
     onToast(`Marked ${selectedPayout?.trackingNumber} processed in ADP Payroll!`, 'success');
     setSelectedPayout(null);
     setPayrollExecNotes('');

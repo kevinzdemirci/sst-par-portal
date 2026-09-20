@@ -598,6 +598,19 @@ export function App() {
           setSelectedPar(updatedPar);
         }
 
+        // Automated Gmail dispatch on rejection
+        const gmailCreds = getStoredGmailCredentials();
+        if (gmailCreds.isEnabled) {
+          const empFullName = `${par.firstName} ${par.lastName}`;
+          sendGmailEmail({
+            to: par.workEmail || gmailCreds.hrEmail,
+            toName: empFullName,
+            subject: `❌ [SST PAR REJECTED]: ${par.trackingNumber} - ${empFullName}`,
+            bodyText: `Dear SST Team,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) was rejected by ${persona.name} (${persona.role}).\n\nReason / Notes: ${comments}\n\nSchool of Science and Technology Human Resources`,
+            category: 'notification'
+          }, gmailCreds).catch(console.error);
+        }
+
         showToast(`❌ ${par.trackingNumber} has been declined.`, 'warning');
         return updatedPar;
       })
@@ -649,6 +662,19 @@ export function App() {
           setSelectedPar(updatedPar);
         }
 
+        // Automated Gmail dispatch on revision request
+        const gmailCreds = getStoredGmailCredentials();
+        if (gmailCreds.isEnabled) {
+          const empFullName = `${par.firstName} ${par.lastName}`;
+          sendGmailEmail({
+            to: par.workEmail || gmailCreds.hrEmail,
+            toName: empFullName,
+            subject: `⚠️ [SST PAR REVISION REQUESTED]: ${par.trackingNumber} - ${empFullName}`,
+            bodyText: `Dear SST Campus Initiator,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) has been returned for revisions by ${persona.name} (${persona.role}).\n\nRequested Changes: ${comments}\n\nPlease sign in to the SST HR Hub to modify and resubmit.\n\nSchool of Science and Technology Human Resources`,
+            category: 'notification'
+          }, gmailCreds).catch(console.error);
+        }
+
         showToast(`⚠️ ${par.trackingNumber} returned to campus initiator for revisions.`, 'warning');
         return updatedPar;
       })
@@ -693,6 +719,38 @@ export function App() {
   const handleSubmitNewPar = (newPar: PersonnelActionRequest) => {
     setPars([newPar, ...pars]);
     setIsNewParModalOpen(false);
+
+    // Automated Gmail notifications on new PAR submission
+    const gmailCreds = getStoredGmailCredentials();
+    if (gmailCreds.isEnabled) {
+      const empFullName = `${newPar.firstName} ${newPar.lastName}`;
+      const firstPendingStep = newPar.routingSteps.find((s) => s.status === 'pending');
+
+      // 1. Notify first approver (e.g. Principal)
+      if (firstPendingStep?.assignedEmail) {
+        sendGmailEmail({
+          to: firstPendingStep.assignedEmail,
+          toName: firstPendingStep.assignedRole,
+          subject: `📋 [NEW SST PAR PENDING ENDORSEMENT]: ${newPar.trackingNumber} - ${empFullName}`,
+          bodyText: `Dear ${firstPendingStep.assignedRole},\n\nA new Personnel Action Request (${newPar.actionType.replace('_', ' ').toUpperCase()}) has been initiated for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nTracking Number: ${newPar.trackingNumber}\nEffective Date: ${newPar.effectiveDate}\n\nPlease sign in to the SST HR Hub to review and execute your digital signature endorsement.\n\nSchool of Science and Technology Human Resources`,
+          category: 'notification'
+        }, gmailCreds).catch(console.error);
+      }
+
+      // 2. Dispatch department notifications (IT & Talent Acquisition)
+      if (newPar.departmentNotifications && newPar.departmentNotifications.length > 0) {
+        newPar.departmentNotifications.forEach((dept) => {
+          sendGmailEmail({
+            to: dept.recipientEmail,
+            toName: dept.recipientName,
+            subject: `📢 [FYI - ${dept.department.toUpperCase()} NOTIFICATION]: ${newPar.trackingNumber} - ${empFullName}`,
+            bodyText: `Dear ${dept.recipientName} (${dept.recipientRole}),\n\nThis is an automated operational notification regarding a new Personnel Action Request for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nAction: ${newPar.actionType.replace('_', ' ').toUpperCase()}\nEffective Date: ${newPar.effectiveDate}\n\nScope / Purpose: ${dept.purpose}\nNote: INFORMATIONAL ONLY — No signature or approval action required from you.\n\nSchool of Science and Technology Human Resources`,
+            category: 'notification'
+          }, gmailCreds).catch(console.error);
+        });
+      }
+    }
+
     showToast(`🎉 New request ${newPar.trackingNumber} submitted for ${newPar.firstName} ${newPar.lastName}! Forwarded to Principal/Supervisor endorsement.`, 'success');
   };
 

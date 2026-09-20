@@ -42,8 +42,8 @@ export interface SendResult {
 export const GMAIL_STORAGE_KEY = 'sst_gmail_credentials_v1';
 
 export const DEFAULT_GMAIL_CREDENTIALS: GmailCredentials = {
-  senderEmail: 'hr@ssttx.org',
-  senderName: 'School of Science and Technology HR',
+  senderEmail: 'sstpar@ssttx.org',
+  senderName: 'School of Science and Technology (SST PAR)',
   mode: 'google_script',
   scriptUrl: '',
   emailJsServiceId: '',
@@ -52,7 +52,7 @@ export const DEFAULT_GMAIL_CREDENTIALS: GmailCredentials = {
   smtpEndpoint: '',
   smtpToken: '',
   ccHrCopy: true,
-  hrEmail: 'hr@ssttx.org',
+  hrEmail: 'sstpar@ssttx.org',
   isEnabled: false
 };
 

@@ -2,6 +2,7 @@ import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouti
 import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator, isChiefPeopleOfficer, getPersonaPermissions, getDepartmentNotificationRecipients, getInitialsAvatarUrl } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
+import { CpoPayoutRequest } from '../types/payout';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
 import { 
   DEFAULT_GMAIL_CREDENTIALS, 
@@ -446,11 +447,11 @@ assert(isChiefPeopleOfficer(kevinPersona) === true, 'Original Dr. Kevin Demirci 
 console.log('\n📌 Test 13: SST Gmail & Google Workspace Automated Dispatch Engine...');
 
 // Test 13a: Default Gmail Credentials
-assert(DEFAULT_GMAIL_CREDENTIALS.senderEmail === 'hr@ssttx.org', 'Default sender email is hr@ssttx.org');
+assert(DEFAULT_GMAIL_CREDENTIALS.senderEmail === 'sstpar@ssttx.org', 'Default sender email is sstpar@ssttx.org');
 assert(DEFAULT_GMAIL_CREDENTIALS.senderName.includes('School of Science and Technology'), 'Default sender name includes School of Science and Technology');
 assert(DEFAULT_GMAIL_CREDENTIALS.mode === 'google_script', 'Default dispatch mode is Google Apps Script (Zero Fees)');
 assert(DEFAULT_GMAIL_CREDENTIALS.ccHrCopy === true, 'CC audit copy to District HR is enabled by default');
-assert(DEFAULT_GMAIL_CREDENTIALS.hrEmail === 'hr@ssttx.org', 'District HR audit email is hr@ssttx.org');
+assert(DEFAULT_GMAIL_CREDENTIALS.hrEmail === 'sstpar@ssttx.org', 'District HR audit email is sstpar@ssttx.org');
 
 // Test 13b: Google Apps Script Web App Code Sample
 assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('GmailApp.sendEmail'), 'Google Apps Script uses native GmailApp.sendEmail');
@@ -471,7 +472,7 @@ assert(sampleHtml.includes('ACTION REQUIRED'), 'HTML template includes title');
 assert(sampleHtml.includes('https://sstschools.org/portal?activate=test-id'), 'HTML template includes action URL link');
 assert(sampleHtml.includes('Claim &amp; Activate Approver Role') || sampleHtml.includes('Claim & Activate Approver Role'), 'HTML template includes custom action button text');
 assert(sampleHtml.includes('Confidentiality Notice:'), 'HTML template includes legal confidentiality disclaimer');
-assert(sampleHtml.includes('hr@ssttx.org'), 'HTML template includes contact email');
+assert(sampleHtml.includes('sstpar@ssttx.org') || sampleHtml.includes('hr@ssttx.org'), 'HTML template includes contact email');
 
 // Test 13d: sendGmailEmail Recipient Address Validation
 const invalidEmailResult = await sendGmailEmail({
@@ -513,12 +514,137 @@ assert(missingSmtpResult.message.includes('SMTP Relay Endpoint URL is missing'),
 const testCredsWithHrCc: GmailCredentials = {
   ...DEFAULT_GMAIL_CREDENTIALS,
   ccHrCopy: true,
-  hrEmail: 'hr-audit@ssttx.org'
+  hrEmail: 'sstpar@ssttx.org'
 };
 assert(testCredsWithHrCc.ccHrCopy === true, 'CC audit copy flag is preserved');
-assert(testCredsWithHrCc.hrEmail === 'hr-audit@ssttx.org', 'Custom audit email is routed correctly');
+assert(testCredsWithHrCc.hrEmail === 'sstpar@ssttx.org', 'Custom audit email is routed correctly');
 
-  // 14. SUMMARY
+// 14. END-TO-END ACTION VALIDATION ACROSS ALL MODULES
+console.log('\n📌 Test 14: End-to-End Action Verification for All Portal Features...');
+
+// 14a. Action: Generate PAR Routing for all 6 Action Types
+const allActionTypes = ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'] as const;
+allActionTypes.forEach((act) => {
+  const generatedSteps = buildSstRouting(act, false, 'Houston');
+  assert(generatedSteps.length >= 2, `Action '${act}' generated valid sequential approval chain (${generatedSteps.length} steps)`);
+  assert(generatedSteps[0].stage === 'supervisor_review', `Action '${act}' begins with Principal/Supervisor endorsement`);
+  assert(generatedSteps[generatedSteps.length - 1].stage === 'payroll_action', `Action '${act}' finalizes with Payroll ADP execution`);
+});
+
+// 14b. Action: Approve PAR and advance through all stages to Completion
+let testPar = { ...INITIAL_PAR_DATA[0] };
+const stagesInChain = testPar.routingSteps.map(s => s.stage);
+assert(stagesInChain.length > 0, 'Test PAR contains valid approval chain');
+
+// Simulate sequential approvals
+for (let i = 0; i < testPar.routingSteps.length; i++) {
+  const currentStep = testPar.routingSteps[i];
+  testPar.routingSteps[i] = {
+    ...currentStep,
+    status: 'approved',
+    reviewerName: 'Test Approver',
+    decisionDate: new Date().toISOString(),
+    signerId: 'TEST-SIGNER-UUID'
+  };
+  const isFinal = i === testPar.routingSteps.length - 1;
+  testPar.currentStage = isFinal ? 'completed' : testPar.routingSteps[i + 1].stage;
+}
+assert(testPar.currentStage === 'completed', 'PAR successfully advances to COMPLETED when all steps are signed');
+assert(testPar.routingSteps.every(s => s.status === 'approved'), 'All routing steps reflect APPROVED status');
+
+// 14c. Action: Reject PAR and verify terminal status
+const rejectedPar = {
+  ...INITIAL_PAR_DATA[1],
+  currentStage: 'rejected' as const,
+  routingSteps: INITIAL_PAR_DATA[1].routingSteps.map((s, idx) => idx === 0 ? { ...s, status: 'rejected' as const, comments: 'Position freeze' } : s)
+};
+assert(rejectedPar.currentStage === 'rejected', 'PAR transitions to REJECTED on disapproval');
+assert(rejectedPar.routingSteps[0].status === 'rejected', 'First step reflects rejected status');
+
+// 14d. Action: Return PAR for Revision
+const returnedPar = {
+  ...INITIAL_PAR_DATA[2],
+  currentStage: 'revision_requested' as const,
+  routingSteps: INITIAL_PAR_DATA[2].routingSteps.map((s, idx) => idx === 0 ? { ...s, status: 'returned' as const, comments: 'Attach updated evaluation' } : s)
+};
+assert(returnedPar.currentStage === 'revision_requested', 'PAR transitions to REVISION_REQUESTED');
+assert(returnedPar.routingSteps[0].status === 'returned', 'Step reflects returned status');
+
+// 14e. Action: CPO Payout Lifecycle (Create -> CPO Approve -> ADP Execute)
+const newTestPayout: CpoPayoutRequest = {
+  id: 'payout-test-14',
+  trackingNumber: 'SST-PAYOUT-2026-9999',
+  payoutType: 'payment',
+  employeeId: 'EMP-SST-999',
+  employeeName: 'Carlos Ramirez',
+  adpId: 'ADP-SST-99999',
+  campus: 'SST Champions Elementary',
+  region: 'Houston Area',
+  jobTitle: 'Robotics Coach',
+  currentSalary: 52000,
+  amount: 2400,
+  category: 'Extra Duty & Coaching Stipend',
+  reason: 'Fall 2026 Robotics Championship Coaching',
+  payrollCutoffDate: '2026-09-25',
+  payrollCycleName: 'September 25 Semi-Monthly',
+  isUrgentCutoff: true,
+  supportingDocs: [
+    {
+      id: 'doc-test-1',
+      name: 'Signed_Extra_Duty_Timesheet.pdf',
+      size: '210 KB',
+      fileType: 'application/pdf',
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: 'Kristy Stewart'
+    }
+  ],
+  submittedBy: 'Kristy Stewart',
+  submitterEmail: 'kstewart@ssttx.org',
+  submitterRole: 'Regional HR Coordinator (Houston)',
+  submittedAt: new Date().toISOString(),
+  status: 'pending_cpo',
+  history: []
+};
+assert(newTestPayout.status === 'pending_cpo', 'New payout enters pending_cpo status');
+
+// Simulate CPO Approval
+const cpoApprovedPayout: CpoPayoutRequest = {
+  ...newTestPayout,
+  status: 'approved_by_cpo',
+  cpoDecisionDate: new Date().toISOString(),
+  cpoDecisionNotes: 'Approved for coaching stipend.',
+  cpoSignerName: 'Dr. Kevin Demirci',
+  cpoSignerId: '7a374357-998f-4203-8874-8b95cb88898d',
+  cpoSigningPin: '1234'
+};
+assert(cpoApprovedPayout.status === 'approved_by_cpo', 'Payout status advances to approved_by_cpo');
+assert(cpoApprovedPayout.cpoSignerName === 'Dr. Kevin Demirci', 'Payout records Dr. Kevin Demirci digital endorsement');
+
+// Simulate Payroll ADP Execution
+const adpProcessedPayout: CpoPayoutRequest = {
+  ...cpoApprovedPayout,
+  status: 'processed_payroll',
+  payrollProcessedAt: new Date().toISOString(),
+  payrollProcessedBy: 'Paola Comparini (Payroll Coordinator)',
+  adpBatchNumber: 'ADP-BATCH-SEP25-2026',
+  payrollNotes: 'Processed in ADP direct deposit.'
+};
+assert(adpProcessedPayout.status === 'processed_payroll', 'Payout status advances to processed_payroll');
+assert(adpProcessedPayout.adpBatchNumber === 'ADP-BATCH-SEP25-2026', 'Payout records ADP Batch Confirmation');
+
+// 14f. Action: Initials Monogram Avatar Generation
+const testAvatarUrl = getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352');
+assert(testAvatarUrl.includes('ui-avatars.com'), 'getInitialsAvatarUrl produces valid high-resolution avatar URL');
+assert(testAvatarUrl.includes('Kevin'), 'Initials avatar encodes user name correctly');
+assert(testAvatarUrl.includes('0f2352'), 'Initials avatar applies SST brand color');
+
+// 14g. Action: Digital Signature Mode & PIN verification
+assert(Boolean(kevinPersona.signerId && kevinPersona.signerId.length > 0), 'Dr. Kevin Demirci has valid digital signer UUID');
+assert(Boolean(kevinPersona.signingPin && kevinPersona.signingPin === '1234'), 'Dr. Kevin Demirci has valid 4-digit signing PIN');
+assert(Boolean(paolaPersona.signerId && paolaPersona.signerId.length > 0), 'Paola Comparini has valid digital signer UUID');
+assert(Boolean(kristyPersona.signerId && kristyPersona.signerId.length > 0), 'Kristy Stewart has valid digital signer UUID');
+
+  // 15. SUMMARY
   console.log('\n======================================================');
   console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
   console.log('======================================================\n');

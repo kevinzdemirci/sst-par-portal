@@ -228,7 +228,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '7a374357-998f-4203-8874-8b95cb88898d',
       ipAddress: '208.184.164.228',
       avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
-      canReviewStages: ['cpo_review']
+      canReviewStages: ['cpo_review'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-atnan',
@@ -400,7 +402,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Dr. Kevin Demirci', '0f2352'),
     canReviewStages: ['cpo_review'],
     signerId: '7a374357-998f-4203-8874-8b95cb88898d',
-    ipAddress: '208.184.164.228'
+    ipAddress: '208.184.164.228',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-atnan',

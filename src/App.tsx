@@ -1434,7 +1434,7 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-slate-700">School of Science and Technology</span>
-            <span>• People Operations & HR Hub (PARs • CPO Payouts • Directory • Workflow)</span>
+            <span>• Personnel Action Request (PAR) Portal</span>
           </div>
           <div className="text-[11px] text-slate-400">Charter District Electronic Signature Compliant</div>
         </div>

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "esbuild src/test/verifyAllSstRules.ts --bundle --platform=node | node"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

@@ -1059,6 +1059,8 @@ export function App() {
       {activationEmailTarget && (
         <ActivationEmailModal
           role={activationEmailTarget}
+          hrNotificationEmail={workflowConfig.hrNotificationEmail}
+          emailWebhookUrl={workflowConfig.emailWebhookUrl}
           onClose={() => setActivationEmailTarget(null)}
           onOpenActivationPortal={(role) => {
             setActivationEmailTarget(null);

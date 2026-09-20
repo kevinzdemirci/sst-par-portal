@@ -355,7 +355,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
     }
   ],
   districtName: 'School of Science and Technology (SST)',
-  districtLogo: '/sst-logo.jpg'
+  districtLogo: '/sst-logo.jpg',
+  hrNotificationEmail: 'hr@ssttx.org',
+  emailWebhookUrl: ''
 };
 
 export const USER_PERSONAS: UserPersona[] = [

@@ -326,6 +326,8 @@ export interface WorkflowConfig {
   routingRules: SstRoutingRule[];
   districtName?: string;
   districtLogo?: string;
+  hrNotificationEmail?: string;
+  emailWebhookUrl?: string;
 }
 
 export interface ActivationInvitation {

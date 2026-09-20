@@ -98,6 +98,8 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
   const [stages, setStages] = useState<WorkflowStageSetting[]>(config.stages);
   const [districtName, setDistrictName] = useState(config.districtName || 'School of Science and Technology (SST)');
   const [districtLogo, setDistrictLogo] = useState(config.districtLogo || '/sst-logo.jpg');
+  const [hrNotificationEmail, setHrNotificationEmail] = useState(config.hrNotificationEmail || 'hr@ssttx.org');
+  const [emailWebhookUrl, setEmailWebhookUrl] = useState(config.emailWebhookUrl || '');
   
   const [searchQuery, setSearchQuery] = useState('');
   const [rulesSearch, setRulesSearch] = useState('');
@@ -117,7 +119,9 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       approvers,
       routingRules,
       districtName,
-      districtLogo
+      districtLogo,
+      hrNotificationEmail,
+      emailWebhookUrl
     };
     return buildSstRouting(
       simActionType,
@@ -125,7 +129,7 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       simLocation,
       currentConfig
     );
-  }, [simActionType, simIsVoluntary, simLocation, stages, approvers, routingRules, districtName, districtLogo]);
+  }, [simActionType, simIsVoluntary, simLocation, stages, approvers, routingRules, districtName, districtLogo, hrNotificationEmail, emailWebhookUrl]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [targetUploadId, setTargetUploadId] = useState<string | null>(null);
@@ -373,7 +377,9 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       approvers,
       routingRules,
       districtName,
-      districtLogo
+      districtLogo,
+      hrNotificationEmail,
+      emailWebhookUrl
     };
     onSaveConfig(updated);
     setIsSaved(true);
@@ -393,6 +399,8 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
       setRoutingRules(DEFAULT_SST_ROUTING_RULES);
       setDistrictName(DEFAULT_WORKFLOW_CONFIG.districtName || 'School of Science and Technology (SST)');
       setDistrictLogo(DEFAULT_WORKFLOW_CONFIG.districtLogo || '/sst-logo.jpg');
+      setHrNotificationEmail(DEFAULT_WORKFLOW_CONFIG.hrNotificationEmail || 'hr@ssttx.org');
+      setEmailWebhookUrl(DEFAULT_WORKFLOW_CONFIG.emailWebhookUrl || '');
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3500);
     }
@@ -1510,6 +1518,44 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                         className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-[11px] text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Official District HR Email (Notifications & CC Audit Copies):
+                    </label>
+                    <input 
+                      type="email"
+                      value={hrNotificationEmail}
+                      onChange={(e) => {
+                        setHrNotificationEmail(e.target.value);
+                        setIsSaved(false);
+                      }}
+                      placeholder="hr@ssttx.org"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 text-xs"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Receives automatic CC copies of all approver invitations, activation notices, and completed PARs.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                      Automated Email Dispatcher Webhook (Optional):
+                    </label>
+                    <input 
+                      type="url"
+                      value={emailWebhookUrl}
+                      onChange={(e) => {
+                        setEmailWebhookUrl(e.target.value);
+                        setIsSaved(false);
+                      }}
+                      placeholder="https://script.google.com/macros/s/.../exec or webhook URL"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-[11px] text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Connect an SST Google Apps Script or webhook to send invitations automatically in the background from this HR address.
+                    </span>
                   </div>
                 </div>
               </div>

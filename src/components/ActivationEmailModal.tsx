@@ -16,14 +16,22 @@ interface ActivationEmailModalProps {
   role: ApproverRoleConfig | UserPersona;
   onClose: () => void;
   onOpenActivationPortal: (role: ApproverRoleConfig | UserPersona) => void;
+  hrNotificationEmail?: string;
+  emailWebhookUrl?: string;
 }
 
 export const ActivationEmailModal: React.FC<ActivationEmailModalProps> = ({
   role,
   onClose,
-  onOpenActivationPortal
+  onOpenActivationPortal,
+  hrNotificationEmail = 'hr@ssttx.org',
+  emailWebhookUrl
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isSendingWebhook, setIsSendingWebhook] = useState(false);
+  const [webhookSent, setWebhookSent] = useState(false);
+
+  const hrEmail = hrNotificationEmail || 'hr@ssttx.org';
 
   // Build activation link
   const baseUrl = window.location.origin + window.location.pathname;
@@ -53,11 +61,38 @@ ${activationUrl}
 Sincerely,
 School of Science and Technology
 Human Capital & HR Systems
+District HR Office: ${hrEmail}
 School of Science and Technology Charter District`;
 
-  const mailtoUrl = `mailto:${encodeURIComponent(role.email)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
-  const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(role.email)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
-  const outlookWebUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(role.email)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+  const mailtoUrl = `mailto:${encodeURIComponent(role.email)}?cc=${encodeURIComponent(hrEmail)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+  const gmailWebUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(role.email)}&cc=${encodeURIComponent(hrEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+  const outlookWebUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(role.email)}&cc=${encodeURIComponent(hrEmail)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
+
+  const handleSendWebhook = async () => {
+    if (!emailWebhookUrl) return;
+    setIsSendingWebhook(true);
+    try {
+      await fetch(emailWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: role.email,
+          cc: hrEmail,
+          subject: emailSubject,
+          body: emailBodyText,
+          activationUrl,
+          recipientName: role.name,
+          roleTitle,
+          timestamp: new Date().toISOString()
+        })
+      });
+      setWebhookSent(true);
+    } catch {
+      alert('Could not dispatch via webhook. Please use the Gmail or Outlook buttons.');
+    } finally {
+      setIsSendingWebhook(false);
+    }
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(emailBodyText);
@@ -113,8 +148,12 @@ School of Science and Technology Charter District`;
               <span className="font-semibold text-slate-800">SST Human Capital Systems &lt;noreply@ssttx.org&gt;</span>
             </div>
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="text-slate-500 font-medium">To:</span>
+              <span className="text-slate-500 font-medium">To (Designated Approver):</span>
               <span className="font-bold text-[#0f2352] font-mono">{role.name} &lt;{role.email}&gt;</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <span className="text-slate-500 font-medium">CC Audit Copy:</span>
+              <span className="font-semibold text-slate-700 font-mono">District HR Office &lt;{hrEmail}&gt;</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500 font-medium">Subject:</span>
@@ -257,6 +296,20 @@ School of Science and Technology Charter District`;
                 <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
                 <span>Open Outlook 365</span>
               </a>
+
+              {/* Background Webhook Dispatch (if configured) */}
+              {emailWebhookUrl && (
+                <button
+                  type="button"
+                  onClick={handleSendWebhook}
+                  disabled={isSendingWebhook || webhookSent}
+                  className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold text-xs rounded-xl transition-colors shadow-2xs"
+                  title={`Send directly in background from ${hrEmail}`}
+                >
+                  <Send className="w-3.5 h-3.5 text-white" />
+                  <span>{webhookSent ? '✅ Sent via Webhook' : isSendingWebhook ? 'Sending...' : '⚡ Send via HR Webhook'}</span>
+                </button>
+              )}
             </div>
 
             <button

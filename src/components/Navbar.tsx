@@ -61,38 +61,21 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between min-h-[84px] py-1.5">
           
-          {/* Logo & School of Science and Technology Branding */}
-          <div className="flex items-center space-x-3.5">
+          {/* SST Brand Logo */}
+          <div className="flex items-center">
             <div 
-              className="flex items-center py-1 cursor-pointer shrink-0"
+              className="flex items-center py-1 cursor-pointer"
               onClick={() => onSelectHubTab && onSelectHubTab('pars')}
-              title="SST Hub Home — Return to Personnel Action Requests"
+              title="School of Science and Technology — Home"
             >
               <img 
                 src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
-                className="h-14 sm:h-[68px] w-auto max-w-[200px] object-contain rounded drop-shadow-xs transition-transform hover:scale-105"
+                className="h-16 sm:h-[72px] w-auto max-w-[280px] object-contain rounded transition-transform hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
                 }}
               />
-            </div>
-            <div 
-              className="border-l border-slate-200 pl-3.5 hidden sm:block cursor-pointer"
-              onClick={() => onSelectHubTab && onSelectHubTab('pars')}
-              title="SST Hub Home — Return to Personnel Action Requests"
-            >
-              <div className="flex items-center space-x-2">
-                <span className="text-base font-black tracking-tight text-[#0f2352]">
-                  People Operations & HR Hub
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200">
-                  SST Official
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium">
-                {districtName || 'School of Science and Technology'} • Multi-Department Personnel & Payroll Hub
-              </p>
             </div>
           </div>
 

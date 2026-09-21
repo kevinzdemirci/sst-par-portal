@@ -457,11 +457,11 @@ assert(isChiefPeopleOfficer(kevinPersona) === true, 'Original Dr. Kevin Demirci 
 console.log('\n📌 Test 13: SST Gmail & Google Workspace Automated Dispatch Engine...');
 
 // Test 13a: Default Gmail Credentials
-assert(DEFAULT_GMAIL_CREDENTIALS.senderEmail === 'sstpar@ssttx.org', 'Default sender email is sstpar@ssttx.org');
+assert(DEFAULT_GMAIL_CREDENTIALS.senderEmail === 'par@ssttx.org', 'Default sender email is par@ssttx.org');
 assert(DEFAULT_GMAIL_CREDENTIALS.senderName.includes('School of Science and Technology'), 'Default sender name includes School of Science and Technology');
 assert(DEFAULT_GMAIL_CREDENTIALS.mode === 'google_script', 'Default dispatch mode is Google Apps Script (Zero Fees)');
 assert(DEFAULT_GMAIL_CREDENTIALS.ccHrCopy === true, 'CC audit copy to District HR is enabled by default');
-assert(DEFAULT_GMAIL_CREDENTIALS.hrEmail === 'sstpar@ssttx.org', 'District HR audit email is sstpar@ssttx.org');
+assert(DEFAULT_GMAIL_CREDENTIALS.hrEmail === 'par@ssttx.org', 'District HR audit email is par@ssttx.org');
 
 // Test 13b: Google Apps Script Web App Code Sample
 assert(GOOGLE_APPS_SCRIPT_SAMPLE.includes('GmailApp.sendEmail'), 'Google Apps Script uses native GmailApp.sendEmail');
@@ -482,7 +482,7 @@ assert(sampleHtml.includes('ACTION REQUIRED'), 'HTML template includes title');
 assert(sampleHtml.includes('https://sstschools.org/portal?activate=test-id'), 'HTML template includes action URL link');
 assert(sampleHtml.includes('Claim &amp; Activate Approver Role') || sampleHtml.includes('Claim & Activate Approver Role'), 'HTML template includes custom action button text');
 assert(sampleHtml.includes('Confidentiality Notice:'), 'HTML template includes legal confidentiality disclaimer');
-assert(sampleHtml.includes('sstpar@ssttx.org') || sampleHtml.includes('hr@ssttx.org'), 'HTML template includes contact email');
+assert(sampleHtml.includes('par@ssttx.org') || sampleHtml.includes('sstpar@ssttx.org') || sampleHtml.includes('hr@ssttx.org'), 'HTML template includes contact email');
 
 // Test 13d: sendGmailEmail Recipient Address Validation
 const invalidEmailResult = await sendGmailEmail({
@@ -524,10 +524,10 @@ assert(missingSmtpResult.message.includes('SMTP Relay Endpoint URL is missing'),
 const testCredsWithHrCc: GmailCredentials = {
   ...DEFAULT_GMAIL_CREDENTIALS,
   ccHrCopy: true,
-  hrEmail: 'sstpar@ssttx.org'
+  hrEmail: 'par@ssttx.org'
 };
 assert(testCredsWithHrCc.ccHrCopy === true, 'CC audit copy flag is preserved');
-assert(testCredsWithHrCc.hrEmail === 'sstpar@ssttx.org', 'Custom audit email is routed correctly');
+assert(testCredsWithHrCc.hrEmail === 'par@ssttx.org', 'Custom audit email is routed correctly');
 
 // 14. END-TO-END ACTION VALIDATION ACROSS ALL MODULES
 console.log('\n📌 Test 14: End-to-End Action Verification for All Portal Features...');

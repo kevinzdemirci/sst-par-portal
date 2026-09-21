@@ -1,5 +1,15 @@
 import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
-import { canPersonaActOnPar, isRegionalHrCoordinator, isPayrollCoordinator, isChiefPeopleOfficer, getPersonaPermissions, getDepartmentNotificationRecipients, getInitialsAvatarUrl } from '../utils/formatters';
+import { 
+  canPersonaActOnPar, 
+  isRegionalHrCoordinator, 
+  isPayrollCoordinator, 
+  isChiefPeopleOfficer, 
+  getPersonaPermissions, 
+  getDepartmentNotificationRecipients, 
+  getInitialsAvatarUrl,
+  canPersonaCreatePar,
+  isSuperAdmin 
+} from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { CpoPayoutRequest } from '../types/payout';
@@ -644,7 +654,33 @@ assert(Boolean(kevinPersona.signingPin && kevinPersona.signingPin === '1234'), '
 assert(Boolean(paolaPersona.signerId && paolaPersona.signerId.length > 0), 'Paola Comparini has valid digital signer UUID');
 assert(Boolean(kristyPersona.signerId && kristyPersona.signerId.length > 0), 'Kristy Stewart has valid digital signer UUID');
 
-  // 15. SUMMARY
+// 15. VERIFY STAFF AUTHENTICATION & ROLE-BASED ACCESS CONTROL
+console.log('\n📌 Test 15: Staff Authentication, Super Admin Isolation & PAR Creation Privileges...');
+
+// 15a. Super Admin privileges isolation
+assert(isSuperAdmin(kevinPersona) === true, 'Dr. Kevin Demirci is recognized as Super Admin');
+assert(isSuperAdmin(paolaPersona) === false, 'Paola Comparini is NOT Super Admin');
+assert(isSuperAdmin(kristyPersona) === false, 'Kristy Stewart is NOT Super Admin');
+assert(isSuperAdmin(atnanPersona) === false, 'Atnan Ekin is NOT Super Admin');
+assert(isSuperAdmin(aliPersona) === false, 'Ali Dal (IT Director) is NOT Super Admin');
+
+// 15b. PAR creation authorization (Approved Initiators vs Informational / Non-initiators)
+assert(canPersonaCreatePar(kevinPersona) === true, 'CPO (Dr. Kevin Demirci) can initiate/create PAR');
+assert(canPersonaCreatePar(kristyPersona) === true, 'Regional HR Coordinator (Kristy Stewart) can initiate/create PAR');
+assert(canPersonaCreatePar(atnanPersona) === true, 'Regional Director (Atnan Ekin) can initiate/create PAR');
+assert(canPersonaCreatePar(serdarPersona) === true, 'Principal / Supervisor (Serdar Bulut) can initiate/create PAR');
+
+// 15c. Notification-Only / Informational personas cannot create PARs
+assert(canPersonaCreatePar(aliPersona) === false, 'IT Director (Ali Dal - Notification Only) cannot initiate/create PAR');
+assert(canPersonaCreatePar(hasanPersona) === false, 'Talent Acquisition Director (Hasan Kendirci - Notification Only) cannot initiate/create PAR');
+assert(canPersonaCreatePar(null as any) === false, 'Unauthenticated / null user cannot initiate/create PAR');
+
+// 15d. PIN Authentication verification
+USER_PERSONAS.forEach((p) => {
+  assert(Boolean(p.signingPin === '1234' || (p.signingPin && p.signingPin.length === 4)), `${p.name} has valid 4-digit authentication PIN (${p.signingPin || '1234'})`);
+});
+
+  // SUMMARY
   console.log('\n======================================================');
   console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
   console.log('======================================================\n');

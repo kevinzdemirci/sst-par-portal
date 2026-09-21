@@ -426,6 +426,25 @@ export function isRegionalHrCoordinator(persona?: UserPersona | null): boolean {
 }
 
 /**
+ * Checks if the given persona is authorized to initiate new PAR requests.
+ * Notification-only roles (IT, Talent Acquisition) and unauthorized users cannot create PARs.
+ */
+export function canPersonaCreatePar(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  if (persona.isNotificationOnly) return false;
+  return true;
+}
+
+/**
+ * Checks if the given persona has Super Admin district privileges (Dr. Kevin Demirci).
+ */
+export function isSuperAdmin(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  const email = (persona.email || '').toLowerCase();
+  return isChiefPeopleOfficer(persona) || email === 'kdemirci@ssttx.org';
+}
+
+/**
  * Checks if the given persona is the Payroll Coordinator (Paola Comparini).
  */
 export function isPayrollCoordinator(persona?: UserPersona | null): boolean {

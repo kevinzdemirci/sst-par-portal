@@ -10,7 +10,7 @@ import {
   ApproverRoleConfig
 } from './types/par';
 import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
-import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl } from './utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl, isRegionalHrCoordinator } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -25,10 +25,10 @@ import { RoleManagerModal } from './components/RoleManagerModal';
 import { ActivationEmailModal } from './components/ActivationEmailModal';
 import { CpoPayoutModal } from './components/CpoPayoutModal';
 import { GmailSettingsModal } from './components/GmailSettingsModal';
+import { AuthModal } from './components/AuthModal';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { CpoPayoutRequest } from './types/payout';
 import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
-import { isRegionalHrCoordinator } from './utils/formatters';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
@@ -212,6 +212,7 @@ export function App() {
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
@@ -1063,6 +1064,7 @@ export function App() {
         activeHubTab={activeHubTab}
         onSelectHubTab={setActiveHubTab}
         onOpenGmailSettings={() => setIsGmailModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -1590,6 +1592,20 @@ export function App() {
         isOpen={isGmailModalOpen}
         onClose={() => setIsGmailModalOpen(false)}
         onToast={showToast}
+      />
+
+      {/* SST Staff Authentication & PIN Verification Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        availablePersonas={availablePersonas}
+        workflowConfig={workflowConfig}
+        currentPersona={currentPersona}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLogin={(p) => {
+          setCurrentPersona(p);
+          setIsAuthModalOpen(false);
+          showToast(`🔒 Signed in as ${p.name} (${p.role}).`, 'success');
+        }}
       />
 
     </div>

@@ -2,8 +2,8 @@ import React from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator } from '../utils/formatters';
-import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail } from 'lucide-react';
+import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
+import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail, Lock } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
 
@@ -27,6 +27,7 @@ interface NavbarProps {
   activeHubTab?: 'pars' | 'payouts' | 'directory' | 'workflow';
   onSelectHubTab?: (tab: 'pars' | 'payouts' | 'directory' | 'workflow') => void;
   onOpenGmailSettings?: () => void;
+  onOpenAuthModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,12 +49,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   districtName,
   activeHubTab = 'pars',
   onSelectHubTab,
-  onOpenGmailSettings
+  onOpenGmailSettings,
+  onOpenAuthModal
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
+  const isAdmin = isSuperAdmin(currentPersona);
   const isHr = isRegionalHrCoordinator(currentPersona);
   const isPayroll = isPayrollCoordinator(currentPersona);
+  const canCreatePar = canPersonaCreatePar(currentPersona);
   const gmailCreds = getStoredGmailCredentials();
 
   return (
@@ -82,19 +86,41 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Controls */}
           <div className="flex items-center space-x-2 sm:space-x-3">
             
-            {/* Persona Switcher Dropdown */}
+            {/* Authenticated Staff Persona Badge & Switch Account */}
             <div className="relative flex items-center bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200 shadow-2xs">
-              <div className="flex items-center px-2 py-1 space-x-2.5">
+              <div 
+                className="flex items-center px-2 py-1 space-x-2.5 cursor-pointer"
+                onClick={onOpenAuthModal}
+                title="Click to Switch Staff Account or Authenticate"
+              >
                 <img 
                   src={currentPersona.avatar} 
                   alt={currentPersona.name} 
                   className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-2xs"
                 />
                 <div className="text-left text-xs hidden md:block">
-                  <div className="font-bold text-slate-900 leading-tight">{currentPersona.name}</div>
+                  <div className="font-bold text-slate-900 leading-tight flex items-center space-x-1">
+                    <span>{currentPersona.name}</span>
+                    {isAdmin && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400 text-blue-950 font-black">
+                        Admin
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[11px] text-slate-500 font-medium">{currentPersona.role}</div>
                 </div>
               </div>
+
+              {onOpenAuthModal && (
+                <button
+                  type="button"
+                  onClick={onOpenAuthModal}
+                  className="ml-1 p-1.5 text-slate-400 hover:text-slate-800 hover:bg-white rounded-xl transition-colors"
+                  title="Switch Staff Account / Enter PIN"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-600" />
+                </button>
+              )}
 
               <select
                 value={currentPersona.id}
@@ -334,7 +360,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Admin Tool: Workflow & Approver Config Button — RESTRICTED TO CHIEF PEOPLE OFFICER ONLY */}
-            {isCpo && (
+            {isAdmin && onOpenAdminModal && (
               <button
                 onClick={onOpenAdminModal}
                 className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#0f2352]/5 hover:bg-[#0f2352]/10 border border-[#0f2352]/20 text-[#0f2352] transition-colors shadow-2xs"
@@ -345,8 +371,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Gmail Dispatcher Setup Button */}
-            {onOpenGmailSettings && (
+            {/* Gmail Dispatcher Setup Button — RESTRICTED TO SUPER ADMIN ONLY */}
+            {isAdmin && onOpenGmailSettings && (
               <button
                 type="button"
                 onClick={onOpenGmailSettings}
@@ -367,23 +393,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Reset mock data */}
-            <button
-              onClick={onResetData}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              title="Reset Sample Records to Uploaded PAR Form"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            {/* Reset mock data — RESTRICTED TO SUPER ADMIN ONLY */}
+            {isAdmin && (
+              <button
+                onClick={onResetData}
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                title="Reset Sample Records to Uploaded PAR Form"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
 
-            {/* Primary Action: New PAR Button */}
-            <button
-              onClick={onOpenNewParModal}
-              className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create New PAR</span>
-            </button>
+            {/* Primary Action: New PAR Button — ONLY FOR APPROVED INITIATORS */}
+            {canCreatePar && (
+              <button
+                onClick={onOpenNewParModal}
+                className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95 cursor-pointer"
+                title="Initiate a new Personnel Action Request (PAR)"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create New PAR</span>
+              </button>
+            )}
 
           </div>
         </div>

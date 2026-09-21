@@ -215,7 +215,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '1024226a-f233-42a5-8683-51395806dcc7',
       ipAddress: '12.238.48.90',
       avatar: getInitialsAvatarUrl('Vanessa Nguyen', '0f2352'),
-      canReviewStages: ['draft', 'supervisor_review']
+      canReviewStages: ['draft', 'supervisor_review'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-kevin',
@@ -243,7 +245,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '5b194821-3910-4820-9921-8841a0294821',
       ipAddress: '208.184.164.230',
       avatar: getInitialsAvatarUrl('Atnan Ekin', '1e3a8a'),
-      canReviewStages: ['regional_review']
+      canReviewStages: ['regional_review'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-serdar',
@@ -251,12 +255,14 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       title: 'Regional Executive Director (SA & CC)',
       name: 'Serdar Bulut',
       email: 'sbulut@ssttx.org',
-      department: 'Regional Leadership (SA & CC)',
-      region: 'San Antonio & Corpus Christi Campuses (Voluntary Resignations)',
+      department: 'Central Office / Regional Leadership',
+      region: 'San Antonio & Corpus Christi Campuses (Voluntary)',
       signerId: '6c295832-4021-5931-0032-9952b1305932',
       ipAddress: '208.184.164.231',
       avatar: getInitialsAvatarUrl('Serdar Bulut', '1e3a8a'),
-      canReviewStages: ['regional_review']
+      canReviewStages: ['regional_review'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-kristy',
@@ -269,7 +275,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '8cee36a3-eb8d-4b04-96ec-0fcd6397c6fc',
       ipAddress: '108.65.54.105',
       avatar: getInitialsAvatarUrl('Kristy Stewart', '047857'),
-      canReviewStages: ['hr_review', 'revision_requested']
+      canReviewStages: ['hr_review', 'revision_requested'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-amber',
@@ -282,7 +290,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '9bee47b4-fc9e-5c15-07fd-1fde7408d7fd',
       ipAddress: '208.184.164.232',
       avatar: getInitialsAvatarUrl('Amber Johnson', '047857'),
-      canReviewStages: ['hr_review', 'revision_requested']
+      canReviewStages: ['hr_review', 'revision_requested'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-ursula',
@@ -295,7 +305,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '0e97e30e-841a-4263-a558-61ffac5f61b3',
       ipAddress: '208.184.164.228',
       avatar: getInitialsAvatarUrl('Ursula Villanueva', '7c2d12'),
-      canReviewStages: ['benefits_review']
+      canReviewStages: ['benefits_review'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-paola',
@@ -308,7 +320,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       signerId: '4f291ab8-7612-4a01-9871-3312cb889021',
       ipAddress: '208.184.164.228',
       avatar: getInitialsAvatarUrl('Paola Comparini', 'b91c1c'),
-      canReviewStages: ['payroll_action']
+      canReviewStages: ['payroll_action'],
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-enes',
@@ -323,7 +337,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       avatar: getInitialsAvatarUrl('Enes Sevik', '4338ca'),
       canReviewStages: [],
       isNotificationOnly: true,
-      notificationRoleType: 'it'
+      notificationRoleType: 'it',
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-ahmet',
@@ -338,7 +354,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       avatar: getInitialsAvatarUrl('Ahmet Kaya', '4338ca'),
       canReviewStages: [],
       isNotificationOnly: true,
-      notificationRoleType: 'it'
+      notificationRoleType: 'it',
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-hasan',
@@ -353,7 +371,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       avatar: getInitialsAvatarUrl('Hasan Kendirci', '0d9488'),
       canReviewStages: [],
       isNotificationOnly: true,
-      notificationRoleType: 'talent_acquisition'
+      notificationRoleType: 'talent_acquisition',
+      isAccountActivated: true,
+      signingPin: '1234'
     },
     {
       id: 'p-ali',
@@ -368,7 +388,9 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
       avatar: getInitialsAvatarUrl('Ali Dal', '0d9488'),
       canReviewStages: [],
       isNotificationOnly: true,
-      notificationRoleType: 'talent_acquisition'
+      notificationRoleType: 'talent_acquisition',
+      isAccountActivated: true,
+      signingPin: '1234'
     }
   ],
   districtName: 'School of Science and Technology (SST)',
@@ -389,7 +411,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Vanessa Nguyen', '0f2352'),
     canReviewStages: ['draft', 'supervisor_review'],
     signerId: '1024226a-f233-42a5-8683-51395806dcc7',
-    ipAddress: '12.238.48.90'
+    ipAddress: '12.238.48.90',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-kevin',
@@ -417,7 +441,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Atnan Ekin', '1e3a8a'),
     canReviewStages: ['regional_review'],
     signerId: '5b194821-3910-4820-9921-8841a0294821',
-    ipAddress: '208.184.164.230'
+    ipAddress: '208.184.164.230',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-serdar',
@@ -430,7 +456,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Serdar Bulut', '1e3a8a'),
     canReviewStages: ['regional_review'],
     signerId: '6c295832-4021-5931-0032-9952b1305932',
-    ipAddress: '208.184.164.231'
+    ipAddress: '208.184.164.231',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-kristy',
@@ -443,7 +471,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Kristy Stewart', '047857'),
     canReviewStages: ['hr_review', 'revision_requested'],
     signerId: '8cee36a3-eb8d-4b04-96ec-0fcd6397c6fc',
-    ipAddress: '108.65.54.105'
+    ipAddress: '108.65.54.105',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-amber',
@@ -456,7 +486,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Amber Johnson', '047857'),
     canReviewStages: ['hr_review', 'revision_requested'],
     signerId: '9bee47b4-fc9e-5c15-07fd-1fde7408d7fd',
-    ipAddress: '208.184.164.232'
+    ipAddress: '208.184.164.232',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-ursula',
@@ -469,7 +501,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Ursula Villanueva', '7c2d12'),
     canReviewStages: ['benefits_review'],
     signerId: '0e97e30e-841a-4263-a558-61ffac5f61b3',
-    ipAddress: '208.184.164.228'
+    ipAddress: '208.184.164.228',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-paola',
@@ -482,7 +516,9 @@ export const USER_PERSONAS: UserPersona[] = [
     avatar: getInitialsAvatarUrl('Paola Comparini', 'b91c1c'),
     canReviewStages: ['payroll_action'],
     signerId: '4f291ab8-7612-4a01-9871-3312cb889021',
-    ipAddress: '208.184.164.228'
+    ipAddress: '208.184.164.228',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-enes',
@@ -497,7 +533,9 @@ export const USER_PERSONAS: UserPersona[] = [
     isNotificationOnly: true,
     notificationRoleType: 'it',
     signerId: 'SST-NOTIF-ENES',
-    ipAddress: '108.65.54.120'
+    ipAddress: '108.65.54.120',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-ahmet',
@@ -512,7 +550,9 @@ export const USER_PERSONAS: UserPersona[] = [
     isNotificationOnly: true,
     notificationRoleType: 'it',
     signerId: 'SST-NOTIF-AHMET',
-    ipAddress: '208.184.164.240'
+    ipAddress: '208.184.164.240',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-hasan',
@@ -527,7 +567,9 @@ export const USER_PERSONAS: UserPersona[] = [
     isNotificationOnly: true,
     notificationRoleType: 'talent_acquisition',
     signerId: 'SST-NOTIF-HASAN',
-    ipAddress: '108.65.54.122'
+    ipAddress: '108.65.54.122',
+    isAccountActivated: true,
+    signingPin: '1234'
   },
   {
     id: 'p-ali',
@@ -542,7 +584,9 @@ export const USER_PERSONAS: UserPersona[] = [
     isNotificationOnly: true,
     notificationRoleType: 'talent_acquisition',
     signerId: 'SST-NOTIF-ALI',
-    ipAddress: '208.184.164.242'
+    ipAddress: '208.184.164.242',
+    isAccountActivated: true,
+    signingPin: '1234'
   }
 ];
 

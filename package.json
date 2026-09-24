@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "esbuild src/test/verifyAllSstRules.ts --bundle --platform=node | node",
-    "deploy": "npm run build && cp dist/index.html dist/404.html && (cd dist && git init && git branch -M gh-pages && git add -A && git commit -m 'deploy to gh-pages' && git push -f https://github.com/kevinzdemirci/sst-par-portal.git gh-pages && rm -rf .git)"
+    "deploy": "npm run build && cp dist/index.html dist/404.html && (REMOTE_URL=$(git remote get-url origin) && cd dist && git init && git branch -M gh-pages && git add -A && git commit -m 'deploy to gh-pages' && git push -f \"$REMOTE_URL\" gh-pages && rm -rf .git)"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

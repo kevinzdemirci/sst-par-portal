@@ -10,7 +10,7 @@ import {
   ApproverRoleConfig
 } from './types/par';
 import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
-import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl, isRegionalHrCoordinator } from './utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -25,8 +25,10 @@ import { RoleManagerModal } from './components/RoleManagerModal';
 import { ActivationEmailModal } from './components/ActivationEmailModal';
 import { CpoPayoutModal } from './components/CpoPayoutModal';
 import { GmailSettingsModal } from './components/GmailSettingsModal';
+import { SstAppsScriptModal } from './components/SstAppsScriptModal';
 import { AuthModal } from './components/AuthModal';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
+import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
 import { CpoPayoutRequest } from './types/payout';
 import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
@@ -212,6 +214,7 @@ export function App() {
   const [isRoleManagerOpen, setIsRoleManagerOpen] = useState(false);
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
+  const [isAppsScriptModalOpen, setIsAppsScriptModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
@@ -549,6 +552,12 @@ export function App() {
           }
         }
 
+        // Automated SSTTX Google Sheets Background Synchronization
+        const appsScriptConfig = getStoredAppsScriptConfig();
+        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+          syncParToSstGoogleSheet(updatedPar, 'Department Approval', persona, comments).catch(console.error);
+        }
+
         return updatedPar;
       })
     );
@@ -613,6 +622,13 @@ export function App() {
         }
 
         showToast(`❌ ${par.trackingNumber} has been declined.`, 'warning');
+
+        // Automated SSTTX Google Sheets Background Synchronization
+        const appsScriptConfig = getStoredAppsScriptConfig();
+        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+          syncParToSstGoogleSheet(updatedPar, 'Department Rejection', persona, comments).catch(console.error);
+        }
+
         return updatedPar;
       })
     );
@@ -677,6 +693,13 @@ export function App() {
         }
 
         showToast(`⚠️ ${par.trackingNumber} returned to campus initiator for revisions.`, 'warning');
+
+        // Automated SSTTX Google Sheets Background Synchronization
+        const appsScriptConfig = getStoredAppsScriptConfig();
+        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+          syncParToSstGoogleSheet(updatedPar, 'Revision Requested', persona, comments).catch(console.error);
+        }
+
         return updatedPar;
       })
     );
@@ -753,6 +776,12 @@ export function App() {
     }
 
     showToast(`🎉 New request ${newPar.trackingNumber} submitted for ${newPar.firstName} ${newPar.lastName}! Forwarded to Principal/Supervisor endorsement.`, 'success');
+
+    // Automated SSTTX Google Sheets Background Synchronization
+    const appsScriptConfig = getStoredAppsScriptConfig();
+    if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+      syncParToSstGoogleSheet(newPar, 'New PAR Submission', currentPersona, 'Submitted & Forwarded to Principal').catch(console.error);
+    }
   };
 
   // Delete PAR Action (for test submissions or removals)
@@ -771,6 +800,12 @@ export function App() {
       setSelectedPar(updatedPar);
     }
     showToast(`Employee details updated for ${updatedPar.firstName} ${updatedPar.lastName} (ADP: ${updatedPar.employeeId}).`, 'success');
+
+    // Automated SSTTX Google Sheets Background Synchronization
+    const appsScriptConfig = getStoredAppsScriptConfig();
+    if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+      syncParToSstGoogleSheet(updatedPar, 'Employee Info Edited', currentPersona).catch(console.error);
+    }
   };
 
   // Reset Demo Data
@@ -1038,7 +1073,11 @@ export function App() {
 
       return true;
     });
-  }, [pars, searchQuery, selectedActionType, selectedLocation, selectedStageFilter, filterActionQueue, currentPersona]);
+  }, [pars, searchQuery, selectedActionType, selectedLocation, selectedCampus, selectedStageFilter, filterActionQueue, currentPersona]);
+
+  const pendingForPersona = useMemo(() => {
+    return pars.filter((p) => canPersonaActOnPar(currentPersona, p)).length;
+  }, [pars, currentPersona]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Inter',sans-serif]">
@@ -1065,6 +1104,7 @@ export function App() {
         onSelectHubTab={setActiveHubTab}
         onOpenGmailSettings={() => setIsGmailModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenAppsScriptModal={() => setIsAppsScriptModalOpen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -1367,6 +1407,14 @@ export function App() {
                 setSelectedStageFilter('all');
                 setFilterActionQueue(false);
               }}
+              onExportCsv={() => {
+                exportParsToCsv(filteredPars);
+                showToast(`📥 Exported ${filteredPars.length} PARs to CSV.`, 'success');
+              }}
+              onOpenAppsScript={() => setIsAppsScriptModalOpen(true)}
+              myActionCount={pendingForPersona}
+              filterActionQueue={filterActionQueue}
+              onToggleActionQueue={() => setFilterActionQueue(!filterActionQueue)}
             />
 
             {/* View Component: Table or Kanban Pipeline */}
@@ -1591,6 +1639,14 @@ export function App() {
       <GmailSettingsModal
         isOpen={isGmailModalOpen}
         onClose={() => setIsGmailModalOpen(false)}
+        onToast={showToast}
+      />
+
+      {/* SSTTX Google Apps Script Integration Modal */}
+      <SstAppsScriptModal
+        isOpen={isAppsScriptModalOpen}
+        onClose={() => setIsAppsScriptModalOpen(false)}
+        pars={pars}
         onToast={showToast}
       />
 

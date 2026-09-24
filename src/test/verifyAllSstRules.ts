@@ -21,6 +21,15 @@ import {
   GOOGLE_APPS_SCRIPT_SAMPLE,
   GmailCredentials 
 } from '../utils/gmailService';
+import { 
+  HR_REVISION_REASONS, 
+  getTexasCobraDeadline, 
+  generateParsCsvString 
+} from '../utils/formatters';
+import { 
+  DEFAULT_APPS_SCRIPT_CONFIG, 
+  FULL_APPS_SCRIPT_SOURCE 
+} from '../utils/sstAppsScriptService';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -679,6 +688,57 @@ assert(canPersonaCreatePar(null as any) === false, 'Unauthenticated / null user 
 USER_PERSONAS.forEach((p) => {
   assert(Boolean(p.signingPin === '1234' || (p.signingPin && p.signingPin.length === 4)), `${p.name} has valid 4-digit authentication PIN (${p.signingPin || '1234'})`);
 });
+
+// 16. VERIFY TEXAS CHARTER HR COMPLIANCE & TRS / COBRA STATUTORY ENFORCEMENT
+console.log('\n📌 Test 16: Texas Charter HR Compliance & TRS / COBRA Statutory Enforcement...');
+
+// 16a. HR Revision Reason Templates
+assert(HR_REVISION_REASONS.length >= 6, `HR revision templates configured (Found: ${HR_REVISION_REASONS.length})`);
+assert(HR_REVISION_REASONS.some(r => r.includes('ADP Position Control')), 'Includes ADP Position Control template');
+assert(HR_REVISION_REASONS.some(r => r.includes('TRS Form 7/10') || r.includes('TRS separation')), 'Includes TRS documentation template');
+assert(HR_REVISION_REASONS.some(r => r.includes('Chapter 21')), 'Includes Chapter 21 contract template');
+
+// 16b. COBRA 30-Day Statutory Deadline Calculation
+const cobraTestRecent = getTexasCobraDeadline('2026-09-20');
+assert(cobraTestRecent.deadlineDateStr !== 'N/A', `Calculated statutory date (${cobraTestRecent.deadlineDateStr})`);
+assert(cobraTestRecent.daysRemaining > 0, `Recent separation has positive days remaining (${cobraTestRecent.daysRemaining})`);
+assert(cobraTestRecent.isOverdue === false, 'Recent separation is not overdue');
+
+const cobraTestOld = getTexasCobraDeadline('2026-07-01');
+assert(cobraTestOld.isOverdue === true, 'Separation older than 30 days is accurately flagged overdue');
+assert(cobraTestOld.daysRemaining < 0, 'Days remaining is negative for overdue separation');
+
+const cobraTestEmpty = getTexasCobraDeadline('');
+assert(cobraTestEmpty.deadlineDateStr === 'N/A', 'Empty Last Day Worked returns safe N/A');
+
+// 16c. Master HR CSV Compliance Export
+const csvOutput = generateParsCsvString(INITIAL_PAR_DATA);
+assert(csvOutput.includes('Tracking Number'), 'CSV includes Tracking Number header');
+assert(csvOutput.includes('ADP Associate ID'), 'CSV includes ADP Associate ID header');
+assert(csvOutput.includes('Contract Type'), 'CSV includes Contract Type header');
+assert(csvOutput.includes('TRS Notification Required'), 'CSV includes TRS Notification header');
+assert(csvOutput.includes('COBRA Notice Due'), 'CSV includes COBRA Notice Due header');
+const csvLines = csvOutput.trim().split('\n');
+assert(csvLines.length === INITIAL_PAR_DATA.length + 1, `CSV contains header + ${INITIAL_PAR_DATA.length} data rows`);
+
+// 17. VERIFY SSTTX GOOGLE APPS SCRIPT SUITE & LIVE TRACKING ENGINE
+console.log('\n📌 Test 17: SSTTX Google Apps Script Suite & Live Tracking Engine...');
+
+// 17a. Default Apps Script configuration
+assert(DEFAULT_APPS_SCRIPT_CONFIG.senderEmail === 'sstpar@ssttx.org', 'Apps Script default sender is sstpar@ssttx.org');
+assert(DEFAULT_APPS_SCRIPT_CONFIG.autoSyncEnabled === true, 'Apps Script autoSync is enabled by default');
+assert(DEFAULT_APPS_SCRIPT_CONFIG.senderName.includes('School of Science and Technology'), 'Sender name includes district name');
+
+// 17b. Apps Script code integrity and endpoint coverage
+assert(FULL_APPS_SCRIPT_SOURCE.includes('function onOpen('), 'Apps Script contains onOpen() trigger for custom UI menu');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('function initializeSstTrackerSheets('), 'Apps Script contains multi-tab sheet initializer');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('function doPost(e)'), 'Apps Script implements doPost(e) Webhook API for live sync');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('function doGet(e)'), 'Apps Script implements doGet(e) health check and ping');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('PAR_Master_Tracker'), 'Apps Script creates PAR_Master_Tracker tab');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('Audit_Trail'), 'Apps Script creates Audit_Trail tab');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('Payout_Authorizations'), 'Apps Script creates Payout_Authorizations tab');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('Email_Dispatches'), 'Apps Script creates Email_Dispatches tab');
+assert(FULL_APPS_SCRIPT_SOURCE.includes('ssttx.org'), 'Apps Script targets ssttx.org Google Workspace domain');
 
   // SUMMARY
   console.log('\n======================================================');

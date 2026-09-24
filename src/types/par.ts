@@ -207,6 +207,14 @@ export interface PersonnelActionRequest {
   outstandingStipendsOwed?: boolean;
   finalPayCheckComment?: string;
 
+  // Texas Education Agency (TEA) & HR Compliance
+  contractType?: 'Chapter 21 Term' | 'Chapter 21 Probationary' | 'Non-Chapter 21 / At-Will';
+  trsNotificationRequired?: boolean;
+  cobraNoticeDueDate?: string;
+  laptopReturned?: boolean;
+  keysBadgesReturned?: boolean;
+  sisGradebookClosed?: boolean;
+
   // HR - Termination Information (Page 2)
   markRehireStatus?: boolean;
   notifySis?: boolean;

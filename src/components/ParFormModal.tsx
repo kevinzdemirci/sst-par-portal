@@ -85,6 +85,11 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [terminationCode, setTerminationCode] = useState('A = Job Abandonment');
   const [allPtoEnteredInAdp, setAllPtoEnteredInAdp] = useState(true);
   const [returnedCharterProperty, setReturnedCharterProperty] = useState(true);
+  const [laptopReturned, setLaptopReturned] = useState(true);
+  const [keysBadgesReturned, setKeysBadgesReturned] = useState(true);
+  const [sisGradebookClosed, setSisGradebookClosed] = useState(true);
+  const [trsNotificationRequired, setTrsNotificationRequired] = useState(true);
+  const [contractType, setContractType] = useState<'Chapter 21 Term' | 'Chapter 21 Probationary' | 'Non-Chapter 21 / At-Will'>('Chapter 21 Term');
   const [hasWrittenStatements, setHasWrittenStatements] = useState(false);
   const [outstandingStipendsOwed, setOutstandingStipendsOwed] = useState(false);
   const [uploadedDocName, setUploadedDocName] = useState('notice of separation.JPG');
@@ -151,6 +156,14 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       terminationCode: actionType === 'termination' ? terminationCode : undefined,
       allPtoEnteredInAdp: actionType === 'termination' ? allPtoEnteredInAdp : undefined,
       returnedCharterProperty: actionType === 'termination' ? returnedCharterProperty : undefined,
+      laptopReturned: actionType === 'termination' ? laptopReturned : undefined,
+      keysBadgesReturned: actionType === 'termination' ? keysBadgesReturned : undefined,
+      sisGradebookClosed: actionType === 'termination' ? sisGradebookClosed : undefined,
+      trsNotificationRequired: actionType === 'termination' || actionType === 'leave_of_absence' ? trsNotificationRequired : undefined,
+      contractType,
+      cobraNoticeDueDate: actionType === 'termination' && lastDayWorked 
+        ? new Date(new Date(lastDayWorked).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] 
+        : undefined,
       hasWrittenStatements: actionType === 'termination' ? hasWrittenStatements : undefined,
       outstandingStipendsOwed: actionType === 'termination' ? outstandingStipendsOwed : undefined,
       finalPayCheckComment: actionType === 'termination' ? finalPayCheckComment : undefined,
@@ -475,6 +488,21 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-blue-700 font-mono focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 />
               </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  Texas Contract Status (TEA)
+                </label>
+                <select
+                  value={contractType}
+                  onChange={(e) => setContractType(e.target.value as any)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                >
+                  <option value="Chapter 21 Term">Chapter 21 Term Contract (Educators/Admin)</option>
+                  <option value="Chapter 21 Probationary">Chapter 21 Probationary Contract (1-3 Yrs)</option>
+                  <option value="Non-Chapter 21 / At-Will">Non-Chapter 21 / At-Will Agreement</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -610,7 +638,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   <div className="font-semibold text-slate-800 mb-1.5">
                     6. Did employee return all Charter School property?
                   </div>
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-4 mb-2">
                     <label className="flex items-center space-x-1 cursor-pointer">
                       <input type="radio" name="prop" checked={returnedCharterProperty} onChange={() => setReturnedCharterProperty(true)} />
                       <span className="font-bold text-emerald-800">Yes</span>
@@ -620,6 +648,22 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       <span>No</span>
                     </label>
                   </div>
+                  {returnedCharterProperty && (
+                    <div className="pt-2 border-t border-slate-100 text-[11px] space-y-1 text-slate-600">
+                      <label className="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" checked={laptopReturned} onChange={(e) => setLaptopReturned(e.target.checked)} className="rounded" />
+                        <span>District Laptop & Charger returned to IT</span>
+                      </label>
+                      <label className="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" checked={keysBadgesReturned} onChange={(e) => setKeysBadgesReturned(e.target.checked)} className="rounded" />
+                        <span>Master Campus Keys & RFID Badge surrendered</span>
+                      </label>
+                      <label className="flex items-center space-x-1.5 cursor-pointer">
+                        <input type="checkbox" checked={sisGradebookClosed} onChange={(e) => setSisGradebookClosed(e.target.checked)} className="rounded" />
+                        <span>SIS Gradebook & Student Records verified</span>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -668,6 +712,30 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       <input type="radio" name="stipend" checked={!outstandingStipendsOwed} onChange={() => setOutstandingStipendsOwed(false)} />
                       <span className="font-bold">No</span>
                     </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Texas Education Agency & Statutory Notice Box */}
+              <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 space-y-2 text-xs">
+                <div className="font-bold text-blue-950 flex items-center justify-between">
+                  <span>🏛️ Texas Statutory & Teacher Retirement System (TRS) Processing:</span>
+                  <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded">
+                    TEA & TRS Rules
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-blue-900">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={trsNotificationRequired}
+                      onChange={(e) => setTrsNotificationRequired(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Generate TRS Notice of Separation (TRS 7/10 Reporting Required)</span>
+                  </label>
+                  <div className="text-slate-600">
+                    COBRA Notice Statutory Window: <strong>30 days from {lastDayWorked || 'Effective Date'}</strong>
                   </div>
                 </div>
               </div>

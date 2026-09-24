@@ -12,9 +12,12 @@ import {
   getStageInfo, 
   getPriorityBadge, 
   canPersonaActOnPar,
-  getDepartmentNotificationRecipients
+  getDepartmentNotificationRecipients,
+  HR_REVISION_REASONS,
+  getTexasCobraDeadline
 } from '../utils/formatters';
 import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
+import { syncParToSstGoogleSheet } from '../utils/sstAppsScriptService';
 import { 
   X, 
   Printer, 
@@ -34,7 +37,10 @@ import {
   Laptop,
   UserPlus,
   Mail,
-  Info
+  Info,
+  FileSpreadsheet,
+  Lock,
+  Calendar
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -69,6 +75,10 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   const [generalComment, setGeneralComment] = useState('');
   const [activeTab, setActiveTab] = useState<'form' | 'signatures' | 'audit' | 'notifications'>('form');
   const [notificationsSentToast, setNotificationsSentToast] = useState<string | null>(null);
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [sheetSyncToast, setSheetSyncToast] = useState<string | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [selectedReasonTemplate, setSelectedReasonTemplate] = useState('');
 
   // Employee details editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -158,9 +168,32 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
     setTimeout(() => setNotificationsSentToast(null), 5000);
   };
 
+  const handleSyncToGoogleSheet = async () => {
+    setIsSyncingSheet(true);
+    try {
+      const res = await syncParToSstGoogleSheet(par, 'Manual Detail Sync', currentPersona);
+      if (res.success) {
+        setSheetSyncToast(`✅ ${par.trackingNumber} successfully synchronized to SSTTX Google Sheet!`);
+      } else {
+        setSheetSyncToast(`⚠️ ${res.message}`);
+      }
+    } catch (err: any) {
+      setSheetSyncToast(`Sync error: ${err.message}`);
+    } finally {
+      setIsSyncingSheet(false);
+      setTimeout(() => setSheetSyncToast(null), 4500);
+    }
+  };
+
   const handleApprove = () => {
+    if (currentPersona.signingPin && pinInput.trim() !== currentPersona.signingPin) {
+      alert(`Texas UETA Authentication: Please enter your correct signing PIN to endorse this document (Preset PIN: ${currentPersona.signingPin})`);
+      return;
+    }
+
     onApprovePar(par.id, decisionNotes || 'Endorsed and electronically signed.', currentPersona);
     setDecisionNotes('');
+    setPinInput('');
     
     const remainingPending = par.routingSteps.filter(s => s.status === 'pending');
     if (remainingPending.length <= 1) {
@@ -245,6 +278,17 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
             )}
 
             <button
+              type="button"
+              onClick={handleSyncToGoogleSheet}
+              disabled={isSyncingSheet}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 transition-colors shadow-2xs"
+              title="Synchronize this request immediately to SSTTX Google Sheets"
+            >
+              <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-700 ${isSyncingSheet ? 'animate-spin' : ''}`} />
+              <span>{isSyncingSheet ? 'Syncing...' : 'Sync to SSTTX Sheet'}</span>
+            </button>
+
+            <button
               onClick={handlePrint}
               className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
               title="Print official SST Personnel Action Request"
@@ -260,6 +304,19 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Sync Feedback Toast */}
+        {sheetSyncToast && (
+          <div className="bg-emerald-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-sm no-print animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+              <span>{sheetSyncToast}</span>
+            </div>
+            <button onClick={() => setSheetSyncToast(null)} className="text-emerald-200 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Workflow Routing Stepper (Visual Department Pipeline) */}
         <div className="bg-[#0f2352] text-white px-6 py-4 no-print shadow-inner">
@@ -494,18 +551,22 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border-b border-slate-200 pb-3 mb-3">
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Location:</span>
+                      <span className="text-slate-500 block text-[11px]">Location Region:</span>
                       <strong className="text-slate-900">{par.location}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Campus:</span>
+                      <span className="text-slate-500 block text-[11px]">SST Campus:</span>
                       <strong className="text-slate-900">{par.campus}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Status:</span>
+                      <span className="text-slate-500 block text-[11px]">Employment Status:</span>
                       <strong className="text-slate-900">{par.employmentStatus}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Texas Contract Status:</span>
+                      <strong className="text-blue-900 font-semibold">{par.contractType || 'Chapter 21 Term Contract'}</strong>
                     </div>
                   </div>
                 </div>
@@ -513,8 +574,65 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                 {/* Box 2: Termination Documentation (Questions 1 - 9) */}
                 {par.actionType === 'termination' && (
                   <div className="border border-slate-400 rounded-lg p-3.5 mb-6 bg-white space-y-3.5 text-xs text-slate-800">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5">
-                      Termination Documentation
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex items-center justify-between">
+                      <span>Termination Documentation</span>
+                      <span className="text-[11px] font-semibold text-blue-800">
+                        {par.trsNotificationRequired ? 'TRS Separation Notice Required (TRS 7/10)' : 'TRS Notification Not Required'}
+                      </span>
+                    </div>
+
+                    {/* Texas Statutory COBRA Election Deadline Alert */}
+                    {(() => {
+                      const cobra = getTexasCobraDeadline(par.lastDayWorked);
+                      return (
+                        <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
+                          cobra.isOverdue ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-blue-50/70 border-blue-200 text-blue-900'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
+                            <div>
+                              <span className="font-bold">Texas Statutory COBRA Notice Deadline: </span>
+                              <span className="font-semibold">{cobra.deadlineDateStr}</span>
+                              <span className="ml-1 text-[11px] text-slate-500">(30 calendar days from Last Day Worked)</span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            cobra.isOverdue ? 'bg-rose-200 text-rose-900' : 'bg-blue-200 text-blue-900'
+                          }`}>
+                            {cobra.isOverdue ? '⚠️ Notice Overdue' : `${cobra.daysRemaining} days remaining`}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* District Asset De-provisioning Checklist */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                      <div className="font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                        <span>District Asset De-provisioning & Equipment Handover:</span>
+                        <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-2 py-0.2 rounded">
+                          IT & Facilities Verification
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                        <div className="flex items-center space-x-1.5">
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${par.laptopReturned !== false ? 'text-emerald-600' : 'text-slate-300'}`} />
+                          <span className={par.laptopReturned !== false ? 'text-slate-800 font-medium' : 'text-slate-400'}>
+                            District Laptop & Charger Handed In
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${par.keysBadgesReturned !== false ? 'text-emerald-600' : 'text-slate-300'}`} />
+                          <span className={par.keysBadgesReturned !== false ? 'text-slate-800 font-medium' : 'text-slate-400'}>
+                            Master Keys & Security Badge Returned
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${par.sisGradebookClosed !== false ? 'text-emerald-600' : 'text-slate-300'}`} />
+                          <span className={par.sisGradebookClosed !== false ? 'text-slate-800 font-medium' : 'text-slate-400'}>
+                            SIS Gradebook & Student Records Closed
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap justify-between gap-2 text-xs border-b border-slate-200 pb-2">
@@ -1180,6 +1298,25 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                 Review the submission and payroll data above. Entering sign-off remarks will electronically record your signature with IP <code className="font-mono bg-amber-200/60 px-1 py-0.5 rounded">{currentPersona.ipAddress}</code> and advance the request to the next department.
               </p>
 
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <span className="font-bold text-slate-700">Quick HR Compliance & Return Remarks:</span>
+                <select
+                  value={selectedReasonTemplate}
+                  onChange={(e) => {
+                    setSelectedReasonTemplate(e.target.value);
+                    if (e.target.value) {
+                      setDecisionNotes(e.target.value);
+                    }
+                  }}
+                  className="text-xs bg-white border border-amber-300 rounded-xl px-2.5 py-1 text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium max-w-xs sm:max-w-sm truncate"
+                >
+                  <option value="">-- Choose Standard HR Reason --</option>
+                  {HR_REVISION_REASONS.map((reason, idx) => (
+                    <option key={idx} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+
               <textarea
                 rows={2}
                 placeholder="Enter endorsement notes, policy compliance remarks, or return instructions..."
@@ -1187,6 +1324,36 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                 onChange={(e) => setDecisionNotes(e.target.value)}
                 className="w-full p-3 text-xs bg-white border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 mb-3"
               />
+
+              {currentPersona.signingPin && (
+                <div className="mb-3 p-3 bg-white rounded-xl border border-amber-300 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-bold text-slate-800">Texas UETA Electronic Signature Verification:</span>
+                      <div className="text-[11px] text-slate-500">Enter your assigned 4-6 digit PIN to execute this endorsement</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={pinInput}
+                      onChange={(e) => setPinInput(e.target.value)}
+                      placeholder="PIN"
+                      className="w-20 px-2 py-1 text-center font-mono font-bold bg-amber-50 border border-amber-300 rounded-lg text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPinInput(currentPersona.signingPin || '')}
+                      className="text-[10px] text-amber-800 underline font-semibold hover:text-amber-900"
+                      title="Fill preset PIN for quick testing"
+                    >
+                      (Fill PIN: {currentPersona.signingPin})
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center justify-end gap-2.5">
                 <button

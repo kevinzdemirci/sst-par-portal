@@ -538,3 +538,128 @@ export function getInitialsAvatarUrl(name: string, bg: string = '0f2352'): strin
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}&background=${bg}&color=fff&size=160&bold=true`;
 }
 
+/**
+ * Standard Texas Charter HR Revision / Rejection Reasons
+ */
+export const HR_REVISION_REASONS = [
+  'Missing formal letter of resignation / signed separation notice',
+  'Last day worked conflicts with campus attendance / biometric records',
+  'Proposed compensation adjustment exceeds board-approved salary scale',
+  'ADP Position Control & job requisition code verification required',
+  'TRS Form 7/10 Notice of Separation required before payroll release',
+  'Outstanding district assets (laptop, charger, master keys, RFID badge) unreturned',
+  'Exit interview & handover documentation has not been completed',
+  'PTO / UTO day balance requires campus verification before payroll settlement',
+  'TEA PEIMS / Chapter 21 contract documentation requires amendment'
+] as const;
+
+/**
+ * Calculate Texas statutory 30-day COBRA notification deadline from Last Day Worked
+ */
+export function getTexasCobraDeadline(lastDayWorked?: string): {
+  deadlineDateStr: string;
+  isOverdue: boolean;
+  daysRemaining: number;
+} {
+  if (!lastDayWorked) {
+    return { deadlineDateStr: 'N/A', isOverdue: false, daysRemaining: 30 };
+  }
+  const ldw = new Date(lastDayWorked);
+  if (isNaN(ldw.getTime())) {
+    return { deadlineDateStr: 'N/A', isOverdue: false, daysRemaining: 30 };
+  }
+  const deadline = new Date(ldw);
+  deadline.setDate(deadline.getDate() + 30);
+  
+  const today = new Date();
+  const diffTime = deadline.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return {
+    deadlineDateStr: deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    isOverdue: diffDays < 0,
+    daysRemaining: diffDays
+  };
+}
+
+/**
+ * Generate CSV string in official Texas charter compliant format
+ */
+export function generateParsCsvString(pars: PersonnelActionRequest[]): string {
+  const headers = [
+    'Tracking Number',
+    'Submission Date',
+    'Employee Full Name',
+    'ADP Associate ID',
+    'Campus',
+    'Location Region',
+    'Current Position',
+    'Action Type',
+    'Effective Date',
+    'Workflow Status',
+    'Current Step',
+    'Contract Type',
+    'TRS Notification Required',
+    'Last Day Worked',
+    'COBRA Notice Due',
+    'Current Salary',
+    'Proposed Salary',
+    'Salary Change',
+    'Final Payout / Net Wages',
+    'Signatures Completed',
+    'Submitted By',
+    'Submitter Email',
+    'Last Updated'
+  ];
+
+  const rows = pars.map((p) => {
+    const sigsCount = `${p.electronicSignatures.filter(s => s.status === 'signed').length}/${p.electronicSignatures.length}`;
+    const cobra = getTexasCobraDeadline(p.lastDayWorked);
+    const salaryDelta = (p.proposedSalary || p.currentSalary) - p.currentSalary;
+    
+    return [
+      `"${p.trackingNumber}"`,
+      `"${p.submittedAt ? new Date(p.submittedAt).toLocaleDateString() : ''}"`,
+      `"${p.firstName} ${p.lastName}"`,
+      `"${p.employeeId}"`,
+      `"${p.campus}"`,
+      `"${p.location}"`,
+      `"${p.title}"`,
+      `"${p.actionType.replace('_', ' ').toUpperCase()}"`,
+      `"${p.effectiveDate}"`,
+      `"${p.currentStage.replace('_', ' ').toUpperCase()}"`,
+      `"${p.routingSteps.find(s => s.status === 'pending')?.stageLabel || (p.currentStage === 'completed' ? 'Completed' : 'Review')}"`,
+      `"${p.contractType || 'At-Will / Non-Ch21'}"`,
+      `"${p.trsNotificationRequired ? 'YES' : 'NO'}"`,
+      `"${p.lastDayWorked || 'N/A'}"`,
+      `"${cobra.deadlineDateStr}"`,
+      `"${p.currentSalary.toFixed(2)}"`,
+      `"${(p.proposedSalary || p.currentSalary).toFixed(2)}"`,
+      `"${salaryDelta.toFixed(2)}"`,
+      `"${(p.finalPay || 0).toFixed(2)}"`,
+      `"${sigsCount}"`,
+      `"${p.submittedBy}"`,
+      `"${p.submitterEmail}"`,
+      `"${new Date(p.updatedAt).toLocaleDateString()} ${new Date(p.updatedAt).toLocaleTimeString()}"`
+    ];
+  });
+
+  return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+}
+
+/**
+ * Export PAR records to official Texas charter compliant CSV format and trigger browser download
+ */
+export function exportParsToCsv(pars: PersonnelActionRequest[]): void {
+  const csvContent = generateParsCsvString(pars);
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `SST_PAR_Master_Export_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+

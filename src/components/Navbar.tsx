@@ -3,9 +3,10 @@ import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
-import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail, Lock } from 'lucide-react';
+import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail, Lock, FileSpreadsheet } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
+import { getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
 
 interface NavbarProps {
   currentPersona: UserPersona;
@@ -28,6 +29,7 @@ interface NavbarProps {
   onSelectHubTab?: (tab: 'pars' | 'payouts' | 'directory' | 'workflow') => void;
   onOpenGmailSettings?: () => void;
   onOpenAuthModal?: () => void;
+  onOpenAppsScriptModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -50,7 +52,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeHubTab = 'pars',
   onSelectHubTab,
   onOpenGmailSettings,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onOpenAppsScriptModal
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
@@ -59,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isPayroll = isPayrollCoordinator(currentPersona);
   const canCreatePar = canPersonaCreatePar(currentPersona);
   const gmailCreds = getStoredGmailCredentials();
+  const appsScriptConfig = getStoredAppsScriptConfig();
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
@@ -155,6 +159,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }
                   } else if (e.target.value === '__GMAIL_SETTINGS__') {
                     if (onOpenGmailSettings) onOpenGmailSettings();
+                  } else if (e.target.value === '__APPS_SCRIPT__') {
+                    if (onOpenAppsScriptModal) onOpenAppsScriptModal();
                   } else {
                     const found = availablePersonas.find(p => p.id === e.target.value);
                     if (found) onSelectPersona(found);
@@ -182,12 +188,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <optgroup label={isCpo ? "District Administration Controls" : "My Account & Directory"}>
                   {isCpo ? (
                     <>
+                      <option value="__APPS_SCRIPT__">📊 SSTTX Google Sheets Tracker & Apps Script...</option>
                       <option value="__NEW_ACCOUNT__">+ Add Approver Role / Create Account...</option>
                       <option value="__MANAGE_ROLES__">⚙️ Manage & Remove Roles...</option>
                       <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
                     </>
                   ) : (
                     <>
+                      <option value="__APPS_SCRIPT__">📊 SSTTX Google Sheets Tracker...</option>
                       <option value="__MY_ESIGN__">✍️ Configure My E-Sign Profile...</option>
                       <option value="__VIEW_DIRECTORY__">👥 View Approvers Directory...</option>
                       <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
@@ -368,6 +376,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Sliders className="w-3.5 h-3.5 text-[#b91c1c]" />
                 <span className="hidden sm:inline">Workflow Admin</span>
+              </button>
+            )}
+
+            {/* SSTTX Google Apps Script & Sheets Tracker Button */}
+            {onOpenAppsScriptModal && (
+              <button
+                type="button"
+                onClick={onOpenAppsScriptModal}
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
+                  appsScriptConfig.scriptUrl
+                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-950'
+                    : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950'
+                }`}
+                title={`SSTTX Google Apps Script & Sheets PAR Tracker (${appsScriptConfig.scriptUrl ? 'Connected' : 'Setup Required'})`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden xl:inline">SSTTX Sheets</span>
+                <span className={`w-2 h-2 rounded-full ${appsScriptConfig.scriptUrl ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
               </button>
             )}
 

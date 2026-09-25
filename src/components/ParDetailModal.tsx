@@ -577,8 +577,8 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                       <strong className="text-slate-900">{par.employmentStatus}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[11px]">Texas Contract Status:</span>
-                      <strong className="text-blue-900 font-semibold">{par.contractType || 'Chapter 21 Term Contract'}</strong>
+                      <span className="text-slate-500 block text-[11px]">Employment Agreement:</span>
+                      <strong className="text-blue-900 font-semibold">{par.contractType || 'At-Will'}</strong>
                     </div>
                   </div>
                 </div>

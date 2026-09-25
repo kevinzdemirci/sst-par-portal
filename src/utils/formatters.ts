@@ -550,7 +550,7 @@ export const HR_REVISION_REASONS = [
   'Outstanding district assets (laptop, charger, master keys, RFID badge) unreturned',
   'Exit interview & handover documentation has not been completed',
   'PTO / UTO day balance requires campus verification before payroll settlement',
-  'TEA PEIMS / Chapter 21 contract documentation requires amendment'
+  'TEA PEIMS / At-Will agreement documentation requires amendment'
 ] as const;
 
 /**
@@ -629,7 +629,7 @@ export function generateParsCsvString(pars: PersonnelActionRequest[]): string {
       `"${p.effectiveDate}"`,
       `"${p.currentStage.replace('_', ' ').toUpperCase()}"`,
       `"${p.routingSteps.find(s => s.status === 'pending')?.stageLabel || (p.currentStage === 'completed' ? 'Completed' : 'Review')}"`,
-      `"${p.contractType || 'At-Will / Non-Ch21'}"`,
+      `"${p.contractType || 'At-Will'}"`,
       `"${p.trsNotificationRequired ? 'YES' : 'NO'}"`,
       `"${p.lastDayWorked || 'N/A'}"`,
       `"${cobra.deadlineDateStr}"`,

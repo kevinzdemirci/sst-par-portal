@@ -696,7 +696,7 @@ console.log('\n📌 Test 16: Texas Charter HR Compliance & TRS / COBRA Statutory
 assert(HR_REVISION_REASONS.length >= 6, `HR revision templates configured (Found: ${HR_REVISION_REASONS.length})`);
 assert(HR_REVISION_REASONS.some(r => r.includes('ADP Position Control')), 'Includes ADP Position Control template');
 assert(HR_REVISION_REASONS.some(r => r.includes('TRS Form 7/10') || r.includes('TRS separation')), 'Includes TRS documentation template');
-assert(HR_REVISION_REASONS.some(r => r.includes('Chapter 21')), 'Includes Chapter 21 contract template');
+assert(HR_REVISION_REASONS.some(r => r.includes('At-Will')), 'Includes At-Will agreement template');
 
 // 16b. COBRA 30-Day Statutory Deadline Calculation
 const cobraTestRecent = getTexasCobraDeadline('2026-09-20');
@@ -767,7 +767,7 @@ const submitterPar: PersonnelActionRequest = {
   title: 'Lead STEM Teacher',
   currentSalary: 56000,
   proposedSalary: 64500,
-  contractType: 'Chapter 21 Term',
+  contractType: 'At-Will',
   departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary'),
   routingSteps: buildSstRouting('promotion', false, 'Houston'),
   comments: [],
@@ -775,7 +775,7 @@ const submitterPar: PersonnelActionRequest = {
 };
 
 assert(submitterPar.currentStage === 'supervisor_review', 'Submitted PAR routes initially to supervisor_review');
-assert(submitterPar.contractType === 'Chapter 21 Term', 'Texas Chapter 21 contract type accurately recorded');
+assert(submitterPar.contractType === 'At-Will', 'At-Will agreement type accurately recorded');
 assert((submitterPar.departmentNotifications?.length ?? 0) >= 2, 'Informational notifications generated for IT and Talent Acquisition');
 assert(submitterPar.departmentNotifications?.some(n => n.type === 'it') ?? false, 'IT informational contact is mapped');
 assert(submitterPar.departmentNotifications?.some(n => n.type === 'talent_acquisition') ?? false, 'Talent Acquisition informational contact is mapped');
@@ -849,7 +849,7 @@ const cpoSimPar: PersonnelActionRequest = {
   campus: 'SST Champions College Prep High School',
   title: 'Dean of Students',
   currentSalary: 72000,
-  contractType: 'Chapter 21 Term',
+  contractType: 'At-Will',
   isVoluntary: false,
   routingSteps: buildSstRouting('termination', false, 'Houston'),
   comments: [],
@@ -871,7 +871,7 @@ assert(!!cpoStep, 'cpo_review step exists in termination routing chain');
 cpoStep.status = 'approved';
 cpoStep.decisionDate = new Date().toISOString();
 cpoStep.reviewerName = approver.name;
-cpoStep.comments = 'Statutory Chapter 21 separation authorized by Chief People Officer.';
+cpoStep.comments = 'Executive separation authorized by Chief People Officer (At-Will Policy).';
 cpoSimPar.currentStage = 'hr_review';
 cpoSimPar.comments.push({
   id: 'aud-cpo-2',

@@ -89,7 +89,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [keysBadgesReturned, setKeysBadgesReturned] = useState(true);
   const [sisGradebookClosed, setSisGradebookClosed] = useState(true);
   const [trsNotificationRequired, setTrsNotificationRequired] = useState(true);
-  const [contractType, setContractType] = useState<'Chapter 21 Term' | 'Chapter 21 Probationary' | 'Non-Chapter 21 / At-Will'>('Chapter 21 Term');
+  const [contractType, setContractType] = useState<'At-Will'>('At-Will');
   const [hasWrittenStatements, setHasWrittenStatements] = useState(false);
   const [outstandingStipendsOwed, setOutstandingStipendsOwed] = useState(false);
   const [uploadedDocName, setUploadedDocName] = useState('notice of separation.JPG');
@@ -491,17 +491,18 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                  Texas Contract Status (TEA)
+                  Employment Agreement Type
                 </label>
                 <select
                   value={contractType}
                   onChange={(e) => setContractType(e.target.value as any)}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                  className="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 >
-                  <option value="Chapter 21 Term">Chapter 21 Term Contract (Educators/Admin)</option>
-                  <option value="Chapter 21 Probationary">Chapter 21 Probationary Contract (1-3 Yrs)</option>
-                  <option value="Non-Chapter 21 / At-Will">Non-Chapter 21 / At-Will Agreement</option>
+                  <option value="At-Will">At-Will Agreement</option>
                 </select>
+                <span className="block text-[10px] text-slate-500 mt-1">
+                  All SST district staff operate under standard Texas At-Will Employment Agreements.
+                </span>
               </div>
             </div>
           </div>

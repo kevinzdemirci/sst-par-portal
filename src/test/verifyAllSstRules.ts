@@ -24,7 +24,11 @@ import {
 import { 
   HR_REVISION_REASONS, 
   getTexasCobraDeadline, 
-  generateParsCsvString 
+  generateParsCsvString,
+  getTexasFinalPayDeadline,
+  addDaysIso,
+  parseDateOnly,
+  formatDate
 } from '../utils/formatters';
 import { 
   DEFAULT_APPS_SCRIPT_CONFIG, 
@@ -1003,6 +1007,19 @@ assert(parsedCsv[0].employmentStatus === 'Active', 'Parsed Worker 1 status is Ac
 assert(parsedCsv[0].annualSalary === 56000, 'Parsed Worker 1 salary is 56000');
 assert(parsedCsv[1].associateId === 'TEST002', 'Parsed Worker 2 Associate ID is TEST002');
 assert(parsedCsv[1].employmentStatus === 'Terminated', 'Parsed Worker 2 status is Terminated');
+
+// 23. Texas Payday Law final-pay deadlines & date-only parsing
+console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');
+const involuntaryPay = getTexasFinalPayDeadline('2026-09-15', false);
+assert(involuntaryPay.deadline === '2026-09-21', `Involuntary final pay due 6 calendar days after discharge (Got: ${involuntaryPay.deadline})`);
+const voluntaryPay = getTexasFinalPayDeadline('2026-09-15', true);
+assert(voluntaryPay.deadline === '2026-09-30', `Voluntary final pay due next regular payday after last day, not same-day payday (Got: ${voluntaryPay.deadline})`);
+assert(getTexasFinalPayDeadline('2026-09-15', null).deadline === undefined, 'No final pay deadline until separation is classified');
+assert(getTexasFinalPayDeadline(undefined, true).deadline === undefined, 'No final pay deadline without a last day worked');
+assert(addDaysIso('2026-12-29', 6) === '2027-01-04', 'addDaysIso crosses year boundary correctly');
+assert(addDaysIso('2026-03-07', 1) === '2026-03-08', 'addDaysIso is unaffected by DST transitions');
+assert(parseDateOnly('2026-09-15').getDate() === 15, 'Date-only strings parse as local calendar dates');
+assert(formatDate('2026-09-15') === '09/15/2026', `formatDate does not shift date-only values by timezone (Got: ${formatDate('2026-09-15')})`);
 
 // SUMMARY
 console.log('\n======================================================');

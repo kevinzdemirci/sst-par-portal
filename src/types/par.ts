@@ -82,6 +82,28 @@ export type SchoolLocation = 'Houston' | 'San Antonio' | 'Corpus Christi' | 'Cen
 
 export type Priority = 'low' | 'normal' | 'high' | 'urgent';
 
+export type RehireEligibility = 'Yes' | 'No' | 'Review Required';
+
+export const LEAVE_TYPES = [
+  'FMLA',
+  'Medical (Non-FMLA)',
+  'Parental',
+  'Military (USERRA)',
+  "Workers' Compensation",
+  'Personal'
+] as const;
+
+export type LeaveType = typeof LEAVE_TYPES[number];
+
+export const TERMINATION_CODES = [
+  'A = Job Abandonment',
+  'B = Voluntary Resignation',
+  'C = Involuntary Performance',
+  'D = End of Contract / Non-Renewal',
+  'E = Mutual Agreement',
+  'F = Retirement'
+] as const;
+
 export interface Employee {
   id: string;
   firstName: string;
@@ -206,6 +228,15 @@ export interface PersonnelActionRequest {
   hasWrittenStatements?: boolean;
   outstandingStipendsOwed?: boolean;
   finalPayCheckComment?: string;
+  outstandingPropertyNotes?: string;
+  rehireEligibility?: RehireEligibility;
+  finalPayDeadline?: string; // Texas Payday Law (Tex. Lab. Code § 61.014) deadline, YYYY-MM-DD
+
+  // Leave of Absence
+  leaveType?: LeaveType;
+  leaveStartDate?: string;
+  expectedReturnDate?: string;
+  isPaidLeave?: boolean;
 
   // Texas Charter HR Compliance & Employment Agreement Status
   contractType?: 'At-Will';

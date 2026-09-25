@@ -600,7 +600,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex items-center justify-between">
                       <span>Termination Documentation</span>
                       <span className="text-[11px] font-semibold text-blue-800">
-                        {par.trsNotificationRequired ? 'TRS Separation Notice Required (TRS 7/10)' : 'TRS Notification Not Required'}
+                        {par.trsNotificationRequired ? 'TRS Separation Report Required' : 'TRS Notification Not Required'}
                       </span>
                     </div>
 
@@ -614,7 +614,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                           <div className="flex items-center space-x-2">
                             <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
                             <div>
-                              <span className="font-bold">Texas Statutory COBRA Notice Deadline: </span>
+                              <span className="font-bold">COBRA Notice to Plan Administrator Due: </span>
                               <span className="font-semibold">{cobra.deadlineDateStr}</span>
                               <span className="ml-1 text-[11px] text-slate-500">(30 calendar days from Last Day Worked)</span>
                             </div>
@@ -627,6 +627,23 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         </div>
                       );
                     })()}
+
+                    {par.finalPayDeadline && (
+                      <div className="p-2.5 rounded-xl border text-xs bg-amber-50/70 border-amber-200 text-amber-950">
+                        <span className="font-bold">Texas Final Pay Due (Tex. Lab. Code § 61.014): </span>
+                        <span className="font-semibold">{formatDate(par.finalPayDeadline)}</span>
+                        <span className="ml-1 text-[11px] text-slate-600">
+                          ({par.isVoluntary ? 'next regular payday after resignation' : 'within 6 calendar days of discharge'})
+                        </span>
+                      </div>
+                    )}
+
+                    {par.outstandingPropertyNotes && (
+                      <div className="p-2.5 rounded-xl border text-xs bg-rose-50/70 border-rose-200 text-rose-950">
+                        <span className="font-bold">Property Still Outstanding: </span>
+                        <span>{par.outstandingPropertyNotes}</span>
+                      </div>
+                    )}
 
                     {/* District Asset De-provisioning Checklist */}
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
@@ -844,6 +861,33 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   </div>
                 )}
 
+                {/* Leave of Absence Details */}
+                {par.actionType === 'leave_of_absence' && par.leaveType && (
+                  <div className="border border-slate-400 rounded-lg p-3.5 mb-6 bg-white text-xs">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-3">
+                      Leave of Absence Details
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Leave Type:</span>
+                        <strong className="text-slate-900">{par.leaveType}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Start Date:</span>
+                        <strong className="text-slate-900">{formatDate(par.leaveStartDate)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Expected Return:</span>
+                        <strong className="text-slate-900">{formatDate(par.expectedReturnDate)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[11px]">Pay Status:</span>
+                        <strong className="text-slate-900">{par.isPaidLeave ? 'Paid (accrued leave)' : 'Unpaid'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Box 3: Role Change / Campus Transfer Details */}
                 {(par.actionType === 'campus_transfer' || par.actionType === 'role_change' || par.actionType === 'promotion' || par.actionType === 'salary_change') && (
                   <div className="border border-slate-400 rounded-lg p-3.5 mb-6 bg-slate-50/40 text-xs">
@@ -866,7 +910,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                           <div><strong>Campus:</strong> {par.proposedCampus || par.campus}</div>
                           {par.proposedSalary && (
                             <div className="text-emerald-800 font-bold">
-                              <strong>Salary:</strong> {formatCurrency(par.proposedSalary)} (+{par.percentIncrease?.toFixed(1)}%)
+                              <strong>Salary:</strong> {formatCurrency(par.proposedSalary)} ({(par.percentIncrease ?? 0) >= 0 ? '+' : ''}{par.percentIncrease?.toFixed(1)}%)
                             </div>
                           )}
                           {par.stipendAmount && (
@@ -994,9 +1038,14 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 pb-3 border-b border-slate-200">
                     <div>
                       <span className="text-slate-500 block text-[11px]">Mark Rehire Status:</span>
-                      <strong className={par.markRehireStatus ? 'text-emerald-700' : 'text-red-700'}>
-                        {par.markRehireStatus ? 'Yes' : 'No'}
-                      </strong>
+                      {(() => {
+                        const rehire = par.rehireEligibility || (par.markRehireStatus ? 'Yes' : 'No');
+                        return (
+                          <strong className={rehire === 'Yes' ? 'text-emerald-700' : rehire === 'No' ? 'text-red-700' : 'text-amber-700'}>
+                            {rehire}
+                          </strong>
+                        );
+                      })()}
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">Notify SIS?:</span>
@@ -1008,7 +1057,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[11px]">DPS SID#/Name:</span>
-                      <strong className="font-mono">{par.dpsSid || '14018522'}</strong>
+                      <strong className="font-mono">{par.dpsSid || '—'}</strong>
                     </div>
                   </div>
 
@@ -1016,7 +1065,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Start Date / End Date:</span>
-                      <span>{formatDate(par.startDate || '2026-09-15')} / {formatDate(par.endDate || '2026-09-15')}</span>
+                      <span>{formatDate(par.startDate)} / {formatDate(par.endDate)}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Total Worked Days:</span>
@@ -1028,7 +1077,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Reason Code:</span>
-                      <strong className="text-red-800 font-sans">{par.terminationCode || 'A = Job Abandonment'}</strong>
+                      <strong className="text-red-800 font-sans">{par.terminationCode || '—'}</strong>
                     </div>
                   </div>
                 </div>

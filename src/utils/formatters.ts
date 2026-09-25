@@ -1,5 +1,6 @@
 import { ActionType, WorkflowStage, Priority, PersonnelActionRequest, UserPersona } from '../types/par';
 import { PayoutStatus, PayoutType } from '../types/payout';
+import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 
 export function formatCurrency(amount?: number): string {
   if (amount === undefined || isNaN(amount)) return '$0';
@@ -10,10 +11,20 @@ export function formatCurrency(amount?: number): string {
   }).format(amount);
 }
 
+/**
+ * Parses a date string, treating date-only values (YYYY-MM-DD) as local calendar
+ * dates. `new Date('2026-09-15')` is UTC midnight, which renders as the previous
+ * day in US time zones.
+ */
+export function parseDateOnly(dateString: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString);
+}
+
 export function formatDate(dateString?: string): string {
   if (!dateString) return '—';
   try {
-    const d = new Date(dateString);
+    const d = parseDateOnly(dateString);
     if (isNaN(d.getTime())) return dateString;
     return d.toLocaleDateString('en-US', {
       month: '2-digit',
@@ -564,7 +575,7 @@ export function getTexasCobraDeadline(lastDayWorked?: string): {
   if (!lastDayWorked) {
     return { deadlineDateStr: 'N/A', isOverdue: false, daysRemaining: 30 };
   }
-  const ldw = new Date(lastDayWorked);
+  const ldw = parseDateOnly(lastDayWorked);
   if (isNaN(ldw.getTime())) {
     return { deadlineDateStr: 'N/A', isOverdue: false, daysRemaining: 30 };
   }
@@ -579,6 +590,45 @@ export function getTexasCobraDeadline(lastDayWorked?: string): {
     deadlineDateStr: deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     isOverdue: diffDays < 0,
     daysRemaining: diffDays
+  };
+}
+
+/**
+ * Adds calendar days to a YYYY-MM-DD date string without local-timezone drift.
+ */
+export function addDaysIso(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Texas Payday Law (Tex. Lab. Code § 61.014) final-pay deadline:
+ * - Discharged (involuntary): within 6 calendar days of discharge.
+ * - Quit (voluntary): no later than the next regularly scheduled payday.
+ */
+export function getTexasFinalPayDeadline(
+  lastDayWorked: string | undefined,
+  isVoluntary: boolean | null | undefined
+): { deadline?: string; basis: string } {
+  if (!lastDayWorked || isVoluntary === null || isVoluntary === undefined) {
+    return { basis: 'Select the separation classification and last day worked.' };
+  }
+  if (!isVoluntary) {
+    return {
+      deadline: addDaysIso(lastDayWorked, 6),
+      basis: 'Involuntary: final pay due within 6 calendar days of discharge.'
+    };
+  }
+  const nextPayday = SST_PAYROLL_CYCLES
+    .map(c => c.payDate)
+    .sort()
+    .find(payDate => payDate > lastDayWorked);
+  return {
+    deadline: nextPayday,
+    basis: nextPayday
+      ? 'Voluntary: final pay due by the next regularly scheduled payday.'
+      : 'Voluntary: final pay due by the next regularly scheduled payday (outside the loaded pay calendar).'
   };
 }
 

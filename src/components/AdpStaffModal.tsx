@@ -91,9 +91,9 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
       const res = await syncFromAdpApi(adpConfig);
       const freshStaff = getStoredAdpStaff();
       setStaffList(freshStaff);
-      onToast(res.message, 'success');
+      onToast(res.message, res.isLive ? 'success' : 'info');
     } catch (e: any) {
-      onToast('ADP synchronization encountered an error.', 'warning');
+      onToast(`ADP sync failed: ${e?.message || 'unknown error'}`, 'warning');
     } finally {
       setIsSyncing(false);
     }
@@ -673,40 +673,22 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    ADP Organization / Partner ID
-                  </label>
-                  <input
-                    type="text"
-                    value={adpConfig.organizationId}
-                    onChange={(e) => setAdpConfig({ ...adpConfig, organizationId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    ADP Client ID
-                  </label>
-                  <input
-                    type="text"
-                    value={adpConfig.clientId}
-                    onChange={(e) => setAdpConfig({ ...adpConfig, clientId: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:outline-none"
-                  />
-                </div>
-
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    ADP Workforce Now API Endpoint
+                  <label htmlFor="adp-relay-url" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    SST ADP Relay URL
                   </label>
                   <input
+                    id="adp-relay-url"
                     type="text"
-                    value={adpConfig.apiEndpoint}
-                    onChange={(e) => setAdpConfig({ ...adpConfig, apiEndpoint: e.target.value })}
+                    value={adpConfig.relayUrl || ''}
+                    onChange={(e) => setAdpConfig({ ...adpConfig, relayUrl: e.target.value.trim() })}
+                    placeholder="/api/adp"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+                    The relay holds the ADP Client ID, Client Secret, and certificate, so they never reach the browser.
+                    Leave blank to use the sample roster and CSV import only. Setup steps: <span className="font-mono">adp-relay/README.md</span>.
+                  </p>
                 </div>
 
                 <div className="sm:col-span-2">

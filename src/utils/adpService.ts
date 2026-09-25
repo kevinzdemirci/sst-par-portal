@@ -1,6 +1,7 @@
 import { AdpWorker, AdpConnectionConfig, TerminationAlignmentSummary, AdpAlignmentStatus } from '../types/adp';
 import { INITIAL_ADP_STAFF_ROSTER, DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { PersonnelActionRequest, Campus, SchoolLocation } from '../types/par';
+import { PersonnelActionRequest, SchoolLocation } from '../types/par';
+import { locationForCampus, matchSstCampus } from './formatters';
 
 const ADP_STAFF_STORAGE_KEY = 'sst_adp_staff_roster_v2';
 const ADP_CONFIG_STORAGE_KEY = 'sst_adp_connection_config_v2';
@@ -242,33 +243,149 @@ export function batchPushTerminationsToAdp(
   return { updatedRoster, closedCount };
 }
 
+/** Staff record returned by the SST ADP relay (adp-relay/src/mapWorker.js). */
+export interface AdpRelayWorker {
+  associateOID: string;
+  workerId: string;
+  firstName: string;
+  lastName: string;
+  preferredName?: string;
+  workEmail: string;
+  jobTitle: string;
+  positionId: string;
+  department: string;
+  locationName: string;
+  status: 'Active' | 'Leave of Absence' | 'Terminated';
+  workerType: 'Full-time' | 'Part-time' | null;
+  hireDate: string;
+  terminationDate?: string;
+  annualSalary?: number;
+  supervisorName: string;
+  supervisorAssociateOID?: string;
+  dpsSid?: string;
+  trsMember?: boolean;
+}
+
+function regionFromLocationName(name: string): SchoolLocation {
+  const n = name.toLowerCase();
+  if (n.includes('san antonio')) return 'San Antonio';
+  if (n.includes('corpus')) return 'Corpus Christi';
+  if (n.includes('houston')) return 'Houston';
+  return 'Central Administration';
+}
+
+export function workerFromRelayRecord(rec: AdpRelayWorker, syncedAt: string): AdpWorker {
+  const campus = matchSstCampus(rec.locationName) || '';
+  return {
+    id: rec.associateOID,
+    adpId: rec.workerId || rec.associateOID,
+    associateId: rec.associateOID,
+    positionId: rec.positionId || '',
+    firstName: rec.firstName,
+    lastName: rec.lastName,
+    fullName: `${rec.firstName} ${rec.lastName}`.trim(),
+    workEmail: rec.workEmail || '',
+    jobTitle: rec.jobTitle || '',
+    department: rec.department || '',
+    campus,
+    location: campus ? locationForCampus(campus) : regionFromLocationName(rec.locationName || ''),
+    locationName: rec.locationName || undefined,
+    employmentStatus: rec.status,
+    workerType: rec.workerType || undefined,
+    hireDate: rec.hireDate || '',
+    terminationDate: rec.terminationDate,
+    annualSalary: rec.annualSalary ?? 0,
+    payFrequency: 'Semi-Monthly',
+    supervisorName: rec.supervisorName || '',
+    supervisorAdpId: rec.supervisorAssociateOID,
+    dpsSid: rec.dpsSid,
+    trsMember: rec.trsMember ?? true,
+    contractType: 'At-Will',
+    adpSyncTimestamp: syncedAt,
+    alignmentStatus: 'aligned'
+  };
+}
+
 /**
- * Simulates or performs live fetch from ADP Workforce Now API.
+ * Merges freshly synced ADP records into the stored roster, keeping each worker's
+ * PAR linkage and alignment state.
+ */
+export function mergeAdpRoster(current: AdpWorker[], incoming: AdpWorker[]): AdpWorker[] {
+  const byId = new Map(current.map(w => [w.associateId || w.adpId, w]));
+  const merged = incoming.map(w => {
+    const existing = byId.get(w.associateId) || current.find(c => c.adpId === w.adpId);
+    return existing
+      ? {
+          ...w,
+          linkedParId: existing.linkedParId,
+          linkedParTracking: existing.linkedParTracking,
+          adpBatchNumber: existing.adpBatchNumber,
+          alignmentStatus: existing.alignmentStatus,
+          lastDayWorked: existing.lastDayWorked,
+          terminationReason: existing.terminationReason,
+          eligibleForRehire: existing.eligibleForRehire
+        }
+      : w;
+  });
+  // Keep workers that are linked to a PAR even if ADP no longer returns them.
+  const incomingIds = new Set(incoming.map(w => w.associateId));
+  const orphanedLinked = current.filter(w => w.linkedParId && !incomingIds.has(w.associateId || w.adpId));
+  return [...merged, ...orphanedLinked];
+}
+
+/**
+ * Pulls the staff roster from ADP Workforce Now through the SST ADP relay.
+ * The relay holds the ADP credentials; the browser only sends the user's sign-in cookie.
+ */
+export async function fetchLiveAdpRoster(relayUrl: string): Promise<{ workers: AdpWorker[]; syncedAt: string }> {
+  const res = await fetch(`${relayUrl.replace(/\/+$/, '')}/workers`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' }
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = (await res.json()).error || '';
+    } catch {
+      // non-JSON error body
+    }
+    throw new Error(detail || `ADP relay returned ${res.status}`);
+  }
+  const data: { syncedAt: string; workers: AdpRelayWorker[] } = await res.json();
+  return { syncedAt: data.syncedAt, workers: data.workers.map(w => workerFromRelayRecord(w, data.syncedAt)) };
+}
+
+/**
+ * Syncs the staff roster. With a relay URL configured this pulls live data from ADP;
+ * without one it only refreshes the sample roster's timestamps.
  */
 export async function syncFromAdpApi(
   config: AdpConnectionConfig = DEFAULT_ADP_CONFIG
-): Promise<{ success: boolean; syncedCount: number; message: string }> {
-  // Simulate network latency for authentic enterprise experience
-  await new Promise(resolve => setTimeout(resolve, 800));
-
+): Promise<{ success: boolean; syncedCount: number; message: string; isLive: boolean }> {
   const current = getStoredAdpStaff();
+
+  if (config.relayUrl) {
+    const { workers, syncedAt } = await fetchLiveAdpRoster(config.relayUrl);
+    const merged = mergeAdpRoster(current, workers);
+    saveStoredAdpStaff(merged);
+    saveStoredAdpConfig({ ...config, lastSyncTimestamp: syncedAt });
+    return {
+      success: true,
+      syncedCount: workers.length,
+      isLive: true,
+      message: `Synced ${workers.length} staff records from ADP Workforce Now.`
+    };
+  }
+
   const now = new Date().toISOString();
-
-  // Touch sync timestamp on all workers
-  const refreshed = current.map(w => ({
-    ...w,
-    adpSyncTimestamp: now
-  }));
-
+  const refreshed = current.map(w => ({ ...w, adpSyncTimestamp: now }));
   saveStoredAdpStaff(refreshed);
-
-  const updatedConfig = { ...config, lastSyncTimestamp: now };
-  saveStoredAdpConfig(updatedConfig);
-
+  saveStoredAdpConfig({ ...config, lastSyncTimestamp: now });
   return {
     success: true,
     syncedCount: refreshed.length,
-    message: `Successfully synchronized ${refreshed.length} active and separated staff records with ADP Workforce Now.`
+    isLive: false,
+    message: 'No ADP relay is configured, so no live data was pulled. Add the relay URL under Settings to sync from ADP.'
   };
 }
 
@@ -313,54 +430,64 @@ export function parseAdpCsvExport(csvText: string): AdpWorker[] {
       row[h] = cols[idx] || '';
     });
 
-    const adpId = row['associate id'] || row['adp id'] || row['worker id'] || `ADP-TX-${1000 + i}`;
-    
-    let firstName = row['first name'] || row['first'] || '';
-    let lastName = row['last name'] || row['last'] || '';
-    if (!firstName && !lastName && (row['worker name'] || row['name'])) {
-      const rawName = row['worker name'] || row['name'];
+    const pick = (...keys: string[]) => {
+      for (const k of keys) if (row[k]) return row[k].trim();
+      return '';
+    };
+
+    const associateId = pick('associate id', 'adp id', 'worker id');
+    const adpId = associateId || pick('file number', 'employee id');
+
+    let firstName = pick('legal first name', 'first name', 'first');
+    let lastName = pick('legal last name', 'last name', 'last');
+    const rawName = pick('worker name', 'name', 'legal name');
+    if (!firstName && !lastName && rawName) {
       if (rawName.includes(',')) {
-        const parts = rawName.split(',').map(s => s.trim());
+        const parts = rawName.split(',').map(p => p.trim());
         lastName = parts[0];
-        firstName = parts[1] || 'Staff';
+        firstName = parts[1] || '';
       } else {
-        const parts = rawName.split(/\s+/).map(s => s.trim());
-        firstName = parts[0] || 'Staff';
-        lastName = parts.slice(1).join(' ') || 'Member';
+        const parts = rawName.split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ');
       }
     }
-    if (!firstName) firstName = 'Staff';
-    if (!lastName) lastName = 'Member';
-    const fullName = `${firstName} ${lastName}`.trim();
+    // Skip rows without an ID or a name rather than inventing values.
+    if (!adpId || (!firstName && !lastName)) continue;
 
-    const title = row['job title'] || row['title'] || 'Staff Educator';
-    const campus = (row['campus'] || 'SST Champions Elementary') as Campus;
-    const location = (row['location'] || (campus.includes('San Antonio') ? 'San Antonio' : campus.includes('Corpus') ? 'Corpus Christi' : 'Houston')) as SchoolLocation;
-    
-    const statusRaw = (row['status'] || row['employment status'] || 'Active').toLowerCase();
-    const employmentStatus = statusRaw.includes('term') ? 'Terminated' : statusRaw.includes('leave') ? 'Leave of Absence' : 'Active';
+    const locationName = pick('campus', 'home work location', 'work location', 'location description', 'location');
+    const campus = matchSstCampus(locationName) || '';
 
-    const salaryRaw = (row['annual salary'] || row['salary'] || '50000').replace(/[\$,]/g, '');
-    const salary = parseFloat(salaryRaw) || 50000;
+    const statusRaw = pick('status', 'employment status', 'position status', 'worker status').toLowerCase();
+    const employmentStatus = statusRaw.startsWith('term') || statusRaw === 't'
+      ? 'Terminated'
+      : statusRaw.includes('leave') || statusRaw === 'l' ? 'Leave of Absence' : 'Active';
+
+    const salary = parseFloat(pick('annual salary', 'salary', 'annual rate amount').replace(/[$,]/g, '')) || 0;
+    const workerCategory = pick('worker category', 'worker type', 'employment type').toLowerCase();
 
     workers.push({
-      id: `ADP-CSV-${i}`,
+      id: associateId || adpId,
       adpId,
-      associateId: adpId,
-      positionId: row['position id'] || `POS-TX-${100 + i}`,
+      associateId: associateId || adpId,
+      positionId: pick('position id'),
       firstName,
       lastName,
-      fullName,
-      workEmail: row['email'] || `${firstName.toLowerCase().slice(0, 1)}${lastName.toLowerCase().replace(/\s+/g, '')}@ssttx.org`,
-      jobTitle: title,
-      department: row['department'] || 'Instruction',
+      fullName: `${firstName} ${lastName}`.trim(),
+      workEmail: pick('work contact: work email', 'work email', 'email'),
+      jobTitle: pick('job title description', 'job title', 'title'),
+      department: pick('home department description', 'department'),
       campus,
-      location,
+      location: campus ? locationForCampus(campus) : regionFromLocationName(locationName),
+      locationName: locationName || undefined,
       employmentStatus,
-      hireDate: row['hire date'] || '2023-08-01',
+      workerType: workerCategory.startsWith('f') ? 'Full-time' : workerCategory.startsWith('p') ? 'Part-time' : undefined,
+      hireDate: pick('hire date', 'original hire date'),
+      terminationDate: pick('termination date') || undefined,
       annualSalary: salary,
       payFrequency: 'Semi-Monthly',
-      supervisorName: row['supervisor'] || 'Campus Leadership',
+      supervisorName: pick('reports to name', 'supervisor', 'manager'),
+      dpsSid: pick('dps sid') || undefined,
       trsMember: true,
       contractType: 'At-Will',
       adpSyncTimestamp: now,

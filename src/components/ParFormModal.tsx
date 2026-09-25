@@ -17,13 +17,15 @@ import {
 import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { AdpWorker } from '../types/adp';
+import { getStoredAdpConfig, getStoredAdpStaff } from '../utils/adpService';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
   formatCurrency,
   formatDate,
   getDepartmentNotificationRecipients,
-  getTexasFinalPayDeadline
+  getTexasFinalPayDeadline,
+  locationForCampus
 } from '../utils/formatters';
 import {
   X,
@@ -38,7 +40,9 @@ import {
   AlertCircle,
   Paperclip,
   ShieldCheck,
-  Trash2
+  Trash2,
+  Search,
+  Link2
 } from 'lucide-react';
 
 interface ParFormModalProps {
@@ -58,13 +62,6 @@ interface PendingAttachment {
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
-const REGION_TO_LOCATION: Record<string, SchoolLocation> = {
-  'Houston Area': 'Houston',
-  'San Antonio Area': 'San Antonio',
-  'Corpus Christi Area': 'Corpus Christi',
-  'District Offices': 'Central Administration'
-};
-
 // Termination codes that are consistent with each separation classification.
 // Job Abandonment (A) and Mutual Agreement (E) can be recorded either way.
 const VOLUNTARY_CODE_LETTERS = ['A', 'B', 'E', 'F'];
@@ -73,12 +70,6 @@ const INVOLUNTARY_CODE_LETTERS = ['A', 'C', 'D', 'E'];
 // Stakeholder FYI notices go out for actions that affect system access or create a vacancy.
 // Compensation and leave actions are excluded so pay and medical details are not broadcast.
 const ACTIONS_WITH_DEPARTMENT_NOTICES: ActionType[] = ['termination', 'campus_transfer', 'role_change', 'promotion'];
-
-function locationForCampus(campus: Campus): SchoolLocation {
-  if (campus.includes('Houston')) return 'Houston';
-  const region = Object.keys(SST_CAMPUS_REGIONS).find(r => SST_CAMPUS_REGIONS[r].includes(campus));
-  return (region && REGION_TO_LOCATION[region]) || 'Central Administration';
-}
 
 function localTodayIso(): string {
   const d = new Date();
@@ -202,7 +193,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [title, setTitle] = useState<string>(preSelectedWorker?.jobTitle || '');
   const [campus, setCampus] = useState<Campus | ''>(initialCampus);
   const location: SchoolLocation = campus ? locationForCampus(campus) : 'Central Administration';
-  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>('Full-time');
+  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>(preSelectedWorker?.workerType || 'Full-time');
   const [workEmail, setWorkEmail] = useState<string>(preSelectedWorker?.workEmail || '');
   const [associateId, setAssociateId] = useState<string>(preSelectedWorker?.associateId || preSelectedWorker?.adpId || '');
   const [dpsSid, setDpsSid] = useState<string>(preSelectedWorker?.dpsSid || '');
@@ -265,6 +256,14 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [attested, setAttested] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+
+  // ADP employee lookup: selecting a person fills the employee fields, which stay editable.
+  const adpRoster = useMemo(() => getStoredAdpStaff(), []);
+  const adpConfig = useMemo(() => getStoredAdpConfig(), []);
+  const [linkedWorker, setLinkedWorker] = useState<AdpWorker | null>(preSelectedWorker || null);
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [isLookupOpen, setIsLookupOpen] = useState(false);
+  const [activeMatch, setActiveMatch] = useState(0);
   const issuesRef = useRef<HTMLDivElement>(null);
 
   const isTermination = actionType === 'termination';
@@ -399,6 +398,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       if (isPaidLeave === null) errs.push('Indicate whether the leave is paid or unpaid.');
     }
 
+    if (linkedWorker?.employmentStatus === 'Terminated') {
+      warns.push(`ADP already shows ${linkedWorker.fullName} as Terminated. Confirm this request is still needed.`);
+    }
     if (effectiveDate && effectiveDate < addDaysIso(today, -30)) {
       warns.push('The effective date is more than 30 days in the past. Retroactive changes may require payroll adjustments.');
     }
@@ -411,7 +413,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     returnedCharterProperty, outstandingPropertyNotes, hasWrittenStatements, attachments.length,
     outstandingStipendsOwed, rehireEligibility, laptopReturned, keysBadgesReturned, sisGradebookClosed,
     finalPay.deadline, today, proposedCampus, campus, proposedTitle, notesRelatingToPositionChange,
-    showCompSection, currentSalary, proposedSalary, stipendAmount, salaryReason, isLeave, leaveType,
+    showCompSection, currentSalary, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveType,
     leaveStartDate, expectedReturnDate, isPaidLeave, attested
   ]);
 
@@ -465,6 +467,55 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const changeCurrentSalary = (value: number) => {
     setCurrentSalary(value);
     if (!proposedSalaryTouched) setProposedSalary(value);
+  };
+
+  const employeeMatches = useMemo(() => {
+    const tokens = employeeQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0 || employeeQuery.trim().length < 2) return [];
+    const statusRank = (w: AdpWorker) => (w.employmentStatus === 'Terminated' ? 1 : 0);
+    return adpRoster
+      .filter(w => {
+        const haystack = `${w.fullName} ${w.adpId} ${w.associateId} ${w.workEmail} ${w.jobTitle} ${w.campus}`.toLowerCase();
+        return tokens.every(t => haystack.includes(t));
+      })
+      .sort((a, b) => statusRank(a) - statusRank(b) || a.lastName.localeCompare(b.lastName))
+      .slice(0, 8);
+  }, [employeeQuery, adpRoster]);
+
+  const applyWorker = (w: AdpWorker) => {
+    setLinkedWorker(w);
+    setFirstName(w.firstName);
+    setLastName(w.lastName);
+    setEmployeeId(w.adpId);
+    setAssociateId(w.associateId || w.adpId);
+    setTitle(w.jobTitle || '');
+    setWorkEmail(w.workEmail || '');
+    if (w.campus) setCampus(w.campus);
+    changeCurrentSalary(w.annualSalary || 0);
+    setSupervisorName(w.supervisorName || '');
+    setDpsSid(w.dpsSid || '');
+    setTrsNotificationRequired(w.trsMember);
+    if (w.workerType) setEmploymentStatus(w.workerType);
+    setEmployeeQuery('');
+    setIsLookupOpen(false);
+    setIsDirty(true);
+  };
+
+  const onLookupKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsLookupOpen(true);
+      setActiveMatch(i => Math.min(i + 1, Math.max(employeeMatches.length - 1, 0)));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveMatch(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); // never submit the form from the search box
+      if (isLookupOpen && employeeMatches[activeMatch]) applyWorker(employeeMatches[activeMatch]);
+    } else if (e.key === 'Escape' && isLookupOpen) {
+      e.stopPropagation(); // close the list, not the whole form
+      setIsLookupOpen(false);
+    }
   };
 
   const addFiles = (fileList: FileList | null) => {
@@ -539,7 +590,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       finalPayDeadline: isTermination ? finalPay.deadline : undefined,
       immediatePayoutRequired: isTermination ? !voluntary : undefined,
       isPartTimeOrSub: employmentStatus !== 'Full-time',
-      startDate: preSelectedWorker?.hireDate,
+      startDate: linkedWorker?.hireDate || undefined,
       endDate: isTermination ? lastDayWorked : undefined,
 
       // Defaults for HR & payroll calculation
@@ -774,7 +825,109 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
             </Section>
 
             {/* 2. Employee */}
-            <Section step={2} title="Employee information" description="Enter the employee's information exactly as it appears in ADP Workforce Now.">
+            <Section step={2} title="Employee information" description="Search ADP to fill these fields, or enter them exactly as they appear in ADP Workforce Now.">
+              <div className="relative">
+                <label htmlFor="par-lookup" className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Find employee in ADP
+                </label>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    id="par-lookup"
+                    type="text"
+                    role="combobox"
+                    autoComplete="off"
+                    aria-expanded={isLookupOpen && employeeQuery.trim().length >= 2}
+                    aria-controls="par-lookup-list"
+                    aria-activedescendant={isLookupOpen && employeeMatches[activeMatch] ? `par-lookup-${activeMatch}` : undefined}
+                    value={employeeQuery}
+                    onChange={e => {
+                      setEmployeeQuery(e.target.value);
+                      setIsLookupOpen(true);
+                      setActiveMatch(0);
+                    }}
+                    onFocus={() => setIsLookupOpen(true)}
+                    onBlur={() => setIsLookupOpen(false)}
+                    onKeyDown={onLookupKeyDown}
+                    placeholder="Search by name, ADP ID, or email"
+                    className={`${inputCls} pl-8`}
+                  />
+                </div>
+                {isLookupOpen && employeeQuery.trim().length >= 2 && (
+                  <ul
+                    id="par-lookup-list"
+                    role="listbox"
+                    className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+                  >
+                    {employeeMatches.length === 0 ? (
+                      <li className="px-3 py-2.5 text-[11px] text-slate-500">
+                        No match in the ADP roster. Enter the employee's details below.
+                      </li>
+                    ) : (
+                      employeeMatches.map((w, i) => (
+                        <li
+                          key={w.id}
+                          id={`par-lookup-${i}`}
+                          role="option"
+                          aria-selected={i === activeMatch}
+                          onMouseDown={e => {
+                            e.preventDefault();
+                            applyWorker(w);
+                          }}
+                          onMouseEnter={() => setActiveMatch(i)}
+                          className={`px-3 py-2 cursor-pointer border-b border-slate-100 last:border-0 ${
+                            i === activeMatch ? 'bg-[#0f2352]/5' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-900 truncate">{w.fullName}</span>
+                            <span className="flex items-center gap-1.5 shrink-0">
+                              {w.employmentStatus !== 'Active' && (
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                                  w.employmentStatus === 'Terminated' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'
+                                }`}>
+                                  {w.employmentStatus}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] text-slate-500">{w.adpId}</span>
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate">
+                            {[w.jobTitle, w.campus || w.locationName, w.workEmail].filter(Boolean).join(' · ')}
+                          </div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+                <p className="mt-1 text-[10px] text-slate-500">
+                  {adpConfig.relayUrl
+                    ? `${adpRoster.length} staff records from ADP Workforce Now${adpConfig.lastSyncTimestamp ? `, synced ${new Date(adpConfig.lastSyncTimestamp).toLocaleString()}` : ''}.`
+                    : `${adpRoster.length} staff records in the local roster (sample or CSV import). Live ADP sync is not connected yet.`}
+                </p>
+              </div>
+
+              {linkedWorker && (
+                <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <div className="flex items-start gap-2 text-[11px] text-emerald-900">
+                    <Link2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      Filled from ADP: <strong>{linkedWorker.fullName}</strong> ({linkedWorker.adpId}). Check each field. You can still edit any of them.
+                      {!linkedWorker.campus && linkedWorker.locationName && (
+                        <> ADP location “{linkedWorker.locationName}” did not match an SST campus, so select the campus below.</>
+                      )}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLinkedWorker(null)}
+                    className="shrink-0 text-[11px] font-semibold text-emerald-900 hover:underline"
+                  >
+                    Unlink
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Field label="First name" htmlFor="par-first" required>
                   <input id="par-first" type="text" required autoComplete="off" value={firstName}

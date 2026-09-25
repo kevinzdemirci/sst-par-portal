@@ -1,0 +1,23 @@
+name = "sst-adp-relay"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Upload the ADP-signed client certificate first (see README, step 5):
+#   npx wrangler mtls-certificate upload --cert adp-cert.pem --key adp-key.pem --name sst-adp-cert
+# then paste the certificate ID it prints below.
+[[mtls_certificates]]
+binding = "ADP_CERT"
+certificate_id = "REPLACE_WITH_CERTIFICATE_ID"
+
+[vars]
+ACCESS_TEAM_DOMAIN = "REPLACE.cloudflareaccess.com"
+ACCESS_AUD = "REPLACE_WITH_ACCESS_APPLICATION_AUD"
+ALLOWED_EMAIL_DOMAIN = "ssttx.org"
+ALLOWED_ORIGINS = ""
+DPS_SID_FIELD = ""
+TRS_FIELD = ""
+INCLUDE_SALARY = "true"
+
+# Secrets (never commit these):
+#   npx wrangler secret put ADP_CLIENT_ID
+#   npx wrangler secret put ADP_CLIENT_SECRET

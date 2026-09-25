@@ -1,4 +1,4 @@
-import { ActionType, WorkflowStage, Priority, PersonnelActionRequest, UserPersona } from '../types/par';
+import { ActionType, WorkflowStage, Priority, PersonnelActionRequest, UserPersona, Campus, SchoolLocation, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
 import { PayoutStatus, PayoutType } from '../types/payout';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 
@@ -591,6 +591,51 @@ export function getTexasCobraDeadline(lastDayWorked?: string): {
     isOverdue: diffDays < 0,
     daysRemaining: diffDays
   };
+}
+
+const REGION_TO_LOCATION: Record<string, SchoolLocation> = {
+  'Houston Area': 'Houston',
+  'San Antonio Area': 'San Antonio',
+  'Corpus Christi Area': 'Corpus Christi',
+  'District Offices': 'Central Administration'
+};
+
+/**
+ * Region (routing location) for an SST campus.
+ */
+export function locationForCampus(campus: Campus): SchoolLocation {
+  if (campus.includes('Houston')) return 'Houston';
+  const region = Object.keys(SST_CAMPUS_REGIONS).find(r => SST_CAMPUS_REGIONS[r].includes(campus));
+  return (region && REGION_TO_LOCATION[region]) || 'Central Administration';
+}
+
+function normalizeCampusName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\b(sst|school of science and technology)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Matches an ADP work-location name (e.g. "SST - Spring Campus") to an SST campus,
+ * ignoring "SST", the full district name, "campus", and punctuation.
+ * Returns undefined when there is no exact match, so callers never guess.
+ */
+export function matchSstCampus(locationName?: string): Campus | undefined {
+  if (!locationName) return undefined;
+  const exact = SST_CAMPUSES.find(c => c.toLowerCase() === locationName.trim().toLowerCase());
+  if (exact) return exact;
+
+  const target = normalizeCampusName(locationName).replace(/\bcampus\b/g, '').replace(/\s+/g, ' ').trim();
+  if (!target) return undefined;
+  const normalized = SST_CAMPUSES.map(c => ({ campus: c, key: normalizeCampusName(c) }));
+
+  // Only accept an exact match after normalizing. A partial match (e.g. "Sugar Land" inside
+  // "Sugar Land College Prep HS") could pick the wrong campus and route to the wrong approvers.
+  const equal = normalized.filter(n => n.key === target);
+  return equal.length === 1 ? equal[0].campus : undefined;
 }
 
 /**

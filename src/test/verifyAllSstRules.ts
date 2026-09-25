@@ -39,8 +39,12 @@ import {
   reconcileStaffWithPars, 
   executeAdpTerminationCloseout, 
   batchPushTerminationsToAdp, 
-  parseAdpCsvExport 
+  parseAdpCsvExport,
+  workerFromRelayRecord,
+  mergeAdpRoster
 } from '../utils/adpService';
+import { matchSstCampus } from '../utils/formatters';
+import { mapWorker } from '../../adp-relay/src/mapWorker.js';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -1007,6 +1011,72 @@ assert(parsedCsv[0].employmentStatus === 'Active', 'Parsed Worker 1 status is Ac
 assert(parsedCsv[0].annualSalary === 56000, 'Parsed Worker 1 salary is 56000');
 assert(parsedCsv[1].associateId === 'TEST002', 'Parsed Worker 2 Associate ID is TEST002');
 assert(parsedCsv[1].employmentStatus === 'Terminated', 'Parsed Worker 2 status is Terminated');
+
+// 24. ADP Workforce Now relay mapping, campus matching, and roster import
+console.log('\n--- 24. ADP Relay Mapping & Roster Import ---');
+const sampleAdpWorker = {
+  associateOID: 'G3ABC123XYZ',
+  workerID: { idValue: 'MRG92014A' },
+  person: {
+    legalName: { givenName: 'Maria', familyName1: 'Rodriguez' },
+    birthDate: '1990-01-01',
+    governmentIDs: [{ idValue: '123-45-6789' }]
+  },
+  businessCommunication: { emails: [{ emailUri: 'mrodriguez@ssttx.org' }] },
+  workerDates: { originalHireDate: '2022-08-01' },
+  customFieldGroup: {
+    stringFields: [{ nameCode: { codeValue: 'DPSSID', shortName: 'DPS SID' }, stringValue: '55501234' }],
+    indicatorFields: [{ nameCode: { shortName: 'TRS Member' }, indicatorValue: false }]
+  },
+  workAssignments: [
+    { primaryIndicator: false, jobTitle: 'Old Title' },
+    {
+      primaryIndicator: true,
+      jobTitle: 'Science Teacher',
+      positionID: 'POS-SPR-SCI-02',
+      workerTypeCode: { codeValue: 'F', shortName: 'Full Time' },
+      assignmentStatus: { statusCode: { codeValue: 'L' } },
+      homeWorkLocation: { nameCode: { shortName: 'SST - Spring Campus' } },
+      homeOrganizationalUnits: [{ typeCode: { codeValue: 'Department' }, nameCode: { shortName: 'Instruction' } }],
+      reportsTo: [{ associateOID: 'G3SUP001', reportsToWorkerName: { formattedName: 'Vanessa Nguyen' } }],
+      baseRemuneration: { annualRateAmount: { amountValue: 61250 } }
+    }
+  ]
+};
+const relayRec = mapWorker(sampleAdpWorker, { dpsSidField: 'DPS SID', trsField: 'TRS Member' });
+assert(relayRec.firstName === 'Maria' && relayRec.lastName === 'Rodriguez', 'Relay maps legal first/last name');
+assert(relayRec.workerId === 'MRG92014A' && relayRec.associateOID === 'G3ABC123XYZ', 'Relay maps ADP worker ID and associate OID');
+assert(relayRec.jobTitle === 'Science Teacher', 'Relay uses the primary work assignment');
+assert(relayRec.status === 'Leave of Absence', 'Relay maps assignment status L to Leave of Absence');
+assert(relayRec.workerType === 'Full-time', 'Relay maps worker type F to Full-time');
+assert(relayRec.annualSalary === 61250, 'Relay maps annual base salary');
+assert(relayRec.supervisorName === 'Vanessa Nguyen', 'Relay maps reports-to supervisor');
+assert(relayRec.dpsSid === '55501234' && relayRec.trsMember === false, 'Relay reads DPS SID and TRS custom fields');
+assert(!JSON.stringify(relayRec).includes('123-45-6789') && !JSON.stringify(relayRec).includes('1990-01-01'), 'Relay drops SSN and birth date');
+assert(mapWorker(sampleAdpWorker, { includeSalary: false }).annualSalary === undefined, 'Relay can omit salary');
+
+const appWorker = workerFromRelayRecord(relayRec, '2026-09-25T12:00:00Z');
+assert(appWorker.campus === 'SST Spring' && appWorker.location === 'Houston', `ADP location "SST - Spring Campus" maps to SST Spring / Houston (Got: ${appWorker.campus})`);
+assert(appWorker.adpId === 'MRG92014A' && appWorker.workEmail === 'mrodriguez@ssttx.org', 'App worker keeps ADP ID and email');
+
+assert(matchSstCampus('SST Sugar Land College Prep High School') === 'SST Sugar Land College Prep High School', 'Campus match: exact name');
+assert(matchSstCampus('Sugar Land College Prep HS Campus') === undefined, 'Campus match: a partial name is left blank instead of matching SST Sugar Land');
+assert(matchSstCampus('School of Science and Technology - Sugar Land College Prep High School') === 'SST Sugar Land College Prep High School', 'Campus match ignores the full district name prefix');
+assert(matchSstCampus('Warehouse') === undefined, 'Campus match returns undefined when there is no match');
+
+const csvWithGaps = `Associate ID,Legal First Name,Legal Last Name,Home Work Location,Status
+AAA111,Jordan,Lee,SST Alamo,Active
+,No,Identifier,SST Alamo,Active`;
+const csvWorkers = parseAdpCsvExport(csvWithGaps);
+assert(csvWorkers.length === 1, 'CSV import skips rows without an ADP ID instead of inventing one');
+assert(csvWorkers[0].workEmail === '' && csvWorkers[0].annualSalary === 0 && csvWorkers[0].hireDate === '', 'CSV import leaves missing email, salary, and hire date blank');
+assert(csvWorkers[0].campus === 'SST Alamo' && csvWorkers[0].location === 'San Antonio', 'CSV import maps campus and region');
+
+const linkedExisting = { ...appWorker, linkedParId: 'par-1', linkedParTracking: 'PAR-2026-X', alignmentStatus: 'par_in_progress' as const };
+const orphan = { ...appWorker, id: 'OLD', adpId: 'OLD', associateId: 'OLD', linkedParId: 'par-2' };
+const mergedRoster = mergeAdpRoster([linkedExisting, orphan], [appWorker]);
+assert(mergedRoster[0].linkedParId === 'par-1' && mergedRoster[0].alignmentStatus === 'par_in_progress', 'Roster merge keeps PAR linkage');
+assert(mergedRoster.some(w => w.adpId === 'OLD'), 'Roster merge keeps PAR-linked workers missing from ADP');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

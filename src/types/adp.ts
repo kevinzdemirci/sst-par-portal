@@ -21,9 +21,11 @@ export interface AdpWorker {
   phone?: string;
   jobTitle: string;
   department: string;
-  campus: Campus;
+  campus: Campus | '';          // '' when the ADP work location does not match an SST campus
   location: SchoolLocation;
+  locationName?: string;        // Raw ADP home work location name
   employmentStatus: AdpEmploymentStatus;
+  workerType?: 'Full-time' | 'Part-time' | 'Sub';
   hireDate: string;             // YYYY-MM-DD
   terminationDate?: string;     // YYYY-MM-DD
   lastDayWorked?: string;       // YYYY-MM-DD
@@ -53,6 +55,7 @@ export interface AdpConnectionConfig {
   clientSecret: string;
   organizationId: string;       // e.g. "SST-TEXAS-CHARTER"
   apiEndpoint: string;
+  relayUrl?: string;            // SST ADP relay (holds the ADP credentials and certificate), e.g. https://sst-adp-relay.example.workers.dev
   lastSyncTimestamp?: string;
   autoSyncOnParComplete: boolean;
   webhookUrl?: string;

@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ADP relay secrets and local Cloudflare state
+*.pem
+*.key
+*.csr
+.dev.vars
+.wrangler/

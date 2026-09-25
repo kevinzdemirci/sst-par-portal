@@ -10,7 +10,7 @@ import {
   ApproverRoleConfig
 } from './types/par';
 import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
-import { canPersonaActOnPar, isChiefPeopleOfficer, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
+import { canPersonaActOnPar, isChiefPeopleOfficer, isSuperAdmin, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -237,6 +237,15 @@ export function App() {
     }
     return 'pars';
   });
+
+  // District tools and platform setup (routing rules, directory management, Gmail,
+  // Google Sheets, ADP sync, payroll schedule) are restricted to the Super Admin.
+  const isAdmin = isSuperAdmin(currentPersona);
+  useEffect(() => {
+    if (!isAdmin && (activeHubTab === 'directory' || activeHubTab === 'workflow')) {
+      setActiveHubTab('pars');
+    }
+  }, [isAdmin, activeHubTab]);
 
   // CPO Payout & Deduction Approval System State
   const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
@@ -1233,18 +1242,6 @@ export function App() {
                   <DollarSign className="w-3.5 h-3.5 text-emerald-300" />
                   <span>+ CPO Payout Entry</span>
                 </button>
-                <button
-                  onClick={() => setActiveHubTab('directory')}
-                  className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
-                    activeHubTab === 'directory'
-                      ? 'bg-white text-[#0f2352] font-bold border-white'
-                      : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                  }`}
-                  title="View the SST approver directory"
-                >
-                  <Users className="w-3.5 h-3.5 text-blue-200" />
-                  <span>SST Directory</span>
-                </button>
               </>
             ) : (
               <>
@@ -1260,30 +1257,20 @@ export function App() {
                   <DollarSign className="w-3.5 h-3.5 text-rose-300" />
                   <span>Payout Reviewer</span>
                 </button>
-                <button
-                  onClick={() => setActiveHubTab('directory')}
-                  className={`text-xs font-medium px-3.5 py-2 rounded-xl transition-all border flex items-center space-x-1.5 ${
-                    activeHubTab === 'directory'
-                      ? 'bg-white text-[#0f2352] font-bold border-white'
-                      : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                  }`}
-                  title="View the SST approver directory"
-                >
-                  <Users className="w-3.5 h-3.5 text-blue-200" />
-                  <span>SST Directory</span>
-                </button>
               </>
             )}
-            <button
-              onClick={() => setActiveHubTab('workflow')}
-              className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border ${
-                activeHubTab === 'workflow'
-                  ? 'bg-white text-[#0f2352] border-white shadow-md'
-                  : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-              }`}
-            >
-              SST Routing Rules
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveHubTab('workflow')}
+                className={`text-xs font-bold px-3.5 py-2 rounded-xl transition-all border ${
+                  activeHubTab === 'workflow'
+                    ? 'bg-white text-[#0f2352] border-white shadow-md'
+                    : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                }`}
+              >
+                SST Routing Rules
+              </button>
+            )}
           </div>
         </div>
 
@@ -1346,7 +1333,8 @@ export function App() {
               )}
             </button>
 
-            {/* Tab 3: District Approvers Directory */}
+            {/* Tab 3: District Approvers Directory (Super Admin) */}
+            {isAdmin && (
             <button
               onClick={() => setActiveHubTab('directory')}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -1363,8 +1351,10 @@ export function App() {
                 {availablePersonas.length}
               </span>
             </button>
+            )}
 
-            {/* Tab 4: Approval Routing Rules Engine */}
+            {/* Tab 4: Approval Routing Rules Engine (Super Admin) */}
+            {isAdmin && (
             <button
               onClick={() => setActiveHubTab('workflow')}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
@@ -1375,6 +1365,7 @@ export function App() {
             >
               <span>⚙️ Routing Rules Engine</span>
             </button>
+            )}
           </div>
 
           <div className="hidden lg:flex items-center space-x-2 text-xs text-slate-500 pr-2 shrink-0">
@@ -1419,7 +1410,7 @@ export function App() {
                 exportParsToCsv(filteredPars);
                 showToast(`📥 Exported ${filteredPars.length} PARs to CSV.`, 'success');
               }}
-              onOpenAppsScript={() => setIsAppsScriptModalOpen(true)}
+              onOpenAppsScript={isAdmin ? () => setIsAppsScriptModalOpen(true) : undefined}
               myActionCount={pendingForPersona}
               filterActionQueue={filterActionQueue}
               onToggleActionQueue={() => setFilterActionQueue(!filterActionQueue)}
@@ -1459,7 +1450,7 @@ export function App() {
           </div>
         )}
 
-        {activeHubTab === 'directory' && (
+        {isAdmin && activeHubTab === 'directory' && (
           <div className="animate-fadeIn">
             <RoleManagerModal
               embedded={true}
@@ -1476,7 +1467,7 @@ export function App() {
           </div>
         )}
 
-        {activeHubTab === 'workflow' && (
+        {isAdmin && activeHubTab === 'workflow' && (
           <div className="animate-fadeIn">
             <WorkflowDiagramModal
               embedded={true}
@@ -1533,7 +1524,7 @@ export function App() {
       )}
 
       {/* Routing Diagram Guide Modal */}
-      {isWorkflowModalOpen && (
+      {isAdmin && isWorkflowModalOpen && (
         <WorkflowDiagramModal
           onClose={() => setIsWorkflowModalOpen(false)}
           onOpenAdminRules={() => setIsWorkflowAdminOpen(true)}
@@ -1541,7 +1532,7 @@ export function App() {
       )}
 
       {/* Workflow Admin Tool Modal */}
-      {isWorkflowAdminOpen && (
+      {isAdmin && isWorkflowAdminOpen && (
         <WorkflowAdminModal
           config={workflowConfig}
           currentPersona={currentPersona}
@@ -1579,7 +1570,7 @@ export function App() {
       )}
 
       {/* Role Directory & Removal Manager Modal */}
-      {isRoleManagerOpen && (
+      {isAdmin && isRoleManagerOpen && (
         <RoleManagerModal
           availablePersonas={availablePersonas}
           workflowConfig={workflowConfig}
@@ -1652,14 +1643,14 @@ export function App() {
 
       {/* SST Gmail & Google Workspace Configuration Modal */}
       <GmailSettingsModal
-        isOpen={isGmailModalOpen}
+        isOpen={isAdmin && isGmailModalOpen}
         onClose={() => setIsGmailModalOpen(false)}
         onToast={showToast}
       />
 
       {/* SSTTX Google Apps Script Integration Modal */}
       <SstAppsScriptModal
-        isOpen={isAppsScriptModalOpen}
+        isOpen={isAdmin && isAppsScriptModalOpen}
         onClose={() => setIsAppsScriptModalOpen(false)}
         pars={pars}
         onToast={showToast}
@@ -1681,7 +1672,7 @@ export function App() {
 
       {/* Official SST 2026 - 2027 SY Payroll Schedule Modal */}
       <PayScheduleModal
-        isOpen={isPayScheduleModalOpen}
+        isOpen={isAdmin && isPayScheduleModalOpen}
         onClose={() => setIsPayScheduleModalOpen(false)}
         districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
         districtName={workflowConfig.districtName}
@@ -1689,7 +1680,7 @@ export function App() {
 
       {/* ADP Workforce Now Staff Directory & Termination Alignment Modal */}
       <AdpStaffModal
-        isOpen={isAdpStaffModalOpen}
+        isOpen={isAdmin && isAdpStaffModalOpen}
         onClose={() => setIsAdpStaffModalOpen(false)}
         pars={pars}
         onOpenNewParForEmployee={(worker) => {

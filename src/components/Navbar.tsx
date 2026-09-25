@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { canPersonaActOnPar, isChiefPeopleOfficer, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
+import { canPersonaActOnPar, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
 import { Plus, Users, RefreshCw, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
@@ -60,7 +60,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdpStaffModal
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
-  const isCpo = isChiefPeopleOfficer(currentPersona);
   const isAdmin = isSuperAdmin(currentPersona);
   const canCreatePar = canPersonaCreatePar(currentPersona);
   const gmailCreds = getStoredGmailCredentials();
@@ -200,8 +199,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ))}
                   </optgroup>
                 )}
-                <optgroup label={isCpo ? "District Administration Controls" : "My Account & Directory"}>
-                  {isCpo ? (
+                <optgroup label={isAdmin ? "District Administration Controls" : "My Account"}>
+                  {isAdmin ? (
                     <>
                       <option value="__APPS_SCRIPT__">📊 SSTTX Google Sheets Tracker & Apps Script...</option>
                       <option value="__NEW_ACCOUNT__">+ Add Approver Role / Create Account...</option>
@@ -209,12 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
                     </>
                   ) : (
-                    <>
-                      <option value="__APPS_SCRIPT__">📊 SSTTX Google Sheets Tracker...</option>
-                      <option value="__MY_ESIGN__">✍️ Configure My E-Sign Profile...</option>
-                      <option value="__VIEW_DIRECTORY__">👥 View Approvers Directory...</option>
-                      <option value="__GMAIL_SETTINGS__">📧 Gmail Dispatcher Setup...</option>
-                    </>
+                    <option value="__MY_ESIGN__">✍️ Configure My E-Sign Profile...</option>
                   )}
                 </optgroup>
               </select>
@@ -225,8 +219,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* SSTTX Google Apps Script & Sheets Tracker Button */}
-            {onOpenAppsScriptModal && (
+            {/* SSTTX Google Apps Script & Sheets Tracker Button (Super Admin only) */}
+            {isAdmin && onOpenAppsScriptModal && (
               <button
                 type="button"
                 onClick={onOpenAppsScriptModal}
@@ -264,7 +258,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* District Tools & Administration Dropdown */}
+            {/* District Tools & Administration Dropdown (Super Admin only) */}
+            {isAdmin && (
             <div className="relative" ref={toolsRef}>
               <button
                 type="button"
@@ -427,7 +422,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       type="button"
                       onClick={() => {
                         setIsToolsOpen(false);
-                        if (isCpo) {
+                        if (isAdmin) {
                           onOpenAccountModal();
                         } else {
                           const matchedAppr = currentPersona ? {
@@ -454,8 +449,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     >
                       <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                       <div>
-                        <div className="font-bold">{isCpo ? 'Activate Staff Roles' : 'My E-Sign & PIN Profile'}</div>
-                        <div className="text-[10px] text-slate-500">{isCpo ? 'Add or invite approver accounts' : 'Set your digital signature and signing PIN'}</div>
+                        <div className="font-bold">{isAdmin ? 'Activate Staff Roles' : 'My E-Sign & PIN Profile'}</div>
+                        <div className="text-[10px] text-slate-500">{isAdmin ? 'Add or invite approver accounts' : 'Set your digital signature and signing PIN'}</div>
                       </div>
                     </button>
                   )}
@@ -527,6 +522,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* Primary Action: New PAR Button — ONLY FOR APPROVED INITIATORS */}
             {canCreatePar && (

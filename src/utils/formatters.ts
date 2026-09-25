@@ -251,12 +251,12 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
   if (par.currentStage === 'hr_review') {
     if (persona.canReviewStages.includes('hr_review')) {
       // Houston region: Kristy Stewart (kstewart@ssttx.org)
-      if (par.location === 'Houston' && (persona.email === 'kstewart@ssttx.org' || persona.region?.includes('Houston'))) {
-        return true;
+      if (par.location === 'Houston') {
+        return persona.email === 'kstewart@ssttx.org' || (persona.region?.includes('Houston') ?? false);
       }
       // San Antonio & Corpus Christi: Amber Johnson (ajohnson@ssttx.org)
-      if ((par.location === 'San Antonio' || par.location === 'Corpus Christi') && (persona.email === 'ajohnson@ssttx.org' || persona.email === 'ajohnson@ssttx.orf' || persona.region?.includes('San Antonio'))) {
-        return true;
+      if (par.location === 'San Antonio' || par.location === 'Corpus Christi') {
+        return persona.email === 'ajohnson@ssttx.org' || persona.email === 'ajohnson@ssttx.orf' || (persona.region?.includes('San Antonio') ?? false) || (persona.region?.includes('Corpus Christi') ?? false);
       }
       return persona.department === 'Human Resources';
     }

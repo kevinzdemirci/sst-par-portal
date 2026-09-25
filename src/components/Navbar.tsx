@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { canPersonaActOnPar, isChiefPeopleOfficer, isRegionalHrCoordinator, isPayrollCoordinator, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
-import { Plus, Users, GitBranch, RefreshCw, ShieldAlert, Sliders, UserCheck, Trash2, DollarSign, Mail, Lock, FileSpreadsheet } from 'lucide-react';
+import { canPersonaActOnPar, isChiefPeopleOfficer, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
+import { Plus, Users, RefreshCw, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
 import { getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
@@ -13,7 +13,7 @@ interface NavbarProps {
   availablePersonas?: UserPersona[];
   onSelectPersona: (persona: UserPersona) => void;
   onOpenNewParModal: () => void;
-  onOpenWorkflowModal: () => void;
+  onOpenWorkflowModal?: () => void;
   onOpenAdminModal?: () => void;
   onOpenAccountModal?: (role?: ApproverRoleConfig) => void;
   onOpenRoleManagerModal?: () => void;
@@ -58,11 +58,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
   const isAdmin = isSuperAdmin(currentPersona);
-  const isHr = isRegionalHrCoordinator(currentPersona);
-  const isPayroll = isPayrollCoordinator(currentPersona);
   const canCreatePar = canPersonaCreatePar(currentPersona);
   const gmailCreds = getStoredGmailCredentials();
   const appsScriptConfig = getStoredAppsScriptConfig();
+
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const toolsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolsRef.current && !toolsRef.current.contains(event.target as Node)) {
+        setIsToolsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
@@ -210,119 +221,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            {/* Manage Roles (CPO Only) or View Directory (All Roles) */}
-            {(onSelectHubTab || onOpenRoleManagerModal) && (
+            {/* SSTTX Google Apps Script & Sheets Tracker Button */}
+            {onOpenAppsScriptModal && (
               <button
                 type="button"
-                onClick={() => {
-                  if (onSelectHubTab) {
-                    onSelectHubTab('directory');
-                  } else if (onOpenRoleManagerModal) {
-                    onOpenRoleManagerModal();
-                  }
-                }}
-                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs border ${
-                  activeHubTab === 'directory'
-                    ? 'bg-[#0f2352] text-white border-[#0f2352] shadow-xs'
-                    : isCpo 
-                      ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800' 
-                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
+                onClick={onOpenAppsScriptModal}
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
+                  appsScriptConfig.scriptUrl
+                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-950'
+                    : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950'
                 }`}
-                title={isCpo ? "Manage, add, and remove roles from the SST directory (CPO Admin)" : "View SST Approver Directory"}
+                title={`SSTTX Google Apps Script & Sheets PAR Tracker (${appsScriptConfig.scriptUrl ? 'Connected' : 'Setup Required'})`}
               >
-                {isCpo ? (
-                  <Trash2 className={`w-3.5 h-3.5 ${activeHubTab === 'directory' ? 'text-white' : 'text-rose-600'}`} />
-                ) : (
-                  <Users className={`w-3.5 h-3.5 ${activeHubTab === 'directory' ? 'text-white' : 'text-slate-600'}`} />
-                )}
-                <span className="hidden sm:inline">{isCpo ? 'Manage Roles' : 'Directory'}</span>
-              </button>
-            )}
-
-            {/* Activate Role (CPO) or Configure My E-Sign (Other Personas) */}
-            {onOpenAccountModal && (
-              <button
-                onClick={() => {
-                  if (isCpo) {
-                    onOpenAccountModal();
-                  } else {
-                    const matchedAppr = currentPersona ? {
-                      id: currentPersona.id,
-                      name: currentPersona.name,
-                      title: currentPersona.role,
-                      roleKey: 'custom',
-                      email: currentPersona.email,
-                      department: currentPersona.department,
-                      campus: currentPersona.campus,
-                      region: currentPersona.region || 'All SST Campuses',
-                      avatar: currentPersona.avatar,
-                      signerId: currentPersona.signerId,
-                      ipAddress: currentPersona.ipAddress,
-                      isAccountActivated: currentPersona.isAccountActivated,
-                      signingPin: currentPersona.signingPin,
-                      signatureImage: currentPersona.signatureImage,
-                      canReviewStages: currentPersona.canReviewStages
-                    } : undefined;
-                    onOpenAccountModal(matchedAppr as any);
-                  }
-                }}
-                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs border ${
-                  isCpo
-                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
-                    : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-[#0f2352]'
-                }`}
-                title={isCpo ? "Add or activate approver roles" : "Configure your personal digital signature and signing PIN"}
-              >
-                <UserCheck className={`w-3.5 h-3.5 ${isCpo ? 'text-emerald-600' : 'text-blue-600'}`} />
-                <span className="hidden sm:inline">{isCpo ? 'Activate Role' : 'My E-Sign'}</span>
-              </button>
-            )}
-
-            {/* CPO Payout Entry (HR) vs Payout Reviewer (Others) */}
-            {(onSelectHubTab || onOpenPayoutModal) && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (onSelectHubTab) {
-                    onSelectHubTab('payouts');
-                  } else if (onOpenPayoutModal) {
-                    onOpenPayoutModal();
-                  }
-                }}
-                className={`relative inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
-                  activeHubTab === 'payouts'
-                    ? isHr
-                      ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
-                      : 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                    : isCpo
-                      ? 'bg-rose-50 hover:bg-rose-100 border-rose-300 text-rose-900'
-                      : isHr
-                        ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-                title={
-                  isHr
-                    ? 'Submit staff payout or deduction entries for upcoming payroll cut-off (HR Coordinator Entry)'
-                    : isCpo
-                      ? 'Review and digitally authorize staff payout and deduction requests (CPO Reviewer)'
-                      : isPayroll
-                        ? 'Review CPO-authorized payouts and record ADP batch numbers (Payroll Reviewer)'
-                        : 'Review staff payout and deduction records (Reviewer Mode)'
-                }
-              >
-                <DollarSign className={`w-4 h-4 ${
-                  activeHubTab === 'payouts' ? 'text-white' : isHr ? 'text-emerald-600' : isCpo ? 'text-rose-600' : 'text-slate-600'
-                }`} />
-                <span className="hidden sm:inline">
-                  {isHr ? 'Payout Entry' : isCpo ? 'CPO Reviewer' : isPayroll ? 'Payroll Reviewer' : 'Payout Reviewer'}
-                </span>
-                {pendingPayoutsCount > 0 && !isHr && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-black shadow-xs ${
-                    activeHubTab === 'payouts' ? 'bg-white text-rose-700' : 'bg-rose-500 text-white'
-                  }`}>
-                    {pendingPayoutsCount}
-                  </span>
-                )}
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden xl:inline">SSTTX Sheets</span>
+                <span className={`w-2 h-2 rounded-full ${appsScriptConfig.scriptUrl ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
               </button>
             )}
 
@@ -347,88 +260,223 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Workflow Diagram button */}
-            <button
-              onClick={() => {
-                if (onSelectHubTab) {
-                  onSelectHubTab('workflow');
-                } else if (onOpenWorkflowModal) {
-                  onOpenWorkflowModal();
-                }
-              }}
-              className={`inline-flex items-center space-x-1 px-3 py-2 rounded-xl text-xs font-medium transition-colors border ${
-                activeHubTab === 'workflow'
-                  ? 'bg-[#0f2352] text-white border-[#0f2352] shadow-xs'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-              title="View SST Routing Architecture"
-            >
-              <GitBranch className={`w-4 h-4 ${activeHubTab === 'workflow' ? 'text-white' : 'text-slate-500'}`} />
-              <span className="hidden lg:inline">Routing Map</span>
-            </button>
-
-            {/* Admin Tool: Workflow & Approver Config Button — RESTRICTED TO CHIEF PEOPLE OFFICER ONLY */}
-            {isAdmin && onOpenAdminModal && (
-              <button
-                onClick={onOpenAdminModal}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#0f2352]/5 hover:bg-[#0f2352]/10 border border-[#0f2352]/20 text-[#0f2352] transition-colors shadow-2xs"
-                title="Open SST Workflow & Approver Admin Tool (Chief People Officer only)"
-              >
-                <Sliders className="w-3.5 h-3.5 text-[#b91c1c]" />
-                <span className="hidden sm:inline">Workflow Admin</span>
-              </button>
-            )}
-
-            {/* SSTTX Google Apps Script & Sheets Tracker Button */}
-            {onOpenAppsScriptModal && (
+            {/* District Tools & Administration Dropdown */}
+            <div className="relative" ref={toolsRef}>
               <button
                 type="button"
-                onClick={onOpenAppsScriptModal}
-                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
-                  appsScriptConfig.scriptUrl
-                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-950'
-                    : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950'
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border shadow-2xs ${
+                  isToolsOpen 
+                    ? 'bg-[#0f2352] text-white border-[#0f2352]' 
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
                 }`}
-                title={`SSTTX Google Apps Script & Sheets PAR Tracker (${appsScriptConfig.scriptUrl ? 'Connected' : 'Setup Required'})`}
+                title="District Tools & HR Administration"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="hidden xl:inline">SSTTX Sheets</span>
-                <span className={`w-2 h-2 rounded-full ${appsScriptConfig.scriptUrl ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <Settings className={`w-3.5 h-3.5 ${isToolsOpen ? 'text-white' : 'text-slate-600'}`} />
+                <span className="hidden md:inline">District Tools</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${isToolsOpen ? 'rotate-180 text-white' : 'text-slate-500'}`} />
               </button>
-            )}
 
-            {/* Gmail Dispatcher Setup Button — RESTRICTED TO SUPER ADMIN ONLY */}
-            {isAdmin && onOpenGmailSettings && (
-              <button
-                type="button"
-                onClick={onOpenGmailSettings}
-                className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs border ${
-                  gmailCreds.isEnabled
-                    ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900'
-                    : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
-                }`}
-                title={`Configure SST Gmail Dispatcher (${gmailCreds.isEnabled ? `Active: ${gmailCreds.senderEmail}` : 'Setup Required'})`}
-              >
-                <Mail className="w-3.5 h-3.5 text-red-600" />
-                <span className="hidden xl:inline">Gmail Setup</span>
-                {gmailCreds.isEnabled ? (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" title="Active" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" title="Action Needed" />
-                )}
-              </button>
-            )}
+              {isToolsOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs">
+                  <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                    District HR Administration
+                  </div>
 
-            {/* Reset mock data — RESTRICTED TO SUPER ADMIN ONLY */}
-            {isAdmin && (
-              <button
-                onClick={onResetData}
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                title="Reset Sample Records to Uploaded PAR Form"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-            )}
+                  {/* Workflow Admin (CPO Only) */}
+                  {isAdmin && onOpenAdminModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        onOpenAdminModal();
+                      }}
+                      className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 text-slate-800 transition-colors"
+                    >
+                      <Sliders className="w-4 h-4 text-[#b91c1c] shrink-0" />
+                      <div>
+                        <div className="font-bold flex items-center space-x-1">
+                          <span>Workflow & Approver Setup</span>
+                          <span className="text-[9px] px-1 py-0.2 bg-amber-100 text-blue-950 font-black rounded">CPO</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">Configure routing stages & approvers</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Manage Approver Directory */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsToolsOpen(false);
+                      if (onSelectHubTab) {
+                        onSelectHubTab('directory');
+                      } else if (onOpenRoleManagerModal) {
+                        onOpenRoleManagerModal();
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 transition-colors ${activeHubTab === 'directory' ? 'bg-slate-100 font-bold' : 'text-slate-800'}`}
+                  >
+                    <Users className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">Approvers Directory</div>
+                      <div className="text-[10px] text-slate-500">View & search district signatories</div>
+                    </div>
+                  </button>
+
+                  {/* Payouts & Stipends Shortcut */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsToolsOpen(false);
+                      if (onSelectHubTab) {
+                        onSelectHubTab('payouts');
+                      } else if (onOpenPayoutModal) {
+                        onOpenPayoutModal();
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 transition-colors ${activeHubTab === 'payouts' ? 'bg-slate-100 font-bold' : 'text-slate-800'}`}
+                  >
+                    <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-bold flex items-center justify-between">
+                        <span>Payouts & Stipends</span>
+                        {pendingPayoutsCount > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                            {pendingPayoutsCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-500">Staff stipends and deductions ledger</div>
+                    </div>
+                  </button>
+
+                  {/* Routing Architecture Map */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsToolsOpen(false);
+                      if (onSelectHubTab) {
+                        onSelectHubTab('workflow');
+                      } else if (onOpenWorkflowModal) {
+                        onOpenWorkflowModal();
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 transition-colors ${activeHubTab === 'workflow' ? 'bg-slate-100 font-bold' : 'text-slate-800'}`}
+                  >
+                    <GitBranch className="w-4 h-4 text-purple-600 shrink-0" />
+                    <div>
+                      <div className="font-bold">SST Routing Map</div>
+                      <div className="text-[10px] text-slate-500">Visual approval architecture</div>
+                    </div>
+                  </button>
+
+                  {/* E-Sign & PIN Profile */}
+                  {onOpenAccountModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        if (isCpo) {
+                          onOpenAccountModal();
+                        } else {
+                          const matchedAppr = currentPersona ? {
+                            id: currentPersona.id,
+                            name: currentPersona.name,
+                            title: currentPersona.role,
+                            roleKey: 'custom',
+                            email: currentPersona.email,
+                            department: currentPersona.department,
+                            campus: currentPersona.campus,
+                            region: currentPersona.region || 'All SST Campuses',
+                            avatar: currentPersona.avatar,
+                            signerId: currentPersona.signerId,
+                            ipAddress: currentPersona.ipAddress,
+                            isAccountActivated: currentPersona.isAccountActivated,
+                            signingPin: currentPersona.signingPin,
+                            signatureImage: currentPersona.signatureImage,
+                            canReviewStages: currentPersona.canReviewStages
+                          } : undefined;
+                          onOpenAccountModal(matchedAppr as any);
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 text-slate-800 transition-colors"
+                    >
+                      <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <div className="font-bold">{isCpo ? 'Activate Staff Roles' : 'My E-Sign & PIN Profile'}</div>
+                        <div className="text-[10px] text-slate-500">{isCpo ? 'Add or invite approver accounts' : 'Set your digital signature and signing PIN'}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Gmail Dispatcher Setup */}
+                  {onOpenGmailSettings && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        onOpenGmailSettings();
+                      }}
+                      className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 text-slate-800 transition-colors"
+                    >
+                      <Mail className="w-4 h-4 text-red-600 shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-bold flex items-center justify-between">
+                          <span>SST Gmail Dispatcher</span>
+                          <span className={`w-2 h-2 rounded-full ${gmailCreds.isEnabled ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                        </div>
+                        <div className="text-[10px] text-slate-500">{gmailCreds.isEnabled ? `Active (${gmailCreds.senderEmail})` : 'Configure district email relay'}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Google Apps Script & Sheets Modal */}
+                  {onOpenAppsScriptModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        onOpenAppsScriptModal();
+                      }}
+                      className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 text-slate-800 transition-colors"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-bold flex items-center justify-between">
+                          <span>Google Sheets Sync</span>
+                          <span className={`w-2 h-2 rounded-full ${appsScriptConfig.scriptUrl ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                        </div>
+                        <div className="text-[10px] text-slate-500">Live tracker & webhook connection</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Reset Sample Records (Super Admin Only) */}
+                  {isAdmin && (
+                    <>
+                      <div className="my-1 border-t border-slate-100" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsToolsOpen(false);
+                          if (window.confirm('Reset sample records to uploaded SST PAR form demonstration defaults?')) {
+                            onResetData();
+                          }
+                        }}
+                        className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-rose-50 text-rose-800 transition-colors"
+                      >
+                        <RefreshCw className="w-4 h-4 text-rose-600 shrink-0" />
+                        <div>
+                          <div className="font-bold">Reset Demo Sample Records</div>
+                          <div className="text-[10px] text-rose-600/70">Restore factory sample PARs</div>
+                        </div>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Primary Action: New PAR Button — ONLY FOR APPROVED INITIATORS */}
             {canCreatePar && (

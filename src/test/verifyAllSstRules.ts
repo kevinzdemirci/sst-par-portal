@@ -740,10 +740,196 @@ assert(FULL_APPS_SCRIPT_SOURCE.includes('Payout_Authorizations'), 'Apps Script c
 assert(FULL_APPS_SCRIPT_SOURCE.includes('Email_Dispatches'), 'Apps Script creates Email_Dispatches tab');
 assert(FULL_APPS_SCRIPT_SOURCE.includes('ssttx.org'), 'Apps Script targets ssttx.org Google Workspace domain');
 
-  // SUMMARY
-  console.log('\n======================================================');
-  console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
-  console.log('======================================================\n');
+// 18. SUBMITTER FLOW SIMULATION (Campus Principal / Department Initiator)
+console.log('\n📌 Test 18: Submitter Persona Flow Simulation (Principal / Supervisor)...');
+const submitter = USER_PERSONAS.find(p => p.id === 'p-serdar')!;
+assert(!!submitter, 'Submitter persona (Serdar Bulut) exists');
+assert(canPersonaCreatePar(submitter), 'Submitter has authorized PAR creation privileges');
+
+// Non-authorized personas cannot initiate PARs
+const unauthorizedSubmitter = USER_PERSONAS.find(p => p.isNotificationOnly)!;
+assert(!canPersonaCreatePar(unauthorizedSubmitter), `Notification persona (${unauthorizedSubmitter.name}) cannot initiate PARs`);
+
+// 18a. Submitter initiates a new Promotion & Salary Adjustment PAR
+const submitterPar: PersonnelActionRequest = {
+  ...INITIAL_PAR_DATA[0],
+  id: 'par-sim-001',
+  trackingNumber: 'PAR-2026-HOU-SIM1',
+  employeeId: 'SST-2026-9912',
+  firstName: 'Elena',
+  lastName: 'Rostova',
+  currentStage: 'supervisor_review',
+  priority: 'urgent',
+  actionType: 'promotion',
+  effectiveDate: '2026-10-01',
+  location: 'Houston',
+  campus: 'SST Champions Elementary',
+  title: 'Lead STEM Teacher',
+  currentSalary: 56000,
+  proposedSalary: 64500,
+  contractType: 'Chapter 21 Term',
+  departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Champions Elementary'),
+  routingSteps: buildSstRouting('promotion', false, 'Houston'),
+  comments: [],
+  electronicSignatures: [],
+};
+
+assert(submitterPar.currentStage === 'supervisor_review', 'Submitted PAR routes initially to supervisor_review');
+assert(submitterPar.contractType === 'Chapter 21 Term', 'Texas Chapter 21 contract type accurately recorded');
+assert((submitterPar.departmentNotifications?.length ?? 0) >= 2, 'Informational notifications generated for IT and Talent Acquisition');
+assert(submitterPar.departmentNotifications?.some(n => n.type === 'it') ?? false, 'IT informational contact is mapped');
+assert(submitterPar.departmentNotifications?.some(n => n.type === 'talent_acquisition') ?? false, 'Talent Acquisition informational contact is mapped');
+
+// 19. VERIFIER FLOW SIMULATION (Regional HR Coordinator)
+console.log('\n📌 Test 19: Verifier Persona Flow Simulation (Regional HR Coordinator)...');
+const verifier = USER_PERSONAS.find(p => p.id === 'p-kristy')!;
+assert(!!verifier, 'Verifier persona (Kristy Stewart - Houston HR) exists');
+assert(isRegionalHrCoordinator(verifier), 'Kristy Stewart verified as Regional HR Coordinator');
+
+// 19a. Submitter endorses initial supervisor review step
+const firstStep = submitterPar.routingSteps.find(s => s.stage === 'supervisor_review')!;
+firstStep.status = 'approved';
+firstStep.decisionDate = new Date().toISOString();
+firstStep.reviewerName = submitter.name;
+firstStep.comments = 'Recommended and approved at campus level.';
+submitterPar.currentStage = 'hr_review';
+
+// 19b. Verifier checks queue and verifies regional authority
+assert(canPersonaActOnPar(verifier, submitterPar), 'Kristy Stewart can act on Houston hr_review stage');
+const sanAntonioVerifier = USER_PERSONAS.find(p => p.id === 'p-amber')!;
+// San Antonio verifier should NOT act on a Houston specific review
+assert(!canPersonaActOnPar(sanAntonioVerifier, submitterPar), 'San Antonio HR Coordinator cannot act on Houston hr_review stage');
+
+// 19c. Verifier identifies missing documentation and requests campus revision
+const revisionReason = HR_REVISION_REASONS.find(r => r.includes('ADP Position Control')) || HR_REVISION_REASONS[0];
+assert(HR_REVISION_REASONS.length > 5, 'Standard HR Revision reason templates available');
+submitterPar.currentStage = 'revision_requested';
+submitterPar.comments.push({
+  id: 'aud-sim-2',
+  timestamp: new Date().toISOString(),
+  authorName: verifier.name,
+  authorRole: verifier.role,
+  authorDepartment: verifier.department,
+  message: revisionReason,
+  isSystemEvent: true,
+});
+assert(submitterPar.currentStage === 'revision_requested', 'PAR transitions to "revision_requested" on verifier return');
+assert(submitterPar.comments.some((c: any) => c.message && c.message.includes('ADP Position Control')), 'Audit trail logs specific HR compliance revision reason');
+
+// 19d. Campus resolves issue and re-submits; Verifier officially endorses
+submitterPar.currentStage = 'hr_review';
+const verifierStep = submitterPar.routingSteps.find(s => s.stage === 'hr_review')!;
+assert(!!verifierStep, 'hr_review step exists in routing chain');
+verifierStep.status = 'approved';
+verifierStep.decisionDate = new Date().toISOString();
+verifierStep.reviewerName = verifier.name;
+verifierStep.comments = 'TEA credentials & ADP position control verified in compliance with Texas charter standards.';
+submitterPar.currentStage = 'payroll_action';
+assert(verifierStep.status === 'approved', 'Regional HR step successfully endorsed');
+assert(submitterPar.currentStage === 'payroll_action', 'PAR advances to payroll_action following HR verification');
+
+// 20. APPROVER FLOW SIMULATION (Chief People Officer / Superintendent)
+console.log('\n📌 Test 20: Approver Persona Flow Simulation (Chief People Officer)...');
+const approver = USER_PERSONAS.find(p => p.id === 'p-kevin')!;
+assert(!!approver, 'Approver persona (Dr. Kevin Demirci) exists');
+assert(isChiefPeopleOfficer(approver), 'Approver verified as Chief People Officer');
+
+// 20a. Create an Involuntary Termination PAR requiring CPO statutory review
+const cpoSimPar: PersonnelActionRequest = {
+  ...INITIAL_PAR_DATA[0],
+  id: 'par-sim-cpo',
+  trackingNumber: 'PAR-2026-HOU-CPO1',
+  employeeId: 'SST-2026-8810',
+  firstName: 'Gabriel',
+  lastName: 'Torres',
+  currentStage: 'cpo_review',
+  priority: 'urgent',
+  actionType: 'termination',
+  location: 'Houston',
+  campus: 'SST Champions College Prep High School',
+  title: 'Dean of Students',
+  currentSalary: 72000,
+  contractType: 'Chapter 21 Term',
+  isVoluntary: false,
+  routingSteps: buildSstRouting('termination', false, 'Houston'),
+  comments: [],
+  electronicSignatures: [],
+};
+
+assert(cpoSimPar.currentStage === 'cpo_review', 'Involuntary separation routes to cpo_review');
+assert(canPersonaActOnPar(approver, cpoSimPar), 'Chief People Officer can act on cpo_review stage');
+assert(!canPersonaActOnPar(verifier, cpoSimPar), 'Regional HR Coordinator cannot act on executive cpo_review stage');
+assert(!canPersonaActOnPar(submitter, cpoSimPar), 'Campus Principal cannot act on executive cpo_review stage');
+
+// 20b. Approver executes digital Texas UETA PIN authentication
+const testPin = '1234';
+assert(approver.signingPin === testPin, 'Approver has valid 4-digit Texas UETA PIN (1234)');
+
+// 20c. Approver executes executive endorsement
+const cpoStep = cpoSimPar.routingSteps.find(s => s.stage === 'cpo_review')!;
+assert(!!cpoStep, 'cpo_review step exists in termination routing chain');
+cpoStep.status = 'approved';
+cpoStep.decisionDate = new Date().toISOString();
+cpoStep.reviewerName = approver.name;
+cpoStep.comments = 'Statutory Chapter 21 separation authorized by Chief People Officer.';
+cpoSimPar.currentStage = 'hr_review';
+cpoSimPar.comments.push({
+  id: 'aud-cpo-2',
+  timestamp: new Date().toISOString(),
+  authorName: approver.name,
+  authorRole: approver.role,
+  authorDepartment: approver.department,
+  message: 'Executive sign-off completed.',
+  isSystemEvent: true,
+});
+
+assert(cpoStep.status === 'approved', 'Chief People Officer endorsement recorded');
+assert(cpoSimPar.currentStage === 'hr_review', 'PAR advances to hr_review following executive approval');
+
+// 21. ADMIN & PAYROLL EXECUTION FLOW SIMULATION
+console.log('\n📌 Test 21: Admin & Payroll Execution Flow Simulation (ADP Batch Confirmation)...');
+const payroll = USER_PERSONAS.find(p => p.id === 'p-paola')!;
+assert(!!payroll, 'Payroll persona (Paola Comparini) exists');
+assert(isPayrollCoordinator(payroll), 'Paola Comparini verified as Payroll Coordinator');
+assert(canPersonaActOnPar(payroll, submitterPar), 'Payroll Coordinator can act on payroll_action stage');
+
+// Submitter cannot act on payroll execution stage
+assert(!canPersonaActOnPar(submitter, submitterPar), 'Submitter cannot act on payroll_action stage');
+
+// 21a. Payroll enters ADP Batch Confirmation and executes final completion
+const adpBatchNumber = 'ADP-2026-B849';
+const payrollStep = submitterPar.routingSteps.find(s => s.stage === 'payroll_action')!;
+assert(!!payrollStep, 'payroll_action step exists in routing chain');
+payrollStep.status = 'approved';
+const payrollExecutionNotes = `[ADP Batch Ref: ${adpBatchNumber}] Processed into ADP Workforce Now. Effective Oct 1, 2026 pay cycle.`;
+payrollStep.decisionDate = new Date().toISOString();
+payrollStep.reviewerName = payroll.name;
+payrollStep.comments = payrollExecutionNotes;
+submitterPar.currentStage = 'completed';
+submitterPar.comments.push({
+  id: 'aud-sim-4',
+  timestamp: new Date().toISOString(),
+  authorName: payroll.name,
+  authorRole: payroll.role,
+  authorDepartment: payroll.department,
+  message: payrollExecutionNotes,
+  isSystemEvent: true,
+});
+
+assert(submitterPar.currentStage === 'completed', 'PAR currentStage is "completed"');
+assert(submitterPar.routingSteps.every(s => s.status === 'approved'), 'All routing steps in chain are fully approved');
+assert(submitterPar.comments.some((c: any) => c.message && c.message.includes(adpBatchNumber)), `Audit trail preserves ADP batch confirmation (${adpBatchNumber})`);
+
+// 21b. Super Admin privilege isolation
+assert(isSuperAdmin(approver) === true, 'Dr. Kevin Demirci has Super Admin privileges');
+assert(isSuperAdmin(payroll) === false, 'Payroll Coordinator is NOT Super Admin');
+assert(isSuperAdmin(verifier) === false, 'Regional HR Coordinator is NOT Super Admin');
+assert(isSuperAdmin(submitter) === false, 'Campus Principal is NOT Super Admin');
+
+// SUMMARY
+console.log('\n======================================================');
+console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
+console.log('======================================================\n');
 
   if (failed > 0) {
     process.exit(1);

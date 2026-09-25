@@ -40,7 +40,8 @@ import {
   Info,
   FileSpreadsheet,
   Lock,
-  Calendar
+  Calendar,
+  DollarSign
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -79,6 +80,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   const [sheetSyncToast, setSheetSyncToast] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [selectedReasonTemplate, setSelectedReasonTemplate] = useState('');
+  const [adpBatchNumber, setAdpBatchNumber] = useState('ADP-2026-B849');
 
   // Employee details editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -191,7 +193,17 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
       return;
     }
 
-    onApprovePar(par.id, decisionNotes || 'Endorsed and electronically signed.', currentPersona);
+    let notes = decisionNotes.trim();
+    if (par.currentStage === 'payroll_action') {
+      const batchRef = adpBatchNumber.trim() || 'ADP-2026-AUTO';
+      notes = notes 
+        ? `[ADP Batch Ref: ${batchRef}] ${notes}` 
+        : `[ADP Batch Ref: ${batchRef}] Finalized and executed in ADP Workforce Now.`;
+    } else if (!notes) {
+      notes = 'Endorsed and electronically signed.';
+    }
+
+    onApprovePar(par.id, notes, currentPersona);
     setDecisionNotes('');
     setPinInput('');
     
@@ -1325,6 +1337,36 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                 className="w-full p-3 text-xs bg-white border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 mb-3"
               />
 
+              {/* ADP Payroll Execution Batch Reference */}
+              {par.currentStage === 'payroll_action' && (
+                <div className="mb-3 p-3 bg-emerald-50 rounded-xl border border-emerald-300 text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <div>
+                      <span className="font-bold text-emerald-950">ADP Workforce Now Batch Reference:</span>
+                      <div className="text-[11px] text-emerald-800">Record the ADP payroll batch number or transaction ID for the audit trail</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={adpBatchNumber}
+                      onChange={(e) => setAdpBatchNumber(e.target.value)}
+                      placeholder="e.g. ADP-2026-B849"
+                      className="w-36 px-2.5 py-1 text-xs font-mono font-bold bg-white border border-emerald-400 rounded-lg text-emerald-950 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAdpBatchNumber(`ADP-${new Date().getFullYear()}-B${Math.floor(100 + Math.random() * 900)}`)}
+                      className="text-[10px] text-emerald-800 underline font-semibold hover:text-emerald-900"
+                      title="Generate fresh batch ID"
+                    >
+                      (Auto-Gen)
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {currentPersona.signingPin && (
                 <div className="mb-3 p-3 bg-white rounded-xl border border-amber-300 text-xs flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center space-x-2">
@@ -1380,7 +1422,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   <ThumbsUp className="w-4 h-4" />
-                  <span>Sign & Forward to Next Department</span>
+                  <span>{par.currentStage === 'payroll_action' ? 'Execute in ADP & Complete PAR' : 'Sign & Forward to Next Department'}</span>
                 </button>
               </div>
             </div>

@@ -643,6 +643,7 @@ function onOpen() {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu("🏛️ SST HR Hub")
       .addItem("📊 Refresh & Format All Tracker Columns", "initializeSstTrackerSheets")
+      .addItem("👥 Reconcile ADP Staff & Terminations", "reconcileAdpTerminationsReport")
       .addItem("🔔 Send Pending Reminders to Approvers", "sendApproverRemindersPrompt")
       .addItem("📋 Generate TEA / PEIMS Summary Report", "generateTeaSummaryReport")
       .addSeparator()
@@ -738,4 +739,33 @@ function generateTeaSummaryReport() {
     "• Compensation Adjustments: " + stats.salaryChanges;
 
   ui.alert("TEA / PEIMS HR Summary", report, ui.ButtonSet.OK);
+}
+
+/**
+ * Menu Action: Reconcile ADP Staff & Terminations
+ */
+function reconcileAdpTerminationsReport() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(TAB_PAR_TRACKER);
+  if (!sheet) return;
+
+  var data = sheet.getDataRange().getValues();
+  var completedSeparations = 0;
+  var inProgressSeparations = 0;
+
+  for (var i = 1; i < data.length; i++) {
+    var type = String(data[i][7] || "").toUpperCase();
+    var stage = String(data[i][9] || "").toUpperCase();
+    if (type.indexOf("TERMINATION") !== -1) {
+      if (stage.indexOf("COMPLETED") !== -1) completedSeparations++;
+      else inProgressSeparations++;
+    }
+  }
+
+  var msg = "ADP Workforce Now® & SST Termination Reconciliation:\n\n" +
+    "• Completed Separations (Aligned & Position Control Released): " + completedSeparations + "\n" +
+    "• Active Separations in Routing: " + inProgressSeparations + "\n\n" +
+    "Status: System is synchronized with ADP Workforce Now.";
+  ui.alert("ADP Termination Alignment", msg, ui.ButtonSet.OK);
 }

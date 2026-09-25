@@ -28,6 +28,8 @@ import { GmailSettingsModal } from './components/GmailSettingsModal';
 import { SstAppsScriptModal } from './components/SstAppsScriptModal';
 import { AuthModal } from './components/AuthModal';
 import { PayScheduleModal } from './components/PayScheduleModal';
+import { AdpStaffModal } from './components/AdpStaffModal';
+import { AdpWorker } from './types/adp';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
 import { CpoPayoutRequest } from './types/payout';
@@ -218,6 +220,8 @@ export function App() {
   const [isAppsScriptModalOpen, setIsAppsScriptModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPayScheduleModalOpen, setIsPayScheduleModalOpen] = useState(false);
+  const [isAdpStaffModalOpen, setIsAdpStaffModalOpen] = useState(false);
+  const [preSelectedWorkerForPar, setPreSelectedWorkerForPar] = useState<AdpWorker | null>(null);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
@@ -1108,6 +1112,7 @@ export function App() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenAppsScriptModal={() => setIsAppsScriptModalOpen(true)}
         onOpenPayScheduleModal={() => setIsPayScheduleModalOpen(true)}
+        onOpenAdpStaffModal={() => setIsAdpStaffModalOpen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -1514,8 +1519,15 @@ export function App() {
       {isNewParModalOpen && (
         <ParFormModal
           currentPersona={currentPersona}
-          onClose={() => setIsNewParModalOpen(false)}
-          onSubmitPar={handleSubmitNewPar}
+          preSelectedWorker={preSelectedWorkerForPar}
+          onClose={() => {
+            setIsNewParModalOpen(false);
+            setPreSelectedWorkerForPar(null);
+          }}
+          onSubmitPar={(newPar) => {
+            handleSubmitNewPar(newPar);
+            setPreSelectedWorkerForPar(null);
+          }}
           workflowConfig={workflowConfig}
         />
       )}
@@ -1671,6 +1683,25 @@ export function App() {
       <PayScheduleModal
         isOpen={isPayScheduleModalOpen}
         onClose={() => setIsPayScheduleModalOpen(false)}
+        districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
+        districtName={workflowConfig.districtName}
+      />
+
+      {/* ADP Workforce Now Staff Directory & Termination Alignment Modal */}
+      <AdpStaffModal
+        isOpen={isAdpStaffModalOpen}
+        onClose={() => setIsAdpStaffModalOpen(false)}
+        pars={pars}
+        onOpenNewParForEmployee={(worker) => {
+          setIsAdpStaffModalOpen(false);
+          setPreSelectedWorkerForPar(worker);
+          setIsNewParModalOpen(true);
+        }}
+        onSelectPar={(par) => {
+          setIsAdpStaffModalOpen(false);
+          setSelectedPar(par);
+        }}
+        onToast={showToast}
         districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
         districtName={workflowConfig.districtName}
       />

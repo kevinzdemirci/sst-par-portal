@@ -31,6 +31,7 @@ interface NavbarProps {
   onOpenAuthModal?: () => void;
   onOpenAppsScriptModal?: () => void;
   onOpenPayScheduleModal?: () => void;
+  onOpenAdpStaffModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -55,7 +56,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenGmailSettings,
   onOpenAuthModal,
   onOpenAppsScriptModal,
-  onOpenPayScheduleModal
+  onOpenPayScheduleModal,
+  onOpenAdpStaffModal
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isCpo = isChiefPeopleOfficer(currentPersona);
@@ -372,6 +374,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-500">Official cut-offs & pay dates</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* ADP Workforce Now Staff List & Termination Alignment */}
+                  {onOpenAdpStaffModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsToolsOpen(false);
+                        onOpenAdpStaffModal();
+                      }}
+                      className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-slate-50 transition-colors text-slate-800"
+                    >
+                      <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-bold flex items-center justify-between">
+                          <span>ADP Staff & Terminations</span>
+                          <span className="text-[9px] px-1 py-0.2 bg-emerald-100 text-emerald-950 font-black rounded">
+                            ADP Sync
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">Roster & termination alignment</div>
                       </div>
                     </button>
                   )}

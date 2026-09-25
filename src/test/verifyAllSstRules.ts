@@ -30,6 +30,13 @@ import {
   DEFAULT_APPS_SCRIPT_CONFIG, 
   FULL_APPS_SCRIPT_SOURCE 
 } from '../utils/sstAppsScriptService';
+import { 
+  getStoredAdpStaff, 
+  reconcileStaffWithPars, 
+  executeAdpTerminationCloseout, 
+  batchPushTerminationsToAdp, 
+  parseAdpCsvExport 
+} from '../utils/adpService';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -932,6 +939,70 @@ assert(isSuperAdmin(approver) === true, 'Dr. Kevin Demirci has Super Admin privi
 assert(isSuperAdmin(payroll) === false, 'Payroll Coordinator is NOT Super Admin');
 assert(isSuperAdmin(verifier) === false, 'Regional HR Coordinator is NOT Super Admin');
 assert(isSuperAdmin(submitter) === false, 'Campus Principal is NOT Super Admin');
+
+// 22. ADP WORKFORCE NOW STAFF ROSTER & TERMINATION ALIGNMENT ENGINE
+console.log('\n📌 Test 22: ADP Workforce Now Staff Directory & Termination Alignment Engine...');
+
+// 22a. Retrieve ADP staff roster
+const adpRoster = getStoredAdpStaff();
+assert(Array.isArray(adpRoster) && adpRoster.length >= 12, `ADP staff directory loaded (${adpRoster.length} workers)`);
+
+// 22b. Verify core staff members and their enterprise fields
+const cathyWorker = adpRoster.find(w => w.adpId === 'JMJRMGNGA');
+assert(!!cathyWorker, 'Cathy Velasco found in ADP directory (JMJRMGNGA)');
+assert(cathyWorker?.jobTitle === 'MEDICAL ASSISTANT', 'Cathy Velasco job title matches');
+assert(cathyWorker?.campus === 'SST Champions Elementary', 'Cathy Velasco campus is SST Champions Elementary');
+assert(cathyWorker?.positionId === 'POS-CHAMP-MED-01', 'Position Control ID POS-CHAMP-MED-01 verified');
+assert(cathyWorker?.annualSalary === 42000, 'Salary is recorded accurately ($42,000)');
+assert(cathyWorker?.contractType === 'At-Will', 'Employment agreement is strictly At-Will');
+assert(!!cathyWorker?.dpsSid, 'DPS SID background check ID exists');
+
+const marcusWorker = adpRoster.find(w => w.adpId === 'MKH88219A');
+assert(!!marcusWorker, 'Marcus Holloway found in ADP directory (MKH88219A)');
+assert(marcusWorker?.employmentStatus === 'Terminated', 'Marcus Holloway status in ADP is Terminated');
+assert(marcusWorker?.adpBatchNumber === 'ADP-2026-B849', 'Marcus Holloway ADP batch confirmed as ADP-2026-B849');
+
+// 22c. Reconciliation Engine with PARs
+const { updatedRoster, summary } = reconcileStaffWithPars(adpRoster, INITIAL_PAR_DATA);
+assert(summary.totalWorkers === adpRoster.length, `Reconciliation processed all ${adpRoster.length} staff`);
+assert(summary.activeCount >= 7, `Active staff accurately tracked (${summary.activeCount})`);
+assert(summary.terminatedCount >= 2, `Terminated staff tracked (${summary.terminatedCount})`);
+assert(summary.pendingAdpCloseoutCount >= 1, `Pending ADP closeouts flagged (${summary.pendingAdpCloseoutCount})`);
+
+// Cathy Velasco par-sst-001 is at payroll_action, so she must be flagged as pending_adp_closeout
+const reconciledCathy = updatedRoster.find(w => w.adpId === 'JMJRMGNGA');
+assert(reconciledCathy?.alignmentStatus === 'pending_adp_closeout', 'Cathy Velasco alignmentStatus is pending_adp_closeout');
+
+// 22d. Execution of ADP Termination Closeout (Paola Comparini finalizing PAR)
+const par001 = INITIAL_PAR_DATA.find(p => p.id === 'par-sst-001')!;
+assert(!!par001, 'par-sst-001 found for closeout test');
+const closedRoster = executeAdpTerminationCloseout(updatedRoster, 'JMJRMGNGA', par001, 'ADP-2026-B855');
+const terminatedCathy = closedRoster.find(w => w.adpId === 'JMJRMGNGA');
+assert(terminatedCathy?.employmentStatus === 'Terminated', 'Cathy Velasco status transitioned to Terminated');
+assert(terminatedCathy?.adpBatchNumber === 'ADP-2026-B855', 'Cathy Velasco recorded with ADP batch ADP-2026-B855');
+assert(terminatedCathy?.alignmentStatus === 'aligned', 'Cathy Velasco alignmentStatus updated to aligned');
+assert(terminatedCathy?.eligibleForRehire === 'No', 'Rehire eligibility set to No for job abandonment');
+
+// Re-running reconciliation shows 0 pending closeouts
+const postCloseoutRecon = reconcileStaffWithPars(closedRoster, INITIAL_PAR_DATA);
+assert(postCloseoutRecon.summary.pendingAdpCloseoutCount === 0, 'Zero pending closeouts remaining after ADP execution');
+
+// 22e. Batch Push Terminations
+const { closedCount } = batchPushTerminationsToAdp(adpRoster, INITIAL_PAR_DATA);
+assert(typeof closedCount === 'number', `batchPushTerminationsToAdp completed successfully (closed: ${closedCount})`);
+
+// 22f. ADP Custom Report CSV Parser
+const testCsv = `Associate ID,Worker Name,Campus,Department,Job Title,Annual Salary,Status,Hire Date
+TEST001,"Test Teacher, Alice",SST Spring,Instructional,Math Teacher,56000,Active,2022-08-01
+TEST002,"Test Coord, Bob",Central Office,Human Resources,HR Specialist,62000,Terminated,2021-06-15`;
+
+const parsedCsv = parseAdpCsvExport(testCsv);
+assert(parsedCsv.length === 2, `CSV parser successfully extracted 2 workers (Found: ${parsedCsv.length})`);
+assert(parsedCsv[0].associateId === 'TEST001', 'Parsed Worker 1 Associate ID is TEST001');
+assert(parsedCsv[0].employmentStatus === 'Active', 'Parsed Worker 1 status is Active');
+assert(parsedCsv[0].annualSalary === 56000, 'Parsed Worker 1 salary is 56000');
+assert(parsedCsv[1].associateId === 'TEST002', 'Parsed Worker 2 Associate ID is TEST002');
+assert(parsedCsv[1].employmentStatus === 'Terminated', 'Parsed Worker 2 status is Terminated');
 
 // SUMMARY
 console.log('\n======================================================');

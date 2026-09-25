@@ -10,6 +10,8 @@ import {
   WorkflowConfig
 } from '../types/par';
 import { MOCK_EMPLOYEES, buildSstRouting } from '../data/mockData';
+import { AdpWorker } from '../types/adp';
+import { getStoredAdpStaff } from '../utils/adpService';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { formatCurrency, getDepartmentNotificationRecipients } from '../utils/formatters';
 import { 
@@ -29,29 +31,48 @@ interface ParFormModalProps {
   onClose: () => void;
   onSubmitPar: (newPar: PersonnelActionRequest) => void;
   workflowConfig?: WorkflowConfig;
+  preSelectedWorker?: AdpWorker | null;
 }
 
 export const ParFormModal: React.FC<ParFormModalProps> = ({
   currentPersona,
   onClose,
   onSubmitPar,
-  workflowConfig
+  workflowConfig,
+  preSelectedWorker
 }) => {
-  const initialEmp = MOCK_EMPLOYEES[0];
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(initialEmp.id);
+  const adpStaffRoster = React.useMemo(() => getStoredAdpStaff(), []);
+  const initialWorker = preSelectedWorker || adpStaffRoster[0] || {
+    id: 'EMP-SST-001',
+    adpId: 'JMJRMGNGA',
+    associateId: 'JMJRMGNGA',
+    firstName: 'Cathy',
+    lastName: 'Velasco',
+    jobTitle: 'MEDICAL ASSISTANT',
+    campus: 'SST Champions Elementary' as Campus,
+    location: 'Houston' as SchoolLocation,
+    employmentStatus: 'Active',
+    workEmail: 'cvelasco@ssttx.org',
+    annualSalary: 42000,
+    supervisorName: 'Vanessa Nguyen'
+  };
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(initialWorker.adpId);
 
   // Fully Editable Employee Demographics
-  const [firstName, setFirstName] = useState<string>(initialEmp.firstName);
-  const [lastName, setLastName] = useState<string>(initialEmp.lastName);
-  const [employeeId, setEmployeeId] = useState<string>(initialEmp.adpId);
-  const [title, setTitle] = useState<string>(initialEmp.title);
-  const [campus, setCampus] = useState<Campus>(initialEmp.campus);
-  const [location, setLocation] = useState<SchoolLocation>(initialEmp.location);
-  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>(initialEmp.status as 'Full-time' | 'Part-time' | 'Sub');
-  const [workEmail, setWorkEmail] = useState<string>(initialEmp.email);
-  const [associateId, setAssociateId] = useState<string>(initialEmp.associateId || '100481');
-  const [currentSalary, setCurrentSalary] = useState<number>(initialEmp.currentSalary);
-  const [supervisorName, setSupervisorName] = useState<string>(initialEmp.supervisorName);
+  const [firstName, setFirstName] = useState<string>(initialWorker.firstName);
+  const [lastName, setLastName] = useState<string>(initialWorker.lastName);
+  const [employeeId, setEmployeeId] = useState<string>(initialWorker.adpId);
+  const [title, setTitle] = useState<string>(initialWorker.jobTitle || (initialWorker as any).title || '');
+  const [campus, setCampus] = useState<Campus>(initialWorker.campus);
+  const [location, setLocation] = useState<SchoolLocation>(initialWorker.location);
+  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>(
+    (initialWorker.employmentStatus as any) === 'Part-time' ? 'Part-time' : 'Full-time'
+  );
+  const [workEmail, setWorkEmail] = useState<string>(initialWorker.workEmail);
+  const [associateId, setAssociateId] = useState<string>(initialWorker.associateId || initialWorker.adpId);
+  const [currentSalary, setCurrentSalary] = useState<number>(initialWorker.annualSalary || (initialWorker as any).currentSalary || 50000);
+  const [supervisorName, setSupervisorName] = useState<string>(initialWorker.supervisorName || 'Campus Leadership');
 
   const [actionType, setActionType] = useState<ActionType>('termination');
   const [priority, setPriority] = useState<Priority>('urgent');
@@ -60,20 +81,36 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   // Handle employee selection from directory with auto-population
   const handleSelectEmployee = (empId: string) => {
     setSelectedEmployeeId(empId);
-    const emp = MOCK_EMPLOYEES.find(e => e.id === empId);
-    if (emp) {
-      setFirstName(emp.firstName);
-      setLastName(emp.lastName);
-      setEmployeeId(emp.adpId);
-      setTitle(emp.title);
-      setCampus(emp.campus);
-      setLocation(emp.location);
-      setEmploymentStatus((emp.status || 'Full-time') as 'Full-time' | 'Part-time' | 'Sub');
-      setWorkEmail(emp.email);
-      setAssociateId(emp.associateId || '100481');
-      setCurrentSalary(emp.currentSalary);
-      setSupervisorName(emp.supervisorName);
-      setProposedSalary(emp.currentSalary * 1.08);
+    const worker = adpStaffRoster.find(w => w.adpId === empId || w.id === empId);
+    if (worker) {
+      setFirstName(worker.firstName);
+      setLastName(worker.lastName);
+      setEmployeeId(worker.adpId);
+      setTitle(worker.jobTitle);
+      setCampus(worker.campus);
+      setLocation(worker.location);
+      setEmploymentStatus((worker.employmentStatus as any) === 'Part-time' ? 'Part-time' : 'Full-time');
+      setWorkEmail(worker.workEmail);
+      setAssociateId(worker.associateId || worker.adpId);
+      setCurrentSalary(worker.annualSalary);
+      setSupervisorName(worker.supervisorName);
+      setProposedSalary(worker.annualSalary * 1.08);
+      return;
+    }
+    const legacyEmp = MOCK_EMPLOYEES.find(e => e.id === empId || e.adpId === empId);
+    if (legacyEmp) {
+      setFirstName(legacyEmp.firstName);
+      setLastName(legacyEmp.lastName);
+      setEmployeeId(legacyEmp.adpId);
+      setTitle(legacyEmp.title);
+      setCampus(legacyEmp.campus);
+      setLocation(legacyEmp.location);
+      setEmploymentStatus((legacyEmp.status || 'Full-time') as 'Full-time' | 'Part-time' | 'Sub');
+      setWorkEmail(legacyEmp.email);
+      setAssociateId(legacyEmp.associateId || '100481');
+      setCurrentSalary(legacyEmp.currentSalary);
+      setSupervisorName(legacyEmp.supervisorName);
+      setProposedSalary(legacyEmp.currentSalary * 1.08);
     }
   };
 
@@ -102,7 +139,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [notesRelatingToPositionChange, setNotesRelatingToPositionChange] = useState('');
 
   // Salary / Stipend specifics
-  const [proposedSalary, setProposedSalary] = useState<number>(initialEmp.currentSalary * 1.08);
+  const [proposedSalary, setProposedSalary] = useState<number>((initialWorker.annualSalary || 50000) * 1.08);
   const [stipendAmount, setStipendAmount] = useState<number>(5000);
   const [salaryReason, setSalaryReason] = useState('AP STEM Incentive Stipend');
 
@@ -145,7 +182,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       employmentStatus,
       workEmail,
       associateId,
-      dpsSid: initialEmp.dpsSid,
+      dpsSid: initialWorker.dpsSid || '14018522',
       currentSalary,
 
       // Termination specifics
@@ -389,9 +426,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 onChange={(e) => handleSelectEmployee(e.target.value)}
                 className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
               >
-                {MOCK_EMPLOYEES.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.firstName} {emp.lastName} — {emp.title} ({emp.campus}) [ADP ID: {emp.adpId}]
+                {adpStaffRoster.map((worker) => (
+                  <option key={worker.adpId} value={worker.adpId}>
+                    {worker.fullName} — {worker.jobTitle} ({worker.campus}) [ADP ID: {worker.adpId}]{worker.employmentStatus !== 'Active' ? ` [${worker.employmentStatus}]` : ''}
                   </option>
                 ))}
               </select>

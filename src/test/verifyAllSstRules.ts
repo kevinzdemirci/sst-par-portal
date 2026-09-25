@@ -301,8 +301,15 @@ const payrollProcessed = INITIAL_PAYOUT_REQUESTS.find(p => p.status === 'process
 assert(Boolean(payrollProcessed), 'Fully executed ADP payroll record exists');
 assert(Boolean(payrollProcessed?.adpBatchNumber), `Executed payout has valid ADP batch confirmation (#${payrollProcessed?.adpBatchNumber})`);
 
-assert(SST_PAYROLL_CYCLES.length >= 3, `SST payroll cut-off calendar configured (Cycles: ${SST_PAYROLL_CYCLES.length})`);
-assert(SST_PAYROLL_CYCLES.some(c => c.cutoffDate === '2026-09-25'), 'Upcoming September 25 semi-monthly payroll cut-off exists');
+assert(SST_PAYROLL_CYCLES.length === 24, `SST 2026-2027 SY payroll schedule has exactly 24 semi-monthly periods (Cycles: ${SST_PAYROLL_CYCLES.length})`);
+const period1 = SST_PAYROLL_CYCLES.find(c => c.periodNumber === 1);
+assert(period1?.periodStartFormatted === '7/13/2026' && period1?.periodEndFormatted === '8/2/2026' && period1?.correctionsDueFormatted === '8/4/2026' && period1?.payDateFormatted === 'Friday, August 14, 2026', 'Period 1 matches official SST schedule (7/13/2026 - 8/2/2026, Due: 8/4/2026, Pay: Friday, August 14, 2026)');
+
+const period5 = SST_PAYROLL_CYCLES.find(c => c.periodNumber === 5);
+assert(period5?.periodStartFormatted === '9/14/2026' && period5?.periodEndFormatted === '9/27/2026' && period5?.correctionsDueFormatted === '9/29/2026' && period5?.payDateFormatted === 'Thursday, October 15, 2026', 'Period 5 matches official SST schedule (9/14/2026 - 9/27/2026, Due: 9/29/2026, Pay: Thursday, October 15, 2026)');
+
+const period24 = SST_PAYROLL_CYCLES.find(c => c.periodNumber === 24);
+assert(period24?.periodStartFormatted === '6/28/2027' && period24?.periodEndFormatted === '7/11/2027' && period24?.correctionsDueFormatted === '7/13/2027' && period24?.payDateFormatted === 'Friday, July 30, 2027', 'Period 24 matches official SST schedule (6/28/2027 - 7/11/2027, Due: 7/13/2027, Pay: Friday, July 30, 2027)');
 
 // 9. UNIFIED SST PEOPLE OPERATIONS & HR HUB PORTAL
 console.log('\n📌 Test 9: Unified SST People Operations & HR Hub Architecture...');
@@ -604,8 +611,8 @@ const newTestPayout: CpoPayoutRequest = {
   amount: 2400,
   category: 'Extra Duty & Coaching Stipend',
   reason: 'Fall 2026 Robotics Championship Coaching',
-  payrollCutoffDate: '2026-09-25',
-  payrollCycleName: 'September 25 Semi-Monthly',
+  payrollCutoffDate: '2026-09-29',
+  payrollCycleName: 'Period 5: 09/14/2026 – 09/27/2026',
   isUrgentCutoff: true,
   supportingDocs: [
     {

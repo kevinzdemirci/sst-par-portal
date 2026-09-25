@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { UserPersona } from '../types/par';
 import { CpoPayoutRequest, PayoutType, PayoutSupportingDoc, PayoutStatus } from '../types/payout';
-import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES } from '../data/mockPayoutData';
+import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES, getActivePayrollCycle } from '../data/mockPayoutData';
 import { 
   formatCurrency, 
   formatDate, 
@@ -104,8 +104,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const [formPayoutType, setFormPayoutType] = useState<PayoutType>('payment');
   const [formCategory, setFormCategory] = useState<string>(PAYOUT_CATEGORIES.payment[0]);
   const [formAmount, setFormAmount] = useState<string>('');
-  const [formCutoffDate, setFormCutoffDate] = useState<string>(SST_PAYROLL_CYCLES[0].cutoffDate);
-  const [formCycleName, setFormCycleName] = useState<string>(SST_PAYROLL_CYCLES[0].cycleName);
+  const activeCycle = getActivePayrollCycle();
+  const [formCutoffDate, setFormCutoffDate] = useState<string>(activeCycle.cutoffDate);
+  const [formCycleName, setFormCycleName] = useState<string>(activeCycle.cycleName);
   const [formReason, setFormReason] = useState<string>('');
   const [formDocs, setFormDocs] = useState<PayoutSupportingDoc[]>([]);
   const [formIsUrgent, setFormIsUrgent] = useState<boolean>(false);
@@ -1250,7 +1251,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     >
                       {SST_PAYROLL_CYCLES.map(cycle => (
                         <option key={cycle.id} value={cycle.cutoffDate}>
-                          {formatDate(cycle.cutoffDate)} — {cycle.cycleName.split(' ')[0]} (Pay {formatDate(cycle.payDate)})
+                          Period {cycle.periodNumber} ({cycle.periodStartFormatted} – {cycle.periodEndFormatted}) · Corrections Due: {cycle.correctionsDueFormatted} · Pay: {cycle.payDateFormatted}
                         </option>
                       ))}
                     </select>
@@ -1488,25 +1489,26 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
           )}
 
           {/* TAB 3: PAYROLL CUT-OFF CALENDAR (FOR REVIEWERS & AUDIT) */}
+          {/* TAB 3: PAYROLL CUT-OFF CALENDAR (FOR REVIEWERS & AUDIT) */}
           {activeTab === 'calendar' && (
-            <div className="max-w-4xl mx-auto space-y-6">
+            <div className="max-w-5xl mx-auto space-y-6">
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
                 <div className="border-b border-slate-200 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-5 h-5 text-amber-600" />
                       <h3 className="text-lg font-black text-slate-900 tracking-tight">
-                        SST Semi-Monthly Payroll Cut-Off Schedule (2026–2027)
+                        SCHOOL OF SCIENCE AND TECHNOLOGY 2026 - 2027 SY PAYROLL SCHEDULE
                       </h3>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      District deadlines for Regional HR compensation entry, Chief People Officer authorization, and ADP payroll execution.
+                      Official semi-monthly district schedule for Regional HR compensation entry, corrections cut-off deadlines, CPO authorization, and ADP payroll disbursement.
                     </p>
                   </div>
                   <div className="flex items-center space-x-2 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-xl">
                     <Clock className="w-4 h-4 text-amber-700 shrink-0" />
                     <div className="text-xs font-bold text-amber-900">
-                      Next Cut-Off: <strong>Sept 25, 2026 (5 Days Left)</strong>
+                      Current Cut-Off: <strong>Period 5 (Due Sept 29, 2026 — 5 Days Left)</strong>
                     </div>
                   </div>
                 </div>
@@ -1519,7 +1521,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                       <span>Regional HR Entry</span>
                     </div>
                     <p className="text-[11px] text-emerald-800 mt-1.5 leading-snug">
-                      Regional HR coordinators submit staff payout or deduction entries and attach required documents by <strong>5:00 PM on the cut-off date</strong>.
+                      Regional HR coordinators submit staff payout or deduction entries and attach required documents by <strong>5:00 PM on the Corrections Due date</strong>.
                     </p>
                   </div>
 
@@ -1544,50 +1546,98 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   </div>
                 </div>
 
-                {/* Pay Cycle Table */}
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
-                    <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                      <tr>
-                        <th className="px-4 py-3">Payroll Cycle</th>
-                        <th className="px-4 py-3">Regional HR Cut-Off Date</th>
-                        <th className="px-4 py-3">Target Pay Date</th>
-                        <th className="px-4 py-3">Cycle Status</th>
-                        <th className="px-4 py-3 text-right">Remaining Window</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {SST_PAYROLL_CYCLES.map(cycle => (
-                        <tr key={cycle.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="px-4 py-3 font-bold text-slate-900">
-                            {cycle.cycleName}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-slate-800">
-                            {formatDate(cycle.cutoffDate)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {formatDate(cycle.payDate)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              cycle.status === 'upcoming' 
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300' 
-                                : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {cycle.status === 'upcoming' ? '⏳ Active Submission Window' : 'Scheduled'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-700">
-                            {cycle.status === 'upcoming' ? (
-                              <span className="text-amber-800 font-black">5 Days Remaining</span>
-                            ) : (
-                              <span className="text-slate-400">Scheduled</span>
-                            )}
-                          </td>
+                {/* Pay Cycle Table (All 24 Cycles) */}
+                <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-xs">
+                  <div className="bg-[#0f2352] text-white px-4 py-2.5 flex items-center justify-between text-xs">
+                    <span className="font-black uppercase tracking-wider text-[11px]">
+                      District Semi-Monthly Pay Cycles (24 Cycles)
+                    </span>
+                    <span className="text-[11px] text-amber-300 font-bold">
+                      2026 – 2027 School Year
+                    </span>
+                  </div>
+                  <div className="max-h-[500px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                        <tr>
+                          <th className="px-3 py-2.5 text-center w-12">#</th>
+                          <th colSpan={2} className="px-4 py-2.5 text-center border-x border-slate-200">
+                            Pay Period
+                          </th>
+                          <th className="px-4 py-2.5 text-center bg-amber-100 text-amber-900 font-black border-r border-slate-200">
+                            Corrections Due
+                          </th>
+                          <th className="px-4 py-2.5 text-left">
+                            Pay Date
+                          </th>
+                          <th className="px-4 py-2.5 text-right">
+                            Status
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        <tr className="bg-slate-50 text-[9px] text-slate-500 font-bold border-t border-slate-200">
+                          <th className="px-3 py-1.5 text-center">Period</th>
+                          <th className="px-4 py-1.5 text-center border-l border-slate-200">Start Date</th>
+                          <th className="px-4 py-1.5 text-center border-r border-slate-200">End Date</th>
+                          <th className="px-4 py-1.5 text-center bg-amber-50 text-amber-800 border-r border-slate-200">Cut-Off</th>
+                          <th className="px-4 py-1.5">Official Disbursement</th>
+                          <th className="px-4 py-1.5 text-right">Phase</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {SST_PAYROLL_CYCLES.map(cycle => {
+                          const isActive = cycle.status === 'active';
+                          return (
+                            <tr 
+                              key={cycle.id} 
+                              className={`transition-colors ${
+                                isActive 
+                                  ? 'bg-amber-50/90 font-bold border-l-4 border-l-amber-500' 
+                                  : 'hover:bg-slate-50/80'
+                              }`}
+                            >
+                              <td className="px-3 py-2.5 text-center font-black text-slate-900">
+                                {cycle.periodNumber}
+                              </td>
+                              <td className="px-4 py-2.5 text-center font-semibold text-slate-800 border-l border-slate-100">
+                                {cycle.periodStartFormatted}
+                              </td>
+                              <td className="px-4 py-2.5 text-center font-semibold text-slate-800 border-r border-slate-100">
+                                {cycle.periodEndFormatted}
+                              </td>
+                              <td className="px-4 py-2.5 text-center font-black text-amber-950 bg-amber-50/40 border-r border-slate-100">
+                                {cycle.correctionsDueFormatted}
+                              </td>
+                              <td className="px-4 py-2.5 font-bold text-slate-900">
+                                <div className="flex items-center space-x-2">
+                                  <span>{cycle.payDateFormatted}</span>
+                                  {isActive && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-600 text-white font-black">
+                                      NEXT PAY
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 text-right">
+                                {isActive ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-blue-950 border border-amber-500">
+                                    ⏳ ACTIVE ({cycle.daysRemaining}d left)
+                                  </span>
+                                ) : cycle.status === 'closed' ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                    Completed
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                                    Scheduled
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

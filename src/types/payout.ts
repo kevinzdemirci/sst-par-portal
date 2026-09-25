@@ -19,9 +19,16 @@ export interface PayoutSupportingDoc {
 
 export interface PayrollCutoffCycle {
   id: string;
+  periodNumber: number; // 1 to 24
   cycleName: string;
-  cutoffDate: string; // YYYY-MM-DD
-  payDate: string;    // YYYY-MM-DD
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  cutoffDate: string; // YYYY-MM-DD (Corrections Due)
+  payDate: string; // YYYY-MM-DD
+  periodStartFormatted: string; // M/D/YYYY
+  periodEndFormatted: string; // M/D/YYYY
+  correctionsDueFormatted: string; // M/D/YYYY
+  payDateFormatted: string; // e.g. "Friday, August 14, 2026"
   status: 'active' | 'upcoming' | 'closed';
   daysRemaining: number;
 }

@@ -27,6 +27,7 @@ import { CpoPayoutModal } from './components/CpoPayoutModal';
 import { GmailSettingsModal } from './components/GmailSettingsModal';
 import { SstAppsScriptModal } from './components/SstAppsScriptModal';
 import { AuthModal } from './components/AuthModal';
+import { PayScheduleModal } from './components/PayScheduleModal';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
 import { CpoPayoutRequest } from './types/payout';
@@ -216,6 +217,7 @@ export function App() {
   const [isGmailModalOpen, setIsGmailModalOpen] = useState(false);
   const [isAppsScriptModalOpen, setIsAppsScriptModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPayScheduleModalOpen, setIsPayScheduleModalOpen] = useState(false);
   const [targetAccountRole, setTargetAccountRole] = useState<ApproverRoleConfig | null>(null);
   const [activationEmailTarget, setActivationEmailTarget] = useState<ApproverRoleConfig | UserPersona | null>(null);
   const [isActivationFlow, setIsActivationFlow] = useState<boolean>(false);
@@ -1105,6 +1107,7 @@ export function App() {
         onOpenGmailSettings={() => setIsGmailModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenAppsScriptModal={() => setIsAppsScriptModalOpen(true)}
+        onOpenPayScheduleModal={() => setIsPayScheduleModalOpen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -1662,6 +1665,14 @@ export function App() {
           setIsAuthModalOpen(false);
           showToast(`🔒 Signed in as ${p.name} (${p.role}).`, 'success');
         }}
+      />
+
+      {/* Official SST 2026 - 2027 SY Payroll Schedule Modal */}
+      <PayScheduleModal
+        isOpen={isPayScheduleModalOpen}
+        onClose={() => setIsPayScheduleModalOpen(false)}
+        districtLogo={getNormalizedLogoUrl(workflowConfig.districtLogo)}
+        districtName={workflowConfig.districtName}
       />
 
     </div>

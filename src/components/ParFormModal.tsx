@@ -9,9 +9,8 @@ import {
   SST_CAMPUS_REGIONS,
   WorkflowConfig
 } from '../types/par';
-import { MOCK_EMPLOYEES, buildSstRouting } from '../data/mockData';
+import { buildSstRouting } from '../data/mockData';
 import { AdpWorker } from '../types/adp';
-import { getStoredAdpStaff } from '../utils/adpService';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { formatCurrency, getDepartmentNotificationRecipients } from '../utils/formatters';
 import { 
@@ -41,84 +40,35 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   workflowConfig,
   preSelectedWorker
 }) => {
-  const adpStaffRoster = React.useMemo(() => getStoredAdpStaff(), []);
-  const initialWorker = preSelectedWorker || adpStaffRoster[0] || {
-    id: 'EMP-SST-001',
-    adpId: 'JMJRMGNGA',
-    associateId: 'JMJRMGNGA',
-    firstName: 'Cathy',
-    lastName: 'Velasco',
-    jobTitle: 'MEDICAL ASSISTANT',
-    campus: 'SST Champions Elementary' as Campus,
-    location: 'Houston' as SchoolLocation,
-    employmentStatus: 'Active',
-    workEmail: 'cvelasco@ssttx.org',
-    annualSalary: 42000,
-    supervisorName: 'Vanessa Nguyen'
-  };
-
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(initialWorker.adpId);
-
-  // Fully Editable Employee Demographics
-  const [firstName, setFirstName] = useState<string>(initialWorker.firstName);
-  const [lastName, setLastName] = useState<string>(initialWorker.lastName);
-  const [employeeId, setEmployeeId] = useState<string>(initialWorker.adpId);
-  const [title, setTitle] = useState<string>(initialWorker.jobTitle || (initialWorker as any).title || '');
-  const [campus, setCampus] = useState<Campus>(initialWorker.campus);
-  const [location, setLocation] = useState<SchoolLocation>(initialWorker.location);
-  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>(
-    (initialWorker.employmentStatus as any) === 'Part-time' ? 'Part-time' : 'Full-time'
+  // Fully Editable Employee Demographics (Added Manually)
+  const [firstName, setFirstName] = useState<string>(preSelectedWorker?.firstName || '');
+  const [lastName, setLastName] = useState<string>(preSelectedWorker?.lastName || '');
+  const [employeeId, setEmployeeId] = useState<string>(preSelectedWorker?.adpId || preSelectedWorker?.associateId || '');
+  const [title, setTitle] = useState<string>(preSelectedWorker?.jobTitle || '');
+  const [campus, setCampus] = useState<Campus>(
+    preSelectedWorker?.campus || (currentPersona?.campus as Campus) || 'SST Champions Elementary'
   );
-  const [workEmail, setWorkEmail] = useState<string>(initialWorker.workEmail);
-  const [associateId, setAssociateId] = useState<string>(initialWorker.associateId || initialWorker.adpId);
-  const [currentSalary, setCurrentSalary] = useState<number>(initialWorker.annualSalary || (initialWorker as any).currentSalary || 50000);
-  const [supervisorName, setSupervisorName] = useState<string>(initialWorker.supervisorName || 'Campus Leadership');
+  const [location, setLocation] = useState<SchoolLocation>(
+    preSelectedWorker?.location || 'Houston'
+  );
+  const [employmentStatus, setEmploymentStatus] = useState<'Full-time' | 'Part-time' | 'Sub'>(
+    (preSelectedWorker?.employmentStatus as any) === 'Part-time' ? 'Part-time' : 'Full-time'
+  );
+  const [workEmail, setWorkEmail] = useState<string>(preSelectedWorker?.workEmail || '');
+  const [associateId, setAssociateId] = useState<string>(preSelectedWorker?.associateId || preSelectedWorker?.adpId || '');
+  const [dpsSid, setDpsSid] = useState<string>(preSelectedWorker?.dpsSid || '');
+  const [currentSalary, setCurrentSalary] = useState<number>(preSelectedWorker?.annualSalary || 52000);
+  const [supervisorName, setSupervisorName] = useState<string>(preSelectedWorker?.supervisorName || currentPersona?.name || 'Campus Principal');
 
   const [actionType, setActionType] = useState<ActionType>('termination');
   const [priority, setPriority] = useState<Priority>('urgent');
-  const [effectiveDate, setEffectiveDate] = useState<string>('2026-09-15');
-
-  // Handle employee selection from directory with auto-population
-  const handleSelectEmployee = (empId: string) => {
-    setSelectedEmployeeId(empId);
-    const worker = adpStaffRoster.find(w => w.adpId === empId || w.id === empId);
-    if (worker) {
-      setFirstName(worker.firstName);
-      setLastName(worker.lastName);
-      setEmployeeId(worker.adpId);
-      setTitle(worker.jobTitle);
-      setCampus(worker.campus);
-      setLocation(worker.location);
-      setEmploymentStatus((worker.employmentStatus as any) === 'Part-time' ? 'Part-time' : 'Full-time');
-      setWorkEmail(worker.workEmail);
-      setAssociateId(worker.associateId || worker.adpId);
-      setCurrentSalary(worker.annualSalary);
-      setSupervisorName(worker.supervisorName);
-      setProposedSalary(worker.annualSalary * 1.08);
-      return;
-    }
-    const legacyEmp = MOCK_EMPLOYEES.find(e => e.id === empId || e.adpId === empId);
-    if (legacyEmp) {
-      setFirstName(legacyEmp.firstName);
-      setLastName(legacyEmp.lastName);
-      setEmployeeId(legacyEmp.adpId);
-      setTitle(legacyEmp.title);
-      setCampus(legacyEmp.campus);
-      setLocation(legacyEmp.location);
-      setEmploymentStatus((legacyEmp.status || 'Full-time') as 'Full-time' | 'Part-time' | 'Sub');
-      setWorkEmail(legacyEmp.email);
-      setAssociateId(legacyEmp.associateId || '100481');
-      setCurrentSalary(legacyEmp.currentSalary);
-      setSupervisorName(legacyEmp.supervisorName);
-      setProposedSalary(legacyEmp.currentSalary * 1.08);
-    }
-  };
+  const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().slice(0, 10));
 
   // Termination Questions (1 - 9)
   const [isVoluntary, setIsVoluntary] = useState<boolean>(false); // Involuntary default
   const [isSchoolYearNonRenewal, setIsSchoolYearNonRenewal] = useState<boolean>(false);
-  const [lastDayWorked, setLastDayWorked] = useState('2026-09-15');
-  const [reasonForTermination, setReasonForTermination] = useState('Ms. Velasco was set to start on 9/15 and did not show up to work and did not communicate with us after 9/15.');
+  const [lastDayWorked, setLastDayWorked] = useState(preSelectedWorker?.lastDayWorked || new Date().toISOString().slice(0, 10));
+  const [reasonForTermination, setReasonForTermination] = useState(preSelectedWorker?.terminationReason || '');
   const [terminationCode, setTerminationCode] = useState('A = Job Abandonment');
   const [allPtoEnteredInAdp, setAllPtoEnteredInAdp] = useState(true);
   const [returnedCharterProperty, setReturnedCharterProperty] = useState(true);
@@ -139,7 +89,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [notesRelatingToPositionChange, setNotesRelatingToPositionChange] = useState('');
 
   // Salary / Stipend specifics
-  const [proposedSalary, setProposedSalary] = useState<number>((initialWorker.annualSalary || 50000) * 1.08);
+  const [proposedSalary, setProposedSalary] = useState<number>((preSelectedWorker?.annualSalary || 52000) * 1.08);
   const [stipendAmount, setStipendAmount] = useState<number>(5000);
   const [salaryReason, setSalaryReason] = useState('AP STEM Incentive Stipend');
 
@@ -181,8 +131,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       campus,
       employmentStatus,
       workEmail,
-      associateId,
-      dpsSid: initialWorker.dpsSid || '14018522',
+      associateId: associateId || employeeId,
+      dpsSid: dpsSid || '14018522',
       currentSalary,
 
       // Termination specifics
@@ -405,33 +355,15 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
             </div>
           </div>
 
-          {/* Employee Selection & Fully Editable Demographics */}
+          {/* Employee Information (Manual Entry) */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
-                2. Employee Information (Auto-Populate or Customize)
+                2. Employee Information
               </label>
-              <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                ✓ Name & Employee ID are fully editable
+              <span className="text-[11px] text-blue-800 font-bold bg-blue-100/80 px-2.5 py-0.5 rounded-full border border-blue-200">
+                ✍️ Enter employee details manually
               </span>
-            </div>
-
-            {/* Auto-fill Dropdown */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                Quick Select from SST Directory (Auto-Fills Form):
-              </label>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => handleSelectEmployee(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
-              >
-                {adpStaffRoster.map((worker) => (
-                  <option key={worker.adpId} value={worker.adpId}>
-                    {worker.fullName} — {worker.jobTitle} ({worker.campus}) [ADP ID: {worker.adpId}]{worker.employmentStatus !== 'Active' ? ` [${worker.employmentStatus}]` : ''}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Editable Fields Grid */}
@@ -443,6 +375,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Maria"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
@@ -456,6 +389,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Rodriguez"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
@@ -470,27 +404,34 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   type="text"
                   required
                   value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="e.g. 104928"
+                  onChange={(e) => {
+                    setEmployeeId(e.target.value);
+                    if (!associateId || associateId === employeeId) {
+                      setAssociateId(e.target.value);
+                    }
+                  }}
+                  placeholder="e.g. MRG92014A or 104928"
                   className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                  Current Title / Position
+                  Current Title / Position *
                 </label>
                 <input
                   type="text"
+                  required
+                  placeholder="e.g. High School Science Teacher"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 />
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
-                  Campus Location
+                  Campus Location *
                 </label>
                 <select
                   value={campus}
@@ -502,7 +443,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     );
                     if (foundLoc) setLocation(foundLoc);
                   }}
-                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 >
                   {Object.entries(SST_CAMPUS_REGIONS).map(([region, campuses]) => (
                     <optgroup key={region} label={`${region} Region`}>
@@ -520,9 +461,41 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 </label>
                 <input
                   type="email"
+                  placeholder="e.g. mrodriguez@ssttx.org"
                   value={workEmail}
                   onChange={(e) => setWorkEmail(e.target.value)}
                   className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-blue-700 font-mono focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  Current Annual Salary ($) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={currentSalary}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setCurrentSalary(val);
+                    setProposedSalary(Math.round(val * 1.08));
+                  }}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  DPS SID (Texas Background ID)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 14018522"
+                  value={dpsSid}
+                  onChange={(e) => setDpsSid(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
                 />
               </div>
 
@@ -538,8 +511,36 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   <option value="At-Will">At-Will Agreement</option>
                 </select>
                 <span className="block text-[10px] text-slate-500 mt-1">
-                  All SST district staff operate under standard Texas At-Will Employment Agreements.
+                  Standard Texas At-Will Agreement
                 </span>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  Employment Status
+                </label>
+                <select
+                  value={employmentStatus}
+                  onChange={(e) => setEmploymentStatus(e.target.value as any)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                >
+                  <option value="Full-time">Full-time</option>
+                  <option value="Part-time">Part-time</option>
+                  <option value="Sub">Substitute</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-600 mb-1">
+                  Direct Supervisor Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Vanessa Nguyen"
+                  value={supervisorName}
+                  onChange={(e) => setSupervisorName(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-xl p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352]"
+                />
               </div>
             </div>
           </div>

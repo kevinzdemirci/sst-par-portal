@@ -6,6 +6,10 @@
  *
  *   GET /workers  (any path ending in /workers) → { syncedAt, workers: [...] }
  *
+ * SST's API Central project ("Worker Demographic Data (Read Only)") allows
+ * /hr/v2/worker-demographics, which returns the same worker records as /hr/v2/workers
+ * with sensitive personal information masked. Compensation is not included.
+ *
  * Every request must come through Cloudflare Access (Google sign-in limited to
  * the district domain). The browser never sees ADP credentials.
  *
@@ -20,12 +24,15 @@
  *   DPS_SID_FIELD          optional ADP custom field name/code holding the DPS SID
  *   TRS_FIELD              optional ADP custom indicator field for TRS membership
  *   INCLUDE_SALARY         "false" to omit annual salary from responses
+ *   ADP_WORKERS_PATH       optional, defaults to /hr/v2/worker-demographics
+ *   TERMINATED_LOOKBACK_DAYS  terminated staff older than this are left out (default 365)
  */
 
 import { mapWorker } from './mapWorker.js';
 
 const ADP_TOKEN_URL = 'https://accounts.adp.com/auth/oauth/v2/token';
-const ADP_WORKERS_URL = 'https://api.adp.com/hr/v2/workers';
+const ADP_API_BASE = 'https://api.adp.com';
+const DEFAULT_WORKERS_PATH = '/hr/v2/worker-demographics';
 const PAGE_SIZE = 100;
 const ROSTER_CACHE_MS = 10 * 60 * 1000;
 
@@ -52,15 +59,20 @@ export default {
         return json(cachedRoster.body, 200, cors);
       }
       const workers = await fetchAllWorkers(env);
+      const lookbackDays = Number(env.TERMINATED_LOOKBACK_DAYS) || 365;
+      const cutoff = new Date(Date.now() - lookbackDays * 86400000).toISOString().slice(0, 10);
       const body = {
         syncedAt: new Date().toISOString(),
-        workers: workers.map(w =>
-          mapWorker(w, {
-            dpsSidField: env.DPS_SID_FIELD,
-            trsField: env.TRS_FIELD,
-            includeSalary: env.INCLUDE_SALARY !== 'false'
-          })
-        )
+        workers: workers
+          .map(w =>
+            mapWorker(w, {
+              dpsSidField: env.DPS_SID_FIELD,
+              trsField: env.TRS_FIELD,
+              includeSalary: env.INCLUDE_SALARY !== 'false'
+            })
+          )
+          // Keep current staff and recent separations; long-gone staff only clutter the search.
+          .filter(w => w.status !== 'Terminated' || !w.terminationDate || w.terminationDate >= cutoff)
       };
       cachedRoster = { body, expiresAt: Date.now() + ROSTER_CACHE_MS };
       console.log(`roster served to ${identity.email}: ${body.workers.length} workers`);
@@ -93,7 +105,8 @@ async function fetchAllWorkers(env) {
   const token = await getAdpToken(env);
   const all = [];
   for (let skip = 0; ; skip += PAGE_SIZE) {
-    const res = await env.ADP_CERT.fetch(`${ADP_WORKERS_URL}?$top=${PAGE_SIZE}&$skip=${skip}`, {
+    const path = env.ADP_WORKERS_PATH || DEFAULT_WORKERS_PATH;
+    const res = await env.ADP_CERT.fetch(`${ADP_API_BASE}${path}?$top=${PAGE_SIZE}&$skip=${skip}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     });
     if (res.status === 204) break; // ADP returns 204 No Content past the last page

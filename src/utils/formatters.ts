@@ -618,18 +618,37 @@ function normalizeCampusName(name: string): string {
     .trim();
 }
 
+// ADP Workforce Now home work location names (after the code prefix is removed and the
+// name is normalized) that differ from the portal's campus names.
+const ADP_LOCATION_ALIASES: Record<string, Campus> = {
+  'champions': 'SST Champions Elementary',
+  'champions college prep': 'SST Champions College Prep High School',
+  'corpus elementary': 'SST Corpus Christi Elementary',
+  'cc college prep': 'SST Corpus Christi College Prep High School',
+  'sugarland': 'SST Sugar Land',
+  'sugarland college prep': 'SST Sugar Land College Prep High School',
+  'sa college prep': 'SST San Antonio College Prep High School',
+  'hill country college prep': 'SST Hill Country College Prep High School',
+  'hill country cp': 'SST Hill Country College Prep High School',
+  'central office': 'SST Central Office (District Administration)',
+  'regional office houston': 'SST Houston Regional Office'
+};
+
 /**
- * Matches an ADP work-location name (e.g. "SST - Spring Campus") to an SST campus,
- * ignoring "SST", the full district name, "campus", and punctuation.
+ * Matches an ADP work-location name (e.g. "015827 006-1 SST Champions") to an SST campus,
+ * ignoring ADP's location-code prefix, "SST", the full district name, "campus", and punctuation.
  * Returns undefined when there is no exact match, so callers never guess.
  */
 export function matchSstCampus(locationName?: string): Campus | undefined {
   if (!locationName) return undefined;
-  const exact = SST_CAMPUSES.find(c => c.toLowerCase() === locationName.trim().toLowerCase());
+  // ADP prefixes locations with a company code and location number, e.g. "015831 002-03 ".
+  const name = locationName.trim().replace(/^\d{6}\s+\d+(-\d+)?\s+/, '');
+  const exact = SST_CAMPUSES.find(c => c.toLowerCase() === name.toLowerCase());
   if (exact) return exact;
 
-  const target = normalizeCampusName(locationName).replace(/\bcampus\b/g, '').replace(/\s+/g, ' ').trim();
+  const target = normalizeCampusName(name).replace(/\bcampus\b/g, '').replace(/\s+/g, ' ').trim();
   if (!target) return undefined;
+  if (ADP_LOCATION_ALIASES[target]) return ADP_LOCATION_ALIASES[target];
   const normalized = SST_CAMPUSES.map(c => ({ campus: c, key: normalizeCampusName(c) }));
 
   // Only accept an exact match after normalizing. A partial match (e.g. "Sugar Land" inside

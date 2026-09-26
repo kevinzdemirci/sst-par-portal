@@ -256,7 +256,7 @@ export interface AdpRelayWorker {
   department: string;
   locationName: string;
   status: 'Active' | 'Leave of Absence' | 'Terminated';
-  workerType: 'Full-time' | 'Part-time' | null;
+  workerType: 'Full-time' | 'Part-time' | 'Sub' | null;
   hireDate: string;
   terminationDate?: string;
   annualSalary?: number;

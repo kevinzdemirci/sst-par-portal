@@ -8,7 +8,7 @@ campus, salary, supervisor, and DPS SID from ADP. Every field stays editable.
 
 ```
 PAR portal (browser)  →  SST ADP relay (Cloudflare Worker)  →  ADP Workforce Now API
-   staff sign in            holds ADP credentials                 hr/v2/workers
+   staff sign in            holds ADP credentials                 hr/v2/worker-demographics
    with Google              + certificate
 ```
 
@@ -28,7 +28,9 @@ limited to @ssttx.org accounts.
 ### Step 1. Request ADP API access
 Contact your ADP account representative and ask for **ADP API Central** for Workforce
 Now. It is ADP's add-on that lets a client connect its own tools. Ask for:
-- Read access to the **Workers** API (`/hr/v2/workers`)
+- **Worker Demographic Data (Read Only)**. SST's project uses this bundle, which allows
+  `/hr/v2/worker-demographics` (sensitive personal information is masked). It does not
+  include pay, so salary stays a manual field unless a compensation API is added.
 - Client credentials (a **Client ID** and **Client Secret**)
 - The steps to register a **client certificate** (ADP requires one)
 
@@ -51,9 +53,13 @@ This creates two files:
 ADP returns a signed certificate. Save it in the same folder as `sst-adp.pem`.
 
 ### Step 3. Note any custom fields
-If the district stores **DPS SID** or **TRS membership** in ADP custom fields, write
-down each field's exact name as it appears in ADP (for example `DPS SID`). You will
-enter them in Step 6. If not, skip this step; those fields stay blank for manual entry.
+SST stores the DPS SID in the ADP custom field **`DPS SID&/Name`**; `wrangler.toml`
+already uses it. No TRS membership field was found, so TRS defaults to "member" and
+can be changed on the form.
+
+ADP work locations (for example `015827 006-1 SST Champions`) are mapped to portal
+campuses in `ADP_LOCATION_ALIASES` in `src/utils/formatters.ts`. Staff assigned to
+several campuses (for example `CHAMP/CHAMPCP/HILLCOUNTRY`) get a blank campus to pick by hand.
 
 ---
 

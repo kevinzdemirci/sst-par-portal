@@ -1025,7 +1025,7 @@ const sampleAdpWorker = {
   businessCommunication: { emails: [{ emailUri: 'mrodriguez@ssttx.org' }] },
   workerDates: { originalHireDate: '2022-08-01' },
   customFieldGroup: {
-    stringFields: [{ nameCode: { codeValue: 'DPSSID', shortName: 'DPS SID' }, stringValue: '55501234' }],
+    stringFields: [{ nameCode: { shortName: 'DPS SID&/Name' }, stringValue: '55501234' }],
     indicatorFields: [{ nameCode: { shortName: 'TRS Member' }, indicatorValue: false }]
   },
   workAssignments: [
@@ -1043,7 +1043,7 @@ const sampleAdpWorker = {
     }
   ]
 };
-const relayRec = mapWorker(sampleAdpWorker, { dpsSidField: 'DPS SID', trsField: 'TRS Member' });
+const relayRec = mapWorker(sampleAdpWorker, { dpsSidField: 'DPS SID&/Name', trsField: 'TRS Member' });
 assert(relayRec.firstName === 'Maria' && relayRec.lastName === 'Rodriguez', 'Relay maps legal first/last name');
 assert(relayRec.workerId === 'MRG92014A' && relayRec.associateOID === 'G3ABC123XYZ', 'Relay maps ADP worker ID and associate OID');
 assert(relayRec.jobTitle === 'Science Teacher', 'Relay uses the primary work assignment');
@@ -1054,6 +1054,10 @@ assert(relayRec.supervisorName === 'Vanessa Nguyen', 'Relay maps reports-to supe
 assert(relayRec.dpsSid === '55501234' && relayRec.trsMember === false, 'Relay reads DPS SID and TRS custom fields');
 assert(!JSON.stringify(relayRec).includes('123-45-6789') && !JSON.stringify(relayRec).includes('1990-01-01'), 'Relay drops SSN and birth date');
 assert(mapWorker(sampleAdpWorker, { includeSalary: false }).annualSalary === undefined, 'Relay can omit salary');
+const subWorker = { ...sampleAdpWorker, workAssignments: [{ primaryIndicator: true, workerTypeCode: { codeValue: 'SUB', shortName: 'On-Call Substitute' } }] };
+assert(mapWorker(subWorker).workerType === 'Sub', 'Relay maps SUB (On-Call Substitute) to Sub');
+const ltsWorker = { ...sampleAdpWorker, workAssignments: [{ primaryIndicator: true, workerTypeCode: { codeValue: 'LTS', shortName: 'Long Term Substitute' } }] };
+assert(mapWorker(ltsWorker).workerType === 'Sub', 'Relay maps LTS (Long Term Substitute) to Sub');
 
 const appWorker = workerFromRelayRecord(relayRec, '2026-09-25T12:00:00Z');
 assert(appWorker.campus === 'SST Spring' && appWorker.location === 'Houston', `ADP location "SST - Spring Campus" maps to SST Spring / Houston (Got: ${appWorker.campus})`);
@@ -1063,6 +1067,23 @@ assert(matchSstCampus('SST Sugar Land College Prep High School') === 'SST Sugar 
 assert(matchSstCampus('Sugar Land College Prep HS Campus') === undefined, 'Campus match: a partial name is left blank instead of matching SST Sugar Land');
 assert(matchSstCampus('School of Science and Technology - Sugar Land College Prep High School') === 'SST Sugar Land College Prep High School', 'Campus match ignores the full district name prefix');
 assert(matchSstCampus('Warehouse') === undefined, 'Campus match returns undefined when there is no match');
+const adpLocationCases: [string, string | undefined][] = [
+  ['015827 006-1 SST Champions', 'SST Champions Elementary'],
+  ['015827 006-2 SST Champions College Prep', 'SST Champions College Prep High School'],
+  ['015831 005 SST Sugarland', 'SST Sugar Land'],
+  ['015831 009-02 SST Sugarland College Prep', 'SST Sugar Land College Prep High School'],
+  ['015827 001 SST SA College Prep', 'SST San Antonio College Prep High School'],
+  ['015831 002-2 SST CC College Prep', 'SST Corpus Christi College Prep High School'],
+  ['015831 008-02 SST-Hill Country College Prep', 'SST Hill Country College Prep High School'],
+  ['444444 444 SST Central Office', 'SST Central Office (District Administration)'],
+  ['666666 666 Regional Office-Houston', 'SST Houston Regional Office'],
+  ['015827 008 SONTERRA', 'SST Sonterra'],
+  ['CHAMP/CHAMPCP/HILLCOUNTRY', undefined]
+];
+adpLocationCases.forEach(([adpName, expected]) => {
+  const got = matchSstCampus(adpName);
+  assert(got === expected, `ADP location "${adpName}" maps to ${expected ?? 'no campus'} (Got: ${got ?? 'none'})`);
+});
 
 const csvWithGaps = `Associate ID,Legal First Name,Legal Last Name,Home Work Location,Status
 AAA111,Jordan,Lee,SST Alamo,Active

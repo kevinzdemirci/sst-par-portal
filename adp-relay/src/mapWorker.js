@@ -48,8 +48,11 @@ function mapStatus(worker, assignment) {
 }
 
 function mapWorkerType(assignment) {
-  const raw = `${assignment.workerTypeCode?.codeValue || ''} ${assignment.workerTypeCode?.shortName || ''}`.trim().toLowerCase();
+  const code = (assignment.workerTypeCode?.codeValue || '').toUpperCase();
+  const raw = `${code} ${assignment.workerTypeCode?.shortName || ''}`.trim().toLowerCase();
   if (!raw) return null;
+  // SST uses SUB (On-Call Substitute) and LTS (Long Term Substitute)
+  if (code === 'SUB' || code === 'LTS' || raw.includes('substitute')) return 'Sub';
   if (raw.startsWith('f') || raw.includes('full')) return 'Full-time';
   if (raw.startsWith('p') || raw.includes('part')) return 'Part-time';
   return null;

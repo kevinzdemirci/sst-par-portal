@@ -339,6 +339,9 @@ export function mergeAdpRoster(current: AdpWorker[], incoming: AdpWorker[]): Adp
  * Pulls the staff roster from ADP Workforce Now through the SST ADP relay.
  * The relay holds the ADP credentials; the browser only sends the user's sign-in cookie.
  */
+/** Fired on window whenever a live ADP roster has been saved, so open searches refresh. */
+export const ADP_ROSTER_UPDATED_EVENT = 'sst-adp-roster-updated';
+
 /** How often the portal re-reads the daily roster from Firestore. */
 export const ADP_AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** ADP data older than this is flagged as possibly out of date (the daily pull likely failed). */
@@ -423,6 +426,7 @@ export async function syncFromAdpApi(
       lastCheckedAt: new Date().toISOString(),
       lastSyncError: lastAttempt && !lastAttempt.ok ? lastAttempt.error || 'Daily ADP pull failed.' : undefined
     });
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(ADP_ROSTER_UPDATED_EVENT));
     return {
       success: true,
       syncedCount: workers.length,

@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { AdpWorker } from '../types/adp';
-import { getStoredAdpConfig, getStoredAdpStaff, isAdpDataStale, syncFromAdpApi } from '../utils/adpService';
+import {
+  ADP_ROSTER_UPDATED_EVENT,
+  getStoredAdpConfig,
+  getStoredAdpStaff,
+  isAdpDataStale,
+  isAdpSyncDue,
+  syncFromAdpApi
+} from '../utils/adpService';
 import { isFirebaseConfigured, signInWithDistrictGoogle, watchDistrictUser } from '../utils/firebaseClient';
 
 interface AdpEmployeeSearchProps {
@@ -31,20 +38,47 @@ export const AdpEmployeeSearch: React.FC<AdpEmployeeSearchProps> = ({
   const [isLookupOpen, setIsLookupOpen] = useState(false);
   const [activeMatch, setActiveMatch] = useState(0);
 
-  useEffect(() => watchDistrictUser(user => setAdpSignedIn(!!user)), []);
+  const reloadFromStorage = () => {
+    setAdpRoster(getStoredAdpStaff());
+    setAdpConfig(getStoredAdpConfig());
+  };
+
+  const loadLiveRoster = async () => {
+    setAdpLoadMessage('Loading ADP staff…');
+    try {
+      await syncFromAdpApi(getStoredAdpConfig());
+      reloadFromStorage();
+      setAdpLoadMessage('');
+    } catch (e: any) {
+      setAdpLoadMessage(e?.message || 'Could not load ADP staff.');
+    }
+  };
+
+  // Refresh whenever a live roster is saved (e.g. the app's background sync finishes).
+  useEffect(() => {
+    window.addEventListener(ADP_ROSTER_UPDATED_EVENT, reloadFromStorage);
+    return () => window.removeEventListener(ADP_ROSTER_UPDATED_EVENT, reloadFromStorage);
+  }, []);
+
+  // Once signed in, load the ADP roster right away if this browser has none or it is old.
+  useEffect(
+    () =>
+      watchDistrictUser(user => {
+        setAdpSignedIn(!!user);
+        if (user && isAdpSyncDue(getStoredAdpConfig())) loadLiveRoster();
+      }),
+    []
+  );
 
   const connectAdp = async () => {
     setAdpLoadMessage('Signing in…');
     try {
       await signInWithDistrictGoogle();
-      setAdpLoadMessage('Loading ADP staff…');
-      await syncFromAdpApi(getStoredAdpConfig());
-      setAdpRoster(getStoredAdpStaff());
-      setAdpConfig(getStoredAdpConfig());
-      setAdpLoadMessage('');
+      setAdpLoadMessage(prev => (prev === 'Signing in…' ? '' : prev));
     } catch (e: any) {
-      setAdpLoadMessage(e?.message || 'Could not load ADP staff.');
+      setAdpLoadMessage(e?.message || 'Google sign-in failed.');
     }
+    // watchDistrictUser above loads the roster once the sign-in registers.
   };
 
   const employeeMatches = useMemo(() => {

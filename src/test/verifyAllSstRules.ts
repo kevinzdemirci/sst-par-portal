@@ -576,6 +576,10 @@ const allActionTypes = ['termination', 'role_change', 'salary_change', 'promotio
 allActionTypes.forEach((act) => {
   const generatedSteps = buildSstRouting(act, false, 'Houston');
   assert(generatedSteps.length >= 2, `Action '${act}' generated valid sequential approval chain (${generatedSteps.length} steps)`);
+  if (act === 'leave_of_absence') {
+    assert(generatedSteps.map(st => st.stage).join(',') === 'hr_review,benefits_review', `Leave of Absence routes to Regional HR Coordinator then Benefits only (Got: ${generatedSteps.map(st => st.stage).join(', ')})`);
+    return;
+  }
   assert(generatedSteps[0].stage === 'supervisor_review', `Action '${act}' begins with Principal/Supervisor endorsement`);
   assert(generatedSteps[generatedSteps.length - 1].stage === 'payroll_action', `Action '${act}' finalizes with Payroll ADP execution`);
 });
@@ -1259,6 +1263,12 @@ const hasanNow = mergeAccountsIntoPersonas(USER_PERSONAS, officeAccounts).find(p
 assert(hasanNow.isNotificationOnly === false && hasanNow.campus === 'SST Houston Regional Office', 'Account settings override the built-in FYI-only persona');
 const houstonOfficePar = { ...INITIAL_PAR_DATA[0], campus: 'SST Houston Regional Office' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Houston Regional Office') };
 assert(canPersonaActOnPar(hasanNow, houstonOfficePar) && !canPersonaActOnPar(hasanNow, { ...houstonOfficePar, campus: 'SST Spring' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Spring') }), 'Hasan endorses Houston Regional Office PARs only');
+const loaHouston = buildSstRouting('leave_of_absence', false, 'Houston', officeConfig, 'SST Spring');
+const loaSa = buildSstRouting('leave_of_absence', false, 'San Antonio', officeConfig, 'SST Alamo');
+assert(loaHouston.map(st => st.assignedEmail).join(',') === 'kstewart@ssttx.org,uvillanueva@ssttx.org', 'Houston leave: Kristy Stewart (Regional HR) then Ursula Villanueva (Benefits)');
+assert(loaSa.map(st => st.assignedEmail).join(',') === 'ajohnson@ssttx.org,uvillanueva@ssttx.org', 'San Antonio leave: Amber Johnson (Regional HR) then Ursula Villanueva (Benefits)');
+const customRules = { ...DEFAULT_WORKFLOW_CONFIG, routingRules: DEFAULT_WORKFLOW_CONFIG.routingRules.map(r => ({ ...r, actionTypes: [...r.actionTypes, 'leave_of_absence' as const] })) };
+assert(buildSstRouting('leave_of_absence', false, 'Houston', customRules, 'SST Spring').every(st => st.stage === 'hr_review' || st.stage === 'benefits_review'), 'Leave route stays HR + Benefits even if saved routing rules include other stages');
 assert(!(SST_CAMPUSES as readonly string[]).includes('SST Main Campus (Corpus Christi)'), '"SST Main Campus (Corpus Christi)" removed (it is SST San Antonio College Prep)');
 const albaPersona = personaFromAccount(officeAccounts[0]);
 assert(canPersonaAccessPayouts(albaPersona) && !isRegionalHrCoordinator(albaPersona), 'Director of HR (Alba Urcullu) can view CPO Payouts, in reviewer mode (not HR entry)');

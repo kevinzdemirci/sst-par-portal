@@ -9,6 +9,7 @@ import {
   SST_CAMPUSES,
   SST_CAMPUS_REGIONS,
   WorkflowConfig,
+  ElectronicSignatureRecord,
   LEAVE_TYPES,
   LeaveType,
   MEDICAL_LEAVE_TYPES,
@@ -577,7 +578,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       gtpuid,
       actionType,
       priority,
-      currentStage: submitterEndorses ? firstPendingStage : 'supervisor_review',
+      currentStage: firstPendingStage,
       effectiveDate,
 
       employeeId: employeeId.trim().toUpperCase(),
@@ -669,7 +670,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       updatedAt: nowIso,
 
       routingSteps,
-      electronicSignatures: [
+      // Leave of Absence is signed by the Regional HR Coordinator and Benefits only.
+      electronicSignatures: ((list: ElectronicSignatureRecord[]) =>
+        isLeave ? list.filter(sig => sig.signingParty === 'HR' || sig.signingParty === 'Benefits') : list)([
         {
           signingParty: 'Supervisor',
           signerName: currentPersona.name,
@@ -742,7 +745,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           ipAddress: '208.184.164.228',
           status: 'pending'
         }
-      ],
+      ]),
       comments: [
         {
           id: `comm-${Date.now()}`,
@@ -750,7 +753,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           authorRole: currentPersona.role,
           authorDepartment: currentPersona.department,
           timestamp: nowIso,
-          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP Position ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. ${submitterEndorses ? 'Principal endorsement recorded at submission.' : 'Routed for Principal/Supervisor endorsement.'}`
+          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP Position ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. ${submitterEndorses ? 'Principal endorsement recorded at submission. ' : ''}Routed to ${routingSteps.find(s => s.status === 'pending')?.stageLabel || 'the next approver'}.`
         }
       ],
 

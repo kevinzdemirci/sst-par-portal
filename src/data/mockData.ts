@@ -4,8 +4,18 @@ import {
   ApprovalStep,
   SchoolLocation,
   WorkflowConfig,
+  WorkflowStage,
   SstRoutingRule
 } from '../types/par';
+
+/**
+ * District policy: the only approval stages allowed for an action type, whatever the
+ * (editable) routing rules say. Leave of Absence goes to the Regional HR Coordinator and
+ * Benefits only.
+ */
+export const ACTION_STAGE_POLICY: Partial<Record<ActionType, WorkflowStage[]>> = {
+  leave_of_absence: ['hr_review', 'benefits_review']
+};
 import { getInitialsAvatarUrl } from '../utils/formatters';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from './sstLogo';
 
@@ -18,7 +28,7 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     description: 'Initial review and administrative endorsement by Campus Principal or Direct Supervisor',
     stage: 'supervisor_review',
     stageLabel: 'Principal / Supervisor Endorsement',
-    actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
+    actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer'],
     voluntaryCondition: 'all',
     regionCondition: 'all',
     assignedApproverId: 'p-vanessa',
@@ -109,7 +119,7 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     description: 'Final wage calculation and ADP system execution by Paola Comparini',
     stage: 'payroll_action',
     stageLabel: 'Payroll & ADP Closeout',
-    actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
+    actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer'],
     voluntaryCondition: 'all',
     regionCondition: 'all',
     assignedApproverId: 'p-paola',
@@ -668,6 +678,11 @@ export function buildSstRouting(
       assignedEmail,
       status: 'pending'
     });
+  }
+
+  const allowedStages = ACTION_STAGE_POLICY[actionType];
+  if (allowedStages) {
+    return steps.filter(s => allowedStages.includes(s.stage));
   }
 
   // Safety fallback if no steps match

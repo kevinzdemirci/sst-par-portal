@@ -204,7 +204,7 @@ export const DEFAULT_WORKFLOW_CONFIG: WorkflowConfig = {
     {
       id: 'p-vanessa',
       roleKey: 'supervisor',
-      title: 'Principal / Supervisor',
+      title: 'Campus Principal',
       name: 'Vanessa Nguyen',
       email: 'vnguyen@ssttx.org',
       department: 'Campus Leadership',
@@ -401,7 +401,7 @@ export const USER_PERSONAS: UserPersona[] = [
   {
     id: 'p-vanessa',
     name: 'Vanessa Nguyen',
-    role: 'Principal / Supervisor',
+    role: 'Campus Principal',
     department: 'Campus Leadership',
     campus: 'SST Champions Elementary',
     region: 'Houston Area',

@@ -9,7 +9,8 @@ import {
   WorkflowConfig,
   ApproverRoleConfig
 } from './types/par';
-import { USER_PERSONAS, INITIAL_PAR_DATA, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
+import { USER_PERSONAS, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
+import { LEGACY_SAMPLE_PAR_IDS, LEGACY_SAMPLE_PAYOUT_IDS, withoutLegacySamples } from './data/legacySampleIds';
 import { canPersonaActOnPar, isChiefPeopleOfficer, isSuperAdmin, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
@@ -35,7 +36,6 @@ import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstA
 import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpService';
 import { watchDistrictUser } from './utils/firebaseClient';
 import { CpoPayoutRequest } from './types/payout';
-import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
 
 const STORAGE_KEY = 'sst_par_requests_v2';
@@ -81,11 +81,11 @@ export function App() {
   const [pars, setPars] = useState<PersonnelActionRequest[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) return withoutLegacySamples(JSON.parse(saved), LEGACY_SAMPLE_PAR_IDS);
     } catch {
       // ignore
     }
-    return INITIAL_PAR_DATA;
+    return [];
   });
 
   const [availablePersonas, setAvailablePersonas] = useState<UserPersona[]>(() => {
@@ -253,11 +253,11 @@ export function App() {
   const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
     try {
       const saved = localStorage.getItem(PAYOUTS_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) return withoutLegacySamples(JSON.parse(saved), LEGACY_SAMPLE_PAYOUT_IDS);
     } catch {
       // ignore
     }
-    return INITIAL_PAYOUT_REQUESTS;
+    return [];
   });
   
   // Notification Toast
@@ -851,16 +851,6 @@ export function App() {
     }
   };
 
-  // Reset Demo Data
-  const handleResetData = () => {
-    if (confirm('Reset records back to the uploaded School of Science and Technology PAR sample?')) {
-      setPars(INITIAL_PAR_DATA);
-      setSelectedPar(null);
-      localStorage.removeItem(STORAGE_KEY);
-      showToast('SST records reset to uploaded sample data.', 'info');
-    }
-  };
-
   // Open Account Creation / Role Activation Modal
   const handleOpenAccountCreation = (approver?: ApproverRoleConfig) => {
     setTargetAccountRole(approver || null);
@@ -1133,7 +1123,6 @@ export function App() {
         onOpenWorkflowModal={() => setIsWorkflowModalOpen(true)}
         onOpenAdminModal={() => setIsWorkflowAdminOpen(true)}
         availablePersonas={availablePersonas}
-        onResetData={handleResetData}
         pars={pars}
         filterActionQueue={filterActionQueue}
         onToggleActionQueue={() => setFilterActionQueue(!filterActionQueue)}

@@ -1194,7 +1194,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                       <input 
                         type="text"
                         required
-                        placeholder="e.g. Marcus Vance"
+                        placeholder="Employee full name"
                         name="payout-staff"
                         autoComplete="off"
                         data-1p-ignore

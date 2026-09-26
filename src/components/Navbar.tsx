@@ -3,7 +3,7 @@ import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
-import { Plus, Users, RefreshCw, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Users, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
 import { getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
@@ -19,7 +19,6 @@ interface NavbarProps {
   onOpenRoleManagerModal?: () => void;
   onOpenPayoutModal?: () => void;
   pendingPayoutsCount?: number;
-  onResetData: () => void;
   pars: PersonnelActionRequest[];
   filterActionQueue: boolean;
   onToggleActionQueue: () => void;
@@ -45,7 +44,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenRoleManagerModal,
   onOpenPayoutModal,
   pendingPayoutsCount = 0,
-  onResetData,
   pars,
   filterActionQueue,
   onToggleActionQueue,
@@ -497,28 +495,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
-                  {/* Reset Sample Records (Super Admin Only) */}
-                  {isAdmin && (
-                    <>
-                      <div className="my-1 border-t border-slate-100" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsToolsOpen(false);
-                          if (window.confirm('Reset sample records to uploaded SST PAR form demonstration defaults?')) {
-                            onResetData();
-                          }
-                        }}
-                        className="w-full text-left px-3 py-2 flex items-center space-x-2.5 hover:bg-rose-50 text-rose-800 transition-colors"
-                      >
-                        <RefreshCw className="w-4 h-4 text-rose-600 shrink-0" />
-                        <div>
-                          <div className="font-bold">Reset Demo Sample Records</div>
-                          <div className="text-[10px] text-rose-600/70">Restore factory sample PARs</div>
-                        </div>
-                      </button>
-                    </>
-                  )}
                 </div>
               )}
             </div>

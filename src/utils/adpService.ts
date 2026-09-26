@@ -1,5 +1,6 @@
 import { AdpWorker, AdpConnectionConfig, TerminationAlignmentSummary, AdpAlignmentStatus } from '../types/adp';
-import { INITIAL_ADP_STAFF_ROSTER, DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
+import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
+import { LEGACY_SAMPLE_ADP_WORKER_IDS, withoutLegacySamples } from '../data/legacySampleIds';
 import { PersonnelActionRequest, SchoolLocation } from '../types/par';
 import { locationForCampus, matchSstCampus } from './formatters';
 import { doc, getDoc } from 'firebase/firestore';
@@ -21,8 +22,8 @@ export function getStoredAdpStaff(): AdpWorker[] {
       const raw = localStorage.getItem(ADP_STAFF_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          return withoutLegacySamples(parsed as AdpWorker[], LEGACY_SAMPLE_ADP_WORKER_IDS);
         }
       }
     } else if (memoryAdpStaffStore) {
@@ -31,7 +32,7 @@ export function getStoredAdpStaff(): AdpWorker[] {
   } catch (e) {
     console.error('Error reading stored ADP staff roster:', e);
   }
-  return INITIAL_ADP_STAFF_ROSTER;
+  return [];
 }
 
 /**

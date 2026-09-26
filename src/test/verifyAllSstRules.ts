@@ -1,4 +1,5 @@
-import { DEFAULT_WORKFLOW_CONFIG, INITIAL_PAR_DATA, USER_PERSONAS, buildSstRouting } from '../data/mockData';
+import { DEFAULT_WORKFLOW_CONFIG, USER_PERSONAS, buildSstRouting } from '../data/mockData';
+import { SAMPLE_PARS as INITIAL_PAR_DATA, SAMPLE_PAYOUTS as INITIAL_PAYOUT_REQUESTS, SAMPLE_ADP_ROSTER } from './fixtures/sampleData';
 import { 
   canPersonaActOnPar, 
   isRegionalHrCoordinator, 
@@ -11,7 +12,7 @@ import {
   isSuperAdmin 
 } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS, Campus } from '../types/par';
-import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
+import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { CpoPayoutRequest } from '../types/payout';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
 import { 
@@ -36,6 +37,7 @@ import {
 } from '../utils/sstAppsScriptService';
 import { 
   getStoredAdpStaff, 
+  saveStoredAdpStaff,
   reconcileStaffWithPars, 
   executeAdpTerminationCloseout, 
   batchPushTerminationsToAdp, 
@@ -957,6 +959,7 @@ assert(isSuperAdmin(submitter) === false, 'Campus Principal is NOT Super Admin')
 console.log('\n📌 Test 22: ADP Workforce Now Staff Directory & Termination Alignment Engine...');
 
 // 22a. Retrieve ADP staff roster
+saveStoredAdpStaff(SAMPLE_ADP_ROSTER);
 const adpRoster = getStoredAdpStaff();
 assert(Array.isArray(adpRoster) && adpRoster.length >= 12, `ADP staff directory loaded (${adpRoster.length} workers)`);
 

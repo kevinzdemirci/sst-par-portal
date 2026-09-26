@@ -847,7 +847,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
               rows={8}
               value={csvInput}
               onChange={(e) => setCsvInput(e.target.value)}
-              placeholder="Associate ID, First Name, Last Name, Job Title, Campus, Status, Annual Salary, Hire Date&#10;JMJRMGNGA, Cathy, Velasco, Medical Assistant, SST Champions Elementary, Active, 42000, 2026-09-15"
+              placeholder="Paste the CSV export from ADP. The first line must be the column headers, for example:&#10;Associate ID, Legal First Name, Legal Last Name, Job Title, Home Work Location, Position Status, Hire Date"
               className="w-full p-3 font-mono text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none"
             />
             <div className="flex justify-end space-x-2">

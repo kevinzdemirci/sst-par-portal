@@ -293,6 +293,9 @@ export interface PersonnelActionRequest {
   outstandingPropertyNotes?: string;
   rehireEligibility?: RehireEligibility;
   finalPayDeadline?: string; // Texas Payday Law (Tex. Lab. Code § 61.014) deadline, YYYY-MM-DD
+  /** Separation involves misconduct SST must report to TEA (Tex. Educ. Code § 21.006 / § 22.093). */
+  reportableMisconduct?: boolean;
+  teaReportDeadline?: string; // YYYY-MM-DD, 7 business days
 
   // Leave of Absence (SST Employee Request For Leave)
   leaveType?: LeaveType;            // first selected type (older PARs have only this)

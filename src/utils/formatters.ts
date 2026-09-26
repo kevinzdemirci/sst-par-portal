@@ -706,7 +706,7 @@ export const HR_REVISION_REASONS = [
   'Last day worked conflicts with campus attendance / biometric records',
   'Proposed compensation adjustment exceeds board-approved salary scale',
   'ADP Position Control & job requisition code verification required',
-  'TRS Form 7/10 Notice of Separation required before payroll release',
+  'TRS employment status must be updated in the monthly TRS report',
   'Outstanding district assets (laptop, charger, master keys, RFID badge) unreturned',
   'Exit interview & handover documentation has not been completed',
   'PTO / UTO day balance requires campus verification before payroll settlement',
@@ -714,7 +714,8 @@ export const HR_REVISION_REASONS = [
 ] as const;
 
 /**
- * Calculate Texas statutory 30-day COBRA notification deadline from Last Day Worked
+ * COBRA: the employer notifies the plan administrator within 30 days of the qualifying event
+ * (29 U.S.C. § 1166; for public employers, the Public Health Service Act). Counted from the last day worked.
  */
 export function getTexasCobraDeadline(lastDayWorked?: string): {
   deadlineDateStr: string;
@@ -820,6 +821,26 @@ export function addDaysIso(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Adds business days (Monday–Friday) to a YYYY-MM-DD date. School holidays are not skipped. */
+export function addBusinessDaysIso(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  let added = 0;
+  while (added < days) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6) added++;
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * TEA misconduct report deadline for a separation (Tex. Educ. Code § 21.006 for certified
+ * staff, § 22.093 for other staff): 7 business days, counted conservatively from the last day worked.
+ */
+export function getTeaMisconductReportDeadline(lastDayWorked?: string): string | undefined {
+  return lastDayWorked ? addBusinessDaysIso(lastDayWorked, 7) : undefined;
+}
+
 /**
  * Texas Payday Law (Tex. Lab. Code § 61.014) final-pay deadline:
  * - Discharged (involuntary): within 6 calendar days of discharge.
@@ -904,7 +925,7 @@ export function generateParsCsvString(pars: PersonnelActionRequest[]): string {
       `"${p.currentSalary.toFixed(2)}"`,
       `"${(p.proposedSalary || p.currentSalary).toFixed(2)}"`,
       `"${salaryDelta.toFixed(2)}"`,
-      `"${(p.finalPay || 0).toFixed(2)}"`,
+      `"${p.finalPay ? p.finalPay.toFixed(2) : ''}"`,
       `"${sigsCount}"`,
       `"${p.submittedBy}"`,
       `"${p.submitterEmail}"`,

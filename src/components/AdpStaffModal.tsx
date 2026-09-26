@@ -691,7 +691,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
               <AlertCircle className="w-5 h-5 text-[#b91c1c] shrink-0 mt-0.5" />
               <div className="text-[11px] leading-relaxed">
                 <strong className="text-slate-900 font-bold block mb-0.5">Texas Charter HR Statutory Requirements:</strong>
-                All separations must complete TRS Form 10 notice within 30 days of the last day worked. Benefits coordinators must issue federal COBRA notices within 14 days of separation. Final paychecks must reflect audited PTO adjustments in ADP Workforce Now prior to issuing batch confirmations.
+                Final pay: within 6 days of a discharge, or by the next regular payday after a resignation (Tex. Lab. Code § 61.014). COBRA: SST notifies the plan administrator within 30 days, and the administrator sends the election notice within 14 days after that. TRS: update the employee's status in the monthly TRS report. Misconduct involving students or school property: report to TEA within 7 business days (Tex. Educ. Code § 21.006 / § 22.093).
               </div>
             </div>
 

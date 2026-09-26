@@ -26,7 +26,7 @@ import {
   HR_REVISION_REASONS, 
   getTexasCobraDeadline, 
   generateParsCsvString,
-  getTexasFinalPayDeadline,
+  getTexasFinalPayDeadline, addBusinessDaysIso, getTeaMisconductReportDeadline,
   addDaysIso,
   parseDateOnly,
   formatDate
@@ -740,7 +740,7 @@ console.log('\n📌 Test 16: Texas Charter HR Compliance & TRS / COBRA Statutory
 // 16a. HR Revision Reason Templates
 assert(HR_REVISION_REASONS.length >= 6, `HR revision templates configured (Found: ${HR_REVISION_REASONS.length})`);
 assert(HR_REVISION_REASONS.some(r => r.includes('ADP Position Control')), 'Includes ADP Position Control template');
-assert(HR_REVISION_REASONS.some(r => r.includes('TRS Form 7/10') || r.includes('TRS separation')), 'Includes TRS documentation template');
+assert(HR_REVISION_REASONS.some(r => r.includes('monthly TRS report')), 'Includes TRS reporting reason (monthly TRS report, not a made-up form number)');
 assert(HR_REVISION_REASONS.some(r => r.includes('At-Will')), 'Includes At-Will agreement template');
 
 // 16b. COBRA 30-Day Statutory Deadline Calculation
@@ -1361,6 +1361,9 @@ const voluntaryPay = getTexasFinalPayDeadline('2026-09-15', true);
 assert(voluntaryPay.deadline === '2026-09-30', `Voluntary final pay due next regular payday after last day, not same-day payday (Got: ${voluntaryPay.deadline})`);
 assert(getTexasFinalPayDeadline('2026-09-15', null).deadline === undefined, 'No final pay deadline until separation is classified');
 assert(getTexasFinalPayDeadline(undefined, true).deadline === undefined, 'No final pay deadline without a last day worked');
+assert(addBusinessDaysIso('2026-09-25', 7) === '2026-10-06', `7 business days from Fri 9/25 skips two weekends (Got: ${addBusinessDaysIso('2026-09-25', 7)})`);
+assert(getTeaMisconductReportDeadline('2026-09-28') === '2026-10-07', 'TEA misconduct report due 7 business days after the last day worked (Tex. Educ. Code § 21.006)');
+assert(getTeaMisconductReportDeadline(undefined) === undefined, 'No TEA report deadline without a last day worked');
 assert(addDaysIso('2026-12-29', 6) === '2027-01-04', 'addDaysIso crosses year boundary correctly');
 assert(addDaysIso('2026-03-07', 1) === '2026-03-08', 'addDaysIso is unaffected by DST transitions');
 assert(parseDateOnly('2026-09-15').getDate() === 15, 'Date-only strings parse as local calendar dates');

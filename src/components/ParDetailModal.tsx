@@ -139,6 +139,14 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   const [editTitle, setEditTitle] = useState(par?.title || '');
 
   useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
     if (par) {
       setEditFirstName(par.firstName);
       setEditLastName(par.lastName);
@@ -323,8 +331,8 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
       <div className="par-print-panel bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
         
         {/* Header Bar */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between no-print">
-          <div className="flex items-center space-x-3">
+        <div className="shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-slate-50/90 flex flex-wrap items-center justify-between gap-2 no-print">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
             <div className="font-mono font-black text-[#0f2352] text-base">
               {par.trackingNumber}
             </div>
@@ -339,7 +347,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
             {onDeletePar && (
               <button
                 type="button"
@@ -389,11 +397,14 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
               title="Print official SST Personnel Action Request"
             >
               <Printer className="w-3.5 h-3.5 text-[#0f2352]" />
-              <span>Print Official PAR Form</span>
+              <span className="sm:hidden">Print</span>
+              <span className="hidden sm:inline">Print Official PAR Form</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+              aria-label="Close"
+              title="Close"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -463,58 +474,62 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
         </div>
 
         {/* View Switcher Tabs */}
-        <div className="px-6 pt-3 bg-white border-b border-slate-200 flex space-x-6 text-xs font-bold no-print">
+        <div className="shrink-0 px-4 sm:px-6 pt-3 bg-white border-b border-slate-200 flex gap-5 sm:gap-6 overflow-x-auto whitespace-nowrap text-xs font-bold no-print">
           <button
             onClick={() => setActiveTab('form')}
-            className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`pb-3 border-b-2 transition-colors flex shrink-0 items-center space-x-2 ${
               activeTab === 'form'
                 ? 'border-[#0f2352] text-[#0f2352]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <FileCheck className="w-4 h-4 text-[#b91c1c]" />
-            <span>Personnel Action Request Form (SST Official)</span>
+            <span className="sm:hidden">Form</span>
+            <span className="hidden sm:inline">Personnel Action Request Form (SST Official)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('signatures')}
-            className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`pb-3 border-b-2 transition-colors flex shrink-0 items-center space-x-2 ${
               activeTab === 'signatures'
                 ? 'border-[#0f2352] text-[#0f2352]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Electronic Signatures & GTPUID Audit ({par.electronicSignatures.filter(s => s.status === 'signed').length} Signed)</span>
+            <span className="sm:hidden">Signatures ({par.electronicSignatures.filter(s => s.status === 'signed').length})</span>
+            <span className="hidden sm:inline">Electronic Signatures & GTPUID Audit ({par.electronicSignatures.filter(s => s.status === 'signed').length} Signed)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('audit')}
-            className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`pb-3 border-b-2 transition-colors flex shrink-0 items-center space-x-2 ${
               activeTab === 'audit'
                 ? 'border-[#0f2352] text-[#0f2352]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Clock className="w-4 h-4 text-slate-500" />
-            <span>Activity Thread & Notes ({par.comments.length})</span>
+            <span className="sm:hidden">Activity ({par.comments.length})</span>
+            <span className="hidden sm:inline">Activity Thread & Notes ({par.comments.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`pb-3 border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`pb-3 border-b-2 transition-colors flex shrink-0 items-center space-x-2 ${
               activeTab === 'notifications'
                 ? 'border-purple-600 text-purple-700 font-black'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Bell className="w-4 h-4 text-purple-600" />
-            <span>Department Notifications (IT & Talent Acquisition — No Action Required)</span>
+            <span className="sm:hidden">Notices</span>
+            <span className="hidden sm:inline">Department Notifications (IT & Talent Acquisition — No Action Required)</span>
           </button>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="par-print-body flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/70">
+        <div className="par-print-body flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 bg-slate-50/70">
           
           {/* TAB 1: EXACT OFFICIAL SST FORM */}
           {activeTab === 'form' && (
@@ -706,6 +721,16 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         <span className="font-semibold">{formatDate(par.finalPayDeadline)}</span>
                         <span className="ml-1 text-[11px] text-slate-600">
                           ({par.isVoluntary ? 'next regular payday after resignation' : 'within 6 calendar days of discharge'})
+                        </span>
+                      </div>
+                    )}
+
+                    {par.reportableMisconduct && (
+                      <div className="p-2.5 rounded-xl border text-xs bg-rose-50/70 border-rose-300 text-rose-950">
+                        <span className="font-bold">TEA misconduct report due: </span>
+                        <span className="font-semibold">{par.teaReportDeadline ? formatDate(par.teaReportDeadline) : 'within 7 business days'}</span>
+                        <span className="ml-1 text-[11px] text-slate-600">
+                          (Tex. Educ. Code § 21.006 for certified staff, § 22.093 for other staff)
                         </span>
                       </div>
                     )}
@@ -1082,11 +1107,11 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Total Worked Days:</span>
-                      <span>{par.totalWorkedDays ?? 0}</span>
+                      <span>{par.totalWorkedDays ?? '—'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">PTO Balance:</span>
-                      <span>{par.ptoBalance ?? 0}</span>
+                      <span>{par.ptoBalance ?? '—'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Reason Code:</span>
@@ -1104,21 +1129,25 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono mb-3">
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Total Compensated Days:</span>
-                      <span>{par.totalCompensatedDays ?? '0.00'}</span>
+                      <span>{par.totalCompensatedDays ?? '—'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Daily Rate:</span>
-                      <span>{formatCurrency(par.dailyRate || 161.54)}</span>
+                      <span>{par.dailyRate ? formatCurrency(par.dailyRate) : '—'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Unearned PTO Deduction:</span>
-                      <span>{formatCurrency(par.unearnedPtoDeduction ?? 0)}</span>
+                      <span>{par.unearnedPtoDeduction !== undefined ? formatCurrency(par.unearnedPtoDeduction) : '—'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-sans block text-[10px]">Final Net Pay:</span>
-                      <strong className="text-sm font-bold text-slate-900">{formatCurrency(par.finalPay ?? 0)}</strong>
+                      <strong className="text-sm font-bold text-slate-900">{par.finalPay ? formatCurrency(par.finalPay) : '—'}</strong>
                     </div>
                   </div>
+
+                  <p className="text-[10px] text-slate-500 font-sans mb-3">
+                    Final pay is calculated by Payroll in ADP. A deduction from final pay (for example, unearned PTO or unreturned property) requires the employee's written authorization (Tex. Lab. Code § 61.018).
+                  </p>
 
                   {/* Signatures from HR, Benefits, Payroll */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">

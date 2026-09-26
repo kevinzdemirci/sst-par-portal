@@ -31,6 +31,7 @@ import {
   formatDate,
   getDepartmentNotificationRecipients,
   getTexasFinalPayDeadline,
+  getTeaMisconductReportDeadline,
   isCampusPrincipal,
   isValidAdpPositionId,
   locationForCampus
@@ -154,7 +155,7 @@ const YesNo: React.FC<{
       {[true, false].map(option => (
         <label
           key={String(option)}
-          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs cursor-pointer transition-colors ${
+          className={`flex items-center gap-1.5 rounded-md border px-3 py-2 sm:px-2.5 sm:py-1 text-xs cursor-pointer transition-colors ${
             value === option
               ? 'border-[#0f2352] bg-[#0f2352]/5 text-[#0f2352] font-semibold'
               : 'border-slate-200 text-slate-700 hover:border-slate-300'
@@ -232,6 +233,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [outstandingPropertyNotes, setOutstandingPropertyNotes] = useState('');
   const [trsNotificationRequired, setTrsNotificationRequired] = useState<boolean>(preSelectedWorker?.trsMember ?? true);
   const [hasWrittenStatements, setHasWrittenStatements] = useState<boolean | null>(null);
+  const [reportableMisconduct, setReportableMisconduct] = useState<boolean | null>(null);
   const [outstandingStipendsOwed, setOutstandingStipendsOwed] = useState<boolean | null>(null);
   const [rehireEligibility, setRehireEligibility] = useState<RehireEligibility | ''>('');
   const [finalPayCheckComment, setFinalPayCheckComment] = useState('');
@@ -290,6 +292,17 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     [isTermination, lastDayWorked, isVoluntary]
   );
   const cobraAdminNoticeDate = lastDayWorked ? addDaysIso(lastDayWorked, 30) : undefined;
+  const teaReportDeadline = isTermination && reportableMisconduct ? getTeaMisconductReportDeadline(lastDayWorked) : undefined;
+
+  /** Reportable misconduct always goes to the CPO, even when the employee resigned. */
+  const routeFor = (type: ActionType, voluntary: boolean, campusName?: Campus) => {
+    const steps = buildSstRouting(type, voluntary, location, workflowConfig, campusName);
+    if (type !== 'termination' || reportableMisconduct !== true || steps.some(s => s.stage === 'cpo_review')) return steps;
+    const cpoStep = buildSstRouting(type, false, location, workflowConfig, campusName).find(s => s.stage === 'cpo_review');
+    if (!cpoStep) return steps;
+    const at = steps.findIndex(s => s.stage === 'supervisor_review') + 1;
+    return [...steps.slice(0, at), cpoStep, ...steps.slice(at)];
+  };
 
   const payrollCycle = useMemo(
     () => SST_PAYROLL_CYCLES.find(c => c.startDate <= effectiveDate && effectiveDate <= c.endDate),
@@ -299,9 +312,10 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const routingPreview = useMemo(
     () =>
       actionType
-        ? buildSstRouting(actionType, isTermination ? isVoluntary === true : false, location, workflowConfig, campus || undefined)
+        ? routeFor(actionType, isTermination ? isVoluntary === true : false, campus || undefined)
         : [],
-    [actionType, isTermination, isVoluntary, location, workflowConfig, campus]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [actionType, isTermination, isVoluntary, location, workflowConfig, campus, reportableMisconduct]
   );
 
   const sendsDepartmentNotices = actionType !== null && ACTIONS_WITH_DEPARTMENT_NOTICES.includes(actionType);
@@ -341,6 +355,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
         errs.push('List the school property that is still outstanding.');
       }
       if (hasWrittenStatements === null) errs.push('Indicate whether written statements or incident reports exist.');
+      if (reportableMisconduct === null) errs.push('Indicate whether the separation involves misconduct reportable to TEA.');
       if (hasWrittenStatements === true && attachments.length === 0) {
         errs.push('Attach the written statements or incident reports referenced above.');
       }
@@ -392,6 +407,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
         errs.push('Enter a new base salary or a stipend amount.');
       }
       if (!salaryReason.trim()) errs.push('Enter the reason for the compensation change.');
+      if (proposedSalary > 0 && proposedSalary < currentSalary && effectiveDate && effectiveDate < today) {
+        errs.push('A pay reduction cannot be backdated. Texas law only allows it for work performed after the employee is notified; use an effective date of today or later.');
+      }
       if (proposedSalary > 0 && proposedSalary < currentSalary) {
         warns.push(
           actionType === 'promotion'
@@ -443,7 +461,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   }, [
     actionType, firstName, lastName, employeeId, title, workEmail, effectiveDate, isTermination, isVoluntary,
     isSchoolYearNonRenewal, lastDayWorked, terminationCode, reasonForTermination, allPtoEnteredInAdp,
-    returnedCharterProperty, outstandingPropertyNotes, hasWrittenStatements, attachments.length,
+    returnedCharterProperty, outstandingPropertyNotes, hasWrittenStatements, reportableMisconduct, attachments.length,
     outstandingStipendsOwed, rehireEligibility, laptopReturned, keysBadgesReturned, sisGradebookClosed,
     finalPay.deadline, today, proposedCampus, campus, proposedTitle, notesRelatingToPositionChange,
     showCompSection, currentSalary, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveTypes,
@@ -544,7 +562,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     const trackingNumber = `PAR-${new Date().getFullYear()}-${randomSuffix}`;
     const gtpuid = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
     const voluntary = isTermination ? isVoluntary === true : false;
-    const routedSteps = buildSstRouting(actionType, voluntary, location, workflowConfig, campus);
+    const routedSteps = routeFor(actionType, voluntary, campus);
     // When the campus principal (or the assigned first approver) submits, the submission is their
     // endorsement: they certify and sign here instead of approving their own PAR afterwards.
     const firstStep = routedSteps[0];
@@ -609,6 +627,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       contractType,
       cobraNoticeDueDate: isTermination ? cobraAdminNoticeDate : undefined,
       hasWrittenStatements: isTermination ? hasWrittenStatements === true : undefined,
+      reportableMisconduct: isTermination ? reportableMisconduct === true : undefined,
+      teaReportDeadline: isTermination ? teaReportDeadline : undefined,
       outstandingStipendsOwed: isTermination ? outstandingStipendsOwed === true : undefined,
       finalPayCheckComment: isTermination ? finalPayCheckComment.trim() || undefined : undefined,
       rehireEligibility: isTermination ? (rehireEligibility || undefined) : undefined,
@@ -619,18 +639,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       startDate: linkedWorker?.hireDate || undefined,
       endDate: isTermination ? lastDayWorked : undefined,
 
-      // Defaults for HR & payroll calculation
-      totalWorkingDays: 0,
-      totalUtoDays: 0,
-      totalWorkedDays: 0,
-      totalCompensatedDays: 0,
-      ptoBalance: 0,
-      totalPtoDays: 0,
-      totalPtoDaysEarned: 0,
-      totalPtoDaysUnearned: 0,
-      dailyRate: Math.round((currentSalary / 260) * 100) / 100,
-      earnedWages: 0,
-      finalPay: 0,
+      // Time audit and final pay figures are completed by HR and Payroll in ADP, not estimated here.
 
       // Position changes
       proposedCampus: actionType === 'campus_transfer' || actionType === 'role_change' ? resolvedProposedCampus : undefined,
@@ -1104,6 +1113,21 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     value={hasWrittenStatements}
                     onChange={setHasWrittenStatements}
                   />
+                  <YesNo
+                    name="par-tea-misconduct"
+                    question="Does this separation involve misconduct that must be reported to TEA?"
+                    hint="Yes if the employee was terminated, or resigned, and there is evidence of: abuse or another unlawful act with a student or minor; a romantic relationship with, or solicitation of, a student or minor; possessing or selling drugs or alcohol at school; theft of school funds or property; or a crime on school property or at a school event. This applies to all staff, certified or not."
+                    value={reportableMisconduct}
+                    onChange={setReportableMisconduct}
+                  >
+                    {reportableMisconduct === true && (
+                      <p className="mt-2 rounded-md bg-rose-50 border border-rose-200 px-2.5 py-2 text-[11px] text-rose-900">
+                        This PAR will go to the CPO. SST must report to TEA within 7 business days
+                        {teaReportDeadline ? <> (by <strong>{formatDate(teaReportDeadline)}</strong>)</> : null}
+                        : Tex. Educ. Code § 21.006 for certified staff, § 22.093 for other staff. Do not include details in email.
+                      </p>
+                    )}
+                  </YesNo>
                 </div>
 
                 <Field label="Eligible for rehire" htmlFor="par-rehire" required
@@ -1111,7 +1135,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   <div id="par-rehire" className="flex flex-wrap gap-2" role="radiogroup" aria-label="Eligible for rehire">
                     {(['Yes', 'No', 'Review Required'] as RehireEligibility[]).map(option => (
                       <label key={option}
-                        className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 cursor-pointer ${
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-2 sm:px-2.5 sm:py-1 cursor-pointer ${
                           rehireEligibility === option
                             ? 'border-[#0f2352] bg-[#0f2352]/5 text-[#0f2352] font-semibold'
                             : 'border-slate-200 text-slate-700 hover:border-slate-300'
@@ -1343,7 +1367,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     </div>
                     <div className="flex flex-wrap gap-2 pl-6" role="radiogroup" aria-label="Medical certification">
                       {(['Sent to Benefits', 'Employee will send to Benefits'] as MedicalCertificationStatus[]).map(v => (
-                        <label key={v} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 cursor-pointer bg-white ${
+                        <label key={v} className={`flex items-center gap-1.5 rounded-md border px-3 py-2 sm:px-2.5 sm:py-1 cursor-pointer bg-white ${
                           medicalCertificationStatus === v ? 'border-[#0f2352] text-[#0f2352] font-semibold' : 'border-amber-200'}`}>
                           <input type="radio" name="par-med-cert" checked={medicalCertificationStatus === v}
                             onChange={() => setMedicalCertificationStatus(v)} className="accent-[#0f2352]" />

@@ -93,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between min-h-[84px] py-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-h-[64px] sm:min-h-[84px] py-2 sm:py-1.5">
           
           {/* SST Brand Logo */}
           <div className="flex items-center">
@@ -105,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img 
                 src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
-                className="h-16 sm:h-[72px] w-auto max-w-[280px] object-contain rounded transition-transform hover:scale-105"
+                className="h-11 sm:h-16 md:h-[72px] w-auto max-w-[150px] sm:max-w-[280px] object-contain rounded transition-transform hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
                 }}
@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             
             {/* Authenticated Staff Persona Badge & Switch Account */}
             <div className="relative flex items-center bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200 shadow-2xs">
@@ -546,11 +546,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             {canCreatePar && (
               <button
                 onClick={onOpenNewParModal}
-                className="inline-flex items-center space-x-1.5 px-4 py-2.5 bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95 cursor-pointer"
+                className="inline-flex items-center space-x-1.5 px-4 py-2.5 min-h-[40px] bg-[#0f2352] hover:bg-[#1a3880] text-white text-xs font-bold rounded-xl shadow-md shadow-[#0f2352]/20 transition-all active:scale-95 cursor-pointer"
                 title="Initiate a new Personnel Action Request (PAR)"
               >
                 <Plus className="w-4 h-4" />
-                <span>Create New PAR</span>
+                <span className="sm:hidden">New PAR</span>
+                <span className="hidden sm:inline">Create New PAR</span>
               </button>
             )}
 

@@ -218,6 +218,17 @@ export function App({ session = null }: { session?: PortalSession | null }) {
   const canSwitchPersona = !session || session.isAdmin;
   const [portalAccounts, setPortalAccounts] = useState<PortalAccount[]>([]);
 
+  // Shared accounts (e.g. campus principals) join routing and the persona list.
+  const applyPortalAccounts = (accounts: PortalAccount[]) => {
+    setPortalAccounts(accounts);
+    setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
+    setAvailablePersonas(prev => {
+      const known = new Set(prev.map(p => normalizeEmail(p.email)));
+      const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(a => personaFromAccount(a));
+      return added.length ? [...prev, ...added] : prev;
+    });
+  };
+
   useEffect(() => {
     if (!session) return;
     const email = normalizeEmail(session.email);
@@ -233,14 +244,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
     fetchAllAccounts()
       .then(accounts => {
-        setPortalAccounts(accounts);
-        // Shared accounts (e.g. campus principals) join routing and the persona list.
-        setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
-        setAvailablePersonas(prev => {
-          const known = new Set(prev.map(p => normalizeEmail(p.email)));
-          const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(a => personaFromAccount(a));
-          return added.length ? [...prev, ...added] : prev;
-        });
+        applyPortalAccounts(accounts);
       })
       .catch(err => console.error('Could not load portal accounts:', err));
     // Runs once per signed-in session.
@@ -1514,10 +1518,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
                 approvers={workflowConfig.approvers}
                 personas={availablePersonas}
                 adminEmail={session.email}
-                onAccountsChanged={accounts => {
-                  setPortalAccounts(accounts);
-                  setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
-                }}
+                onAccountsChanged={applyPortalAccounts}
                 onToast={showToast}
               />
             )}

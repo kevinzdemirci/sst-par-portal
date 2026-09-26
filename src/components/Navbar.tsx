@@ -3,6 +3,7 @@ import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
+import { CAMPUS_PRINCIPAL_TITLE } from '../utils/accountsService';
 import { Plus, Users, LogOut, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
@@ -190,12 +191,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Switch Viewing Persona"
               >
                 <optgroup label="SST Workflow Approvers (Signatures Required)">
-                  {availablePersonas.filter(p => !p.isNotificationOnly).map(p => (
+                  {availablePersonas.filter(p => !p.isNotificationOnly && p.role !== CAMPUS_PRINCIPAL_TITLE).map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {p.role} ({p.department})
                     </option>
                   ))}
                 </optgroup>
+                {availablePersonas.some(p => p.role === CAMPUS_PRINCIPAL_TITLE) && (
+                  <optgroup label="Campus Principals (PAR Submitters)">
+                    {availablePersonas
+                      .filter(p => p.role === CAMPUS_PRINCIPAL_TITLE)
+                      .sort((a, b) => (a.campus || '').localeCompare(b.campus || ''))
+                      .map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.campus} — {p.name}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
                 {availablePersonas.some(p => p.isNotificationOnly) && (
                   <optgroup label="📢 Department Notifications (No Action Required)">
                     {availablePersonas.filter(p => p.isNotificationOnly).map(p => (

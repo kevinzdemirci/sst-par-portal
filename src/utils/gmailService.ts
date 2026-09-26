@@ -1,3 +1,5 @@
+import { NOTIFICATION_TEST_MODE } from '../config/notifications';
+
 /**
  * SST Gmail & Google Workspace Automated Dispatch Service
  * Enables sending account activation invites, IT/TA notifications, and CPO alerts
@@ -222,13 +224,38 @@ export function buildSstHtmlEmail(title: string, bodyText: string, actionUrl?: s
 /**
  * Dispatch an email via the configured Gmail method
  */
+/**
+ * Test mode: send every email to the test recipient instead, naming the intended
+ * recipient in the subject and in a banner (see src/config/notifications.ts).
+ */
+export function applyNotificationTestMode(payload: EmailPayload): EmailPayload {
+  if (!NOTIFICATION_TEST_MODE.enabled || !payload.to) return payload;
+  const intended = `${payload.toName && payload.toName !== payload.to ? `${payload.toName} ` : ''}<${payload.to}>`;
+  const bannerText = `TEST MODE: this email would have been sent to ${intended}${payload.cc ? ` (cc ${payload.cc})` : ''}.`;
+  const banner = `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#78350f;padding:10px 14px;font-family:Arial,sans-serif;font-size:13px;font-weight:bold;">${bannerText
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+  const html = payload.htmlBody
+    ? /<body[^>]*>/i.test(payload.htmlBody)
+      ? payload.htmlBody.replace(/<body[^>]*>/i, m => `${m}${banner}`)
+      : banner + payload.htmlBody
+    : undefined;
+  return {
+    ...payload,
+    to: NOTIFICATION_TEST_MODE.recipient,
+    toName: 'Test recipient',
+    cc: '',
+    subject: `[TEST → ${intended}] ${payload.subject}`,
+    bodyText: `${bannerText}\n\n${payload.bodyText}`,
+    htmlBody: html
+  };
+}
+
 export async function sendGmailEmail(
   payload: EmailPayload,
   customCreds?: GmailCredentials
 ): Promise<SendResult> {
   const creds = customCreds || getStoredGmailCredentials();
   const timestamp = new Date().toISOString();
-
   // Basic validation
   if (!payload.to || !payload.to.includes('@')) {
     return {
@@ -238,9 +265,12 @@ export async function sendGmailEmail(
     };
   }
 
+  payload = applyNotificationTestMode(payload);
+
   // Ensure HTML body exists
   const finalHtml = payload.htmlBody || buildSstHtmlEmail(payload.subject, payload.bodyText);
-  const finalCc = creds.ccHrCopy && creds.hrEmail ? creds.hrEmail : (payload.cc || '');
+  // In test mode nothing is copied to anyone else.
+  const finalCc = NOTIFICATION_TEST_MODE.enabled ? '' : creds.ccHrCopy && creds.hrEmail ? creds.hrEmail : (payload.cc || '');
 
   // 1. MODE: Google Apps Script (Recommended for Gmail)
   if (creds.mode === 'google_script') {

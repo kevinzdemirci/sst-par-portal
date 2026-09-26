@@ -50,6 +50,8 @@ import {
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { buildSubmissionEmails, buildApprovalEmails, buildReturnedEmails, buildRejectedEmails, renderParEmail, PORTAL_URL } from '../utils/parNotifications';
 import { getDistrictEmailCredentials } from '../utils/emailChannel';
+import { applyNotificationTestMode } from '../utils/gmailService';
+import { NOTIFICATION_TEST_MODE } from '../config/notifications';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
@@ -1332,6 +1334,12 @@ assert(buildApprovalEmails(selfStep, approverPersona).length === 0, 'No "action 
 assert(renderParEmail({ subject: 's', badge: 'b', tone: 'info', heading: '<script>x</script>', greetingName: 'A', paragraphs: [], details: [] }).htmlBody.includes('&lt;script&gt;'), 'Email content is HTML-escaped');
 const district = getDistrictEmailCredentials();
 assert(district.mode === 'google_script' && district.senderEmail === 'sstpar@ssttx.org' && !!district.scriptUrl, 'All portal email goes through the district Apps Script as sstpar@ssttx.org');
+if (NOTIFICATION_TEST_MODE.enabled) {
+  const redirected = applyNotificationTestMode({ to: 'kstewart@ssttx.org', toName: 'Kristy Stewart', cc: 'hr@ssttx.org', subject: 'Action needed: X', bodyText: 'Body', htmlBody: '<html><body style="x"><p>Hi</p></body></html>' });
+  assert(redirected.to === 'kdemirci@ssttx.org' && redirected.cc === '', 'Test mode: every email goes only to kdemirci@ssttx.org, with no CC');
+  assert(redirected.subject === '[TEST → Kristy Stewart <kstewart@ssttx.org>] Action needed: X', `Test mode: subject names the intended recipient (Got: ${redirected.subject})`);
+  assert(redirected.htmlBody!.includes('TEST MODE: this email would have been sent to Kristy Stewart &lt;kstewart@ssttx.org&gt; (cc hr@ssttx.org)'), 'Test mode: banner names the intended recipient and CC');
+}
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

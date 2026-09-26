@@ -54,7 +54,7 @@ export interface PayoutTemplateItem {
 export const DEFAULT_PAYOUT_TEMPLATES: PayoutTemplateItem[] = [
   { id: 'tpl-1', name: 'Extra Duty Timesheet', fileName: 'Signed_Extra_Duty_Timesheet.pdf', size: '210 KB' },
   { id: 'tpl-2', name: 'Deduction Agreement Form', fileName: 'Voluntary_Payroll_Deduction_Authorization.pdf', size: '185 KB' },
-  { id: 'tpl-3', name: 'Mileage & Travel Log', fileName: 'Regional_Travel_and_Expense_Receipts.pdf', size: '340 KB' }
+  { id: 'tpl-3', name: 'Moving Stipend Receipts', fileName: 'Moving_Stipend_Receipts.pdf', size: '340 KB' }
 ];
 
 interface CpoPayoutModalProps {

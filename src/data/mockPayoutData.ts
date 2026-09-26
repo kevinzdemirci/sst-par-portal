@@ -366,12 +366,13 @@ export const SST_PAYROLL_CYCLES: PayrollCutoffCycle[] = [
 export const PAYOUT_CATEGORIES = {
   payment: [
     'Retroactive Pay / Salary Adjustment',
-    'Extra Duty & Tutoring Stipend',
     'Department Chair / Lead Teacher Stipend',
     'Sign-on / Retention Bonus',
-    'Mileage & Travel Expense Reimbursement',
-    'Unused PTO / Vacation Separation Payout',
-    'Performance & UIL Academic Coaching Award',
+    'Moving Stipend',
+    'Performance Stipend (AP & PLTW)',
+    'Extra Curricular Stipend',
+    'Extended School Day Stipend',
+    'Extra Duty Stipend',
     'Other Employee Payout'
   ],
   deduction: [

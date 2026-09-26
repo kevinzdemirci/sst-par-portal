@@ -12,7 +12,7 @@ import {
   isSuperAdmin 
 } from '../utils/formatters';
 import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS, Campus, TERMINATION_REASONS, TERMINATION_CODES } from '../types/par';
-import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
+import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES } from '../data/mockPayoutData';
 import { CpoPayoutRequest } from '../types/payout';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
 import { 
@@ -427,7 +427,7 @@ console.log('\n📌 Test 11: Customizable Supporting Document Templates System..
 assert(DEFAULT_PAYOUT_TEMPLATES.length === 3, 'Default templates library contains 3 core forms');
 assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Signed_Extra_Duty_Timesheet.pdf'), 'Default templates include Signed Extra Duty Timesheet');
 assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Voluntary_Payroll_Deduction_Authorization.pdf'), 'Default templates include Voluntary Payroll Deduction Authorization');
-assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Regional_Travel_and_Expense_Receipts.pdf'), 'Default templates include Regional Travel and Expense Receipts');
+assert(DEFAULT_PAYOUT_TEMPLATES.some(t => t.fileName === 'Moving_Stipend_Receipts.pdf'), 'Default templates include Moving Stipend Receipts');
 
 // Verify adding a custom user-defined template
 let userTemplates: PayoutTemplateItem[] = [...DEFAULT_PAYOUT_TEMPLATES];
@@ -1371,6 +1371,8 @@ assert(worded.subject === 'CPO Review' && worded.toName === 'Dr. Kevin Demirci (
 assert(worded.bodyText === 'IT Department: upcoming change' && worded.htmlBody === '<p>IT Department</p><p>CPO</p>', 'Emails say "IT Department", not "Information Technology"');
 const itNotice = buildSubmissionEmails({ ...INITIAL_PAR_DATA[0], departmentNotifications: getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)') }).find(e => e.to === 'myuksel@ssttx.org');
 assert(!!itNotice && applyEmailTerminology({ to: itNotice.to, subject: itNotice.subject, bodyText: itNotice.bodyText, htmlBody: itNotice.htmlBody }).htmlBody!.includes('IT Department: upcoming personnel change'), 'Central Office IT notice to Mikail Yuksel is headed "IT Department"');
+
+assert(PAYOUT_CATEGORIES.payment.join('|') === 'Retroactive Pay / Salary Adjustment|Department Chair / Lead Teacher Stipend|Sign-on / Retention Bonus|Moving Stipend|Performance Stipend (AP & PLTW)|Extra Curricular Stipend|Extended School Day Stipend|Extra Duty Stipend|Other Employee Payout', 'CPO payout reasons match SST stipend types (Moving Stipend; no mileage or vacation payout)');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

@@ -110,7 +110,8 @@ and type part of a name.
 | "Sign-in failed" or a popup closes right away | Check that `kevinzdemirci.github.io` is in **Authentication → Settings → Authorized domains**. Allow popups for the site. |
 | "Use your @ssttx.org Google account" | A personal Google account was chosen. Sign in with the district account. |
 | "The ADP roster has not been pulled yet" | Do Step 9, or wait until after 5:00 AM Central. |
-| `meta.lastAttempt.error` mentions `HTTP 401` | Wrong Client ID or Secret. Repeat Step 7, then run `npx firebase-tools deploy --only functions`. |
+| `meta.lastAttempt.error` or the log says `HTTP 401 invalid_client` | Wrong Client ID or Secret. A Client ID is 36 characters; on 2026-09-25 it had been pasted three times into the secret. Repeat Step 7 carefully (paste once), then run `npx firebase-tools deploy --only functions`, because functions keep the secret version from their last deploy. |
+| Log says `HTTP 400 unsupported_grant_type` | The function is running code older than `5d17e38`. Redeploy with `npx firebase-tools deploy --only functions`. |
 | `meta.lastAttempt.error` mentions certificate, TLS, or `HTTP 403 Invalid Scope` | The certificate expired or doesn't match its key, or the API Central project changed. Check the pair (below). |
 | "Pull from ADP now" fails with a permission error, but the daily job works | Your Google Cloud organization may block public access to functions. Ask IT to allow `allUsers` as invoker for `refreshAdpRoster`, or rely on the daily pull. |
 

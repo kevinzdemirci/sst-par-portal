@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import type { User } from 'firebase/auth';
 import { AdpWorker, AdpConnectionConfig } from '../types/adp';
 import { PersonnelActionRequest } from '../types/par';
 import { 
@@ -11,6 +12,13 @@ import {
   batchPushTerminationsToAdp,
   parseAdpCsvExport
 } from '../utils/adpService';
+import {
+  isFirebaseConfigured,
+  requestAdpRefresh,
+  signInWithDistrictGoogle,
+  signOutDistrictGoogle,
+  watchDistrictUser
+} from '../utils/firebaseClient';
 import { 
   Users, 
   Search, 
@@ -60,6 +68,37 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'Active' | 'Terminated' | 'Pending Termination'>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [districtUser, setDistrictUser] = useState<User | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
+  const firebaseOn = isFirebaseConfigured();
+
+  useEffect(() => watchDistrictUser(setDistrictUser), []);
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithDistrictGoogle();
+    } catch (e: any) {
+      onToast(e?.message || 'Google sign-in failed.', 'warning');
+    }
+  };
+
+  const handlePullNow = async () => {
+    setIsPulling(true);
+    try {
+      const res = await requestAdpRefresh();
+      onToast(
+        res.status === 'fresh'
+          ? 'The ADP roster was refreshed within the last hour, so no new pull was needed.'
+          : `Pulled ${res.count ?? ''} staff records from ADP.`,
+        'success'
+      );
+      await handleSyncAdp();
+    } catch (e: any) {
+      onToast(`ADP pull failed: ${e?.message || 'unknown error'}`, 'warning');
+    } finally {
+      setIsPulling(false);
+    }
+  };
   const [csvUploadModalOpen, setCsvUploadModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState('');
 
@@ -673,22 +712,52 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label htmlFor="adp-relay-url" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    SST ADP Relay URL
-                  </label>
-                  <input
-                    id="adp-relay-url"
-                    type="text"
-                    value={adpConfig.relayUrl || ''}
-                    onChange={(e) => setAdpConfig({ ...adpConfig, relayUrl: e.target.value.trim() })}
-                    placeholder="/api/adp"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
-                  />
-                  <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
-                    The relay holds the ADP Client ID, Client Secret, and certificate, so they never reach the browser.
-                    Leave blank to use the sample roster and CSV import only. Setup steps: <span className="font-mono">adp-relay/README.md</span>.
-                  </p>
+                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">Live ADP connection (Firebase)</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {!firebaseOn
+                          ? 'Not connected. The search uses the sample roster and CSV imports. Setup: docs/adp-firebase-setup.md.'
+                          : adpConfig.lastSyncTimestamp
+                            ? `ADP roster refreshed ${new Date(adpConfig.lastSyncTimestamp).toLocaleString()}. Refreshes daily at 5:00 AM Central.`
+                            : 'Connected. Sign in to load the daily ADP roster.'}
+                      </div>
+                      {firebaseOn && adpConfig.lastSyncError && (
+                        <div className="text-[11px] font-semibold text-amber-800 mt-1">Last daily pull failed: {adpConfig.lastSyncError}</div>
+                      )}
+                    </div>
+                    <span className={`shrink-0 w-2.5 h-2.5 rounded-full ${firebaseOn && districtUser ? 'bg-emerald-500' : firebaseOn ? 'bg-amber-400' : 'bg-slate-300'}`} />
+                  </div>
+                  {firebaseOn && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {districtUser ? (
+                        <>
+                          <span className="text-[11px] text-slate-600">Signed in as <strong>{districtUser.email}</strong></span>
+                          <button
+                            onClick={handlePullNow}
+                            disabled={isPulling}
+                            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-bold hover:bg-slate-800 disabled:opacity-60"
+                          >
+                            {isPulling ? 'Pulling from ADP… (a few minutes)' : 'Pull from ADP now'}
+                          </button>
+                          <button
+                            onClick={() => signOutDistrictGoogle()}
+                            className="px-3 py-1.5 border border-slate-300 rounded-lg text-[11px] font-semibold text-slate-700 hover:bg-white"
+                          >
+                            Sign out
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleSignIn}
+                          className="px-3 py-1.5 bg-[#0f2352] text-white rounded-lg text-[11px] font-bold hover:bg-[#1a3880]"
+                        >
+                          Sign in with district Google account
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">

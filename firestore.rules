@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Signed in with a verified district Google Workspace account.
+    function isDistrictStaff() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@ssttx[.]org$');
+    }
+
+    // Daily ADP staff roster: readable by district staff, written only by the Cloud Function.
+    match /adpRoster/{docId} {
+      allow read: if isDistrictStaff();
+      allow write: if false;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

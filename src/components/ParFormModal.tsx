@@ -17,7 +17,8 @@ import {
 import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { AdpWorker } from '../types/adp';
-import { getStoredAdpConfig, getStoredAdpStaff, isAdpDataStale } from '../utils/adpService';
+import { getStoredAdpConfig, getStoredAdpStaff, isAdpDataStale, syncFromAdpApi } from '../utils/adpService';
+import { isFirebaseConfigured, signInWithDistrictGoogle, watchDistrictUser } from '../utils/firebaseClient';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
@@ -258,8 +259,27 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [isDirty, setIsDirty] = useState(false);
 
   // ADP employee lookup: selecting a person fills the employee fields, which stay editable.
-  const adpRoster = useMemo(() => getStoredAdpStaff(), []);
-  const adpConfig = useMemo(() => getStoredAdpConfig(), []);
+  const liveAdp = isFirebaseConfigured();
+  const [adpRoster, setAdpRoster] = useState<AdpWorker[]>(() => getStoredAdpStaff());
+  const [adpConfig, setAdpConfig] = useState(() => getStoredAdpConfig());
+  const [adpSignedIn, setAdpSignedIn] = useState(false);
+  const [adpLoadMessage, setAdpLoadMessage] = useState('');
+
+  useEffect(() => watchDistrictUser(user => setAdpSignedIn(!!user)), []);
+
+  const connectAdp = async () => {
+    setAdpLoadMessage('Signing in…');
+    try {
+      await signInWithDistrictGoogle();
+      setAdpLoadMessage('Loading ADP staff…');
+      await syncFromAdpApi(getStoredAdpConfig());
+      setAdpRoster(getStoredAdpStaff());
+      setAdpConfig(getStoredAdpConfig());
+      setAdpLoadMessage('');
+    } catch (e: any) {
+      setAdpLoadMessage(e?.message || 'Could not load ADP staff.');
+    }
+  };
   const [linkedWorker, setLinkedWorker] = useState<AdpWorker | null>(preSelectedWorker || null);
   const [employeeQuery, setEmployeeQuery] = useState('');
   const [isLookupOpen, setIsLookupOpen] = useState(false);
@@ -900,7 +920,20 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     )}
                   </ul>
                 )}
-                {adpConfig.relayUrl && (isAdpDataStale(adpConfig) || adpConfig.lastSyncError) && (
+                {liveAdp && !adpSignedIn && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={connectAdp}
+                      className="px-2.5 py-1 rounded-md bg-[#0f2352] text-white text-[11px] font-semibold hover:bg-[#1a3880]"
+                    >
+                      Sign in to search ADP staff
+                    </button>
+                    <span className="text-[10px] text-slate-500">Use your @ssttx.org Google account.</span>
+                  </div>
+                )}
+                {adpLoadMessage && <p className="mt-1 text-[10px] font-semibold text-slate-700">{adpLoadMessage}</p>}
+                {liveAdp && adpSignedIn && (isAdpDataStale(adpConfig) || adpConfig.lastSyncError) && (
                   <p className="mt-1 text-[10px] font-semibold text-amber-800">
                     ADP data may be out of date: the daily ADP refresh has not succeeded since{' '}
                     {adpConfig.lastSyncTimestamp ? new Date(adpConfig.lastSyncTimestamp).toLocaleString() : 'setup'}.
@@ -908,7 +941,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   </p>
                 )}
                 <p className="mt-1 text-[10px] text-slate-500">
-                  {adpConfig.relayUrl
+                  {liveAdp && adpSignedIn && adpConfig.lastSyncTimestamp
                     ? `${adpRoster.length} staff records from ADP Workforce Now${adpConfig.lastSyncTimestamp ? `, synced ${new Date(adpConfig.lastSyncTimestamp).toLocaleString()}` : ''}.`
                     : `${adpRoster.length} staff records in the local roster (sample or CSV import). Live ADP sync is not connected yet.`}
                 </p>

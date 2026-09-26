@@ -1,0 +1,14 @@
+{
+  "name": "sst-adp-sync",
+  "description": "Daily ADP Workforce Now roster sync for the SST PAR Portal",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  }
+}

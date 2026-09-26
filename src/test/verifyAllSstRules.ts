@@ -45,10 +45,11 @@ import {
   isAdpSyncDue,
   isAdpDataStale
 } from '../utils/adpService';
-import adpRelay from '../../adp-relay/src/index.js';
+import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
+import { createAdpClient } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus } from '../utils/formatters';
-import { mapWorker } from '../../adp-relay/src/mapWorker.js';
+import { mapWorker } from '../../functions/src/mapWorker.js';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -1128,52 +1129,51 @@ assert(mergedRoster.some(w => w.adpId === 'OLD'), 'Roster merge keeps PAR-linked
 // 25. Daily ADP roster sync (relay cron + portal auto-sync)
 console.log('\n--- 25. Daily ADP Roster Sync ---');
 const nowMs = Date.parse('2026-09-26T15:00:00Z');
-assert(!isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: undefined }, nowMs), 'No auto-sync without a relay URL');
-assert(isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp' }, nowMs), 'Auto-sync is due when this browser has never synced');
-assert(!isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastCheckedAt: '2026-09-26T10:00:00Z' }, nowMs), 'Auto-sync waits 6 hours between checks');
-assert(isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastCheckedAt: '2026-09-26T08:59:00Z' }, nowMs), 'Auto-sync runs after 6 hours');
-assert(isAdpDataStale({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastSyncTimestamp: '2026-09-25T02:00:00Z' }, nowMs), 'Roster older than 36 hours is flagged stale');
-assert(!isAdpDataStale({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastSyncTimestamp: '2026-09-26T10:00:00Z' }, nowMs), 'This morning\'s roster is not stale');
+assert(!isAdpSyncDue(DEFAULT_ADP_CONFIG, nowMs, false), 'No auto-sync when live ADP (Firebase) is not configured');
+  assert(isAdpSyncDue(DEFAULT_ADP_CONFIG, nowMs, true), 'Auto-sync is due when this browser has never loaded the roster');
+  assert(!isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, lastCheckedAt: '2026-09-26T10:00:00Z' }, nowMs, true), 'Auto-sync waits 6 hours between loads');
+  assert(isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, lastCheckedAt: '2026-09-26T08:59:00Z' }, nowMs, true), 'Auto-sync runs after 6 hours');
+  assert(isAdpDataStale({ ...DEFAULT_ADP_CONFIG, lastSyncTimestamp: '2026-09-25T02:00:00Z' }, nowMs, true), 'Roster older than 36 hours is flagged stale');
+  assert(!isAdpDataStale({ ...DEFAULT_ADP_CONFIG, lastSyncTimestamp: '2026-09-26T10:00:00Z' }, nowMs, true), 'This morning\'s roster is not stale');
 
-// Simulate the relay's scheduled pull against a fake ADP that returns 150 workers over two pages.
-const fakeKv = new Map<string, string>();
-const recentTerm = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-const fakeAdpWorker = (i: number) => ({
-  associateOID: `OID${i}`,
-  workerID: { idValue: `W${i}` },
-  person: { legalName: { givenName: `First${i}`, familyName1: `Last${i}` } },
-  workerDates: i === 1 ? { terminationDate: '2019-06-01' } : i === 2 ? { terminationDate: recentTerm } : {},
-  workAssignments: [{ primaryIndicator: true, assignmentStatus: { statusCode: { codeValue: i <= 2 ? 'T' : 'A' } } }]
-});
-const adpCalls: string[] = [];
-const fakeEnv = {
-  ROSTER: {
-    get: async (k: string, type?: string) => (fakeKv.has(k) ? (type === 'json' ? JSON.parse(fakeKv.get(k)!) : fakeKv.get(k)) : null),
-    put: async (k: string, v: string) => { fakeKv.set(k, v); }
-  },
-  ADP_CERT: {
-    fetch: async (url: string) => {
+  // Simulate the Cloud Function's daily pull against a fake ADP returning 150 workers over two pages.
+  const recentTerm = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+  const fakeAdpWorker = (i: number) => ({
+    associateOID: `OID${i}`,
+    workerID: { idValue: `W${i}` },
+    person: { legalName: { givenName: `First${i}`, familyName1: `Last${i}` } },
+    workerDates: i === 1 ? { terminationDate: '2019-06-01' } : i === 2 ? { terminationDate: recentTerm } : {},
+    workAssignments: [{ primaryIndicator: true, assignmentStatus: { statusCode: { codeValue: i <= 2 ? 'T' : 'A' } } }]
+  });
+  const adpCalls: string[] = [];
+  const fakeAdp = createAdpClient({
+    certPem: 'cert', keyPem: 'key', clientId: 'id', clientSecret: 'secret',
+    request: async (url: string) => {
       adpCalls.push(url);
-      if (url.includes('/auth/oauth/v2/token')) return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }));
+      if (url.includes('/auth/oauth/v2/token')) return { status: 200, text: JSON.stringify({ access_token: 'tok' }) };
       const skip = Number(new URL(url).searchParams.get('$skip'));
       const count = skip === 0 ? 100 : skip === 100 ? 50 : 0;
-      if (count === 0) return new Response(null, { status: 204 });
-      return new Response(JSON.stringify({ workers: Array.from({ length: count }, (_, j) => fakeAdpWorker(skip + j + 1)) }));
+      if (count === 0) return { status: 204, text: '' };
+      return { status: 200, text: JSON.stringify({ workers: Array.from({ length: count }, (_, j) => fakeAdpWorker(skip + j + 1)) }) };
     }
-  },
-  ADP_CLIENT_ID: 'id', ADP_CLIENT_SECRET: 'secret', TERMINATED_LOOKBACK_DAYS: '365'
-};
-const pending: Promise<unknown>[] = [];
-await adpRelay.scheduled({}, fakeEnv, { waitUntil: (p: Promise<unknown>) => { pending.push(p); } });
-await Promise.all(pending);
-const savedRoster = JSON.parse(fakeKv.get('roster') || '{}');
-const savedStatus = JSON.parse(fakeKv.get('sync-status') || '{}');
-assert(adpCalls.some(u => u.includes('/hr/v2/worker-demographics')), 'Scheduled pull calls /hr/v2/worker-demographics');
-assert(savedRoster.workers?.length === 149, `Scheduled pull saves all pages minus staff terminated over a year ago (Got: ${savedRoster.workers?.length})`);
-assert(savedRoster.workers.some((w: { workerId: string }) => w.workerId === 'W2'), 'Scheduled pull keeps a recent termination');
-assert(savedStatus.ok === true && savedStatus.trigger === 'scheduled', 'Scheduled pull records a successful run');
-const unauth = await adpRelay.fetch(new Request('https://relay.test/api/adp/workers'), fakeEnv);
-assert(unauth.status === 401, 'Relay refuses roster requests without Cloudflare Access sign-in');
+  });
+  const pulled = await fakeAdp.fetchAllWorkers('/hr/v2/worker-demographics');
+  const dailyRoster = buildRoster(pulled, { dpsSidField: 'DPS SID&/Name', terminatedLookbackDays: 365 });
+  assert(adpCalls[0].includes('/auth/oauth/v2/token') && adpCalls.some(u => u.includes('/hr/v2/worker-demographics')), 'Daily pull signs in, then calls /hr/v2/worker-demographics');
+  assert(pulled.length === 150 && adpCalls.length === 3, `Daily pull reads every page and stops after a short page (Got: ${pulled.length} workers, ${adpCalls.length} calls)`);
+  assert(dailyRoster.length === 149, `Daily roster drops staff terminated over a year ago (Got: ${dailyRoster.length})`);
+  assert(dailyRoster.some(w => w.workerId === 'W2'), 'Daily roster keeps a recent termination');
+  const rosterChunks = chunkRoster(dailyRoster);
+  assert(rosterChunks.length === 1 && chunkRoster(Array.from({ length: 600 }, (_, i) => i)).length === 3, 'Roster is split into 250-record Firestore documents');
+  const failingAdp = createAdpClient({
+    certPem: 'c', keyPem: 'k', clientId: 'i', clientSecret: 's',
+    request: async (url: string) => url.includes('token')
+      ? { status: 200, text: JSON.stringify({ access_token: 't' }) }
+      : { status: 403, text: '{"message":"Invalid Scope"}' }
+  });
+  let scopeError = '';
+  try { await failingAdp.fetchAllWorkers('/hr/v2/workers'); } catch (e: any) { scopeError = e.message; }
+  assert(scopeError.includes('HTTP 403'), 'ADP errors (e.g. 403 Invalid Scope) are reported, not swallowed');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

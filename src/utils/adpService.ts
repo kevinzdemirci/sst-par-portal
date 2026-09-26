@@ -2,6 +2,8 @@ import { AdpWorker, AdpConnectionConfig, TerminationAlignmentSummary, AdpAlignme
 import { INITIAL_ADP_STAFF_ROSTER, DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { PersonnelActionRequest, SchoolLocation } from '../types/par';
 import { locationForCampus, matchSstCampus } from './formatters';
+import { doc, getDoc } from 'firebase/firestore';
+import { getDb, getSignedInDistrictUser, isFirebaseConfigured } from './firebaseClient';
 
 const ADP_STAFF_STORAGE_KEY = 'sst_adp_staff_roster_v2';
 const ADP_CONFIG_STORAGE_KEY = 'sst_adp_connection_config_v2';
@@ -243,7 +245,7 @@ export function batchPushTerminationsToAdp(
   return { updatedRoster, closedCount };
 }
 
-/** Staff record returned by the SST ADP relay (adp-relay/src/mapWorker.js). */
+/** Staff record saved by the ADP sync Cloud Function (functions/src/mapWorker.js). */
 export interface AdpRelayWorker {
   associateOID: string;
   workerId: string;
@@ -337,16 +339,20 @@ export function mergeAdpRoster(current: AdpWorker[], incoming: AdpWorker[]): Adp
  * Pulls the staff roster from ADP Workforce Now through the SST ADP relay.
  * The relay holds the ADP credentials; the browser only sends the user's sign-in cookie.
  */
-/** How often the portal re-reads the relay's daily roster snapshot. */
+/** How often the portal re-reads the daily roster from Firestore. */
 export const ADP_AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** ADP data older than this is flagged as possibly out of date (the daily pull likely failed). */
 export const ADP_STALE_AFTER_MS = 36 * 60 * 60 * 1000;
 
 /**
- * True when a relay is configured and this browser has not fetched the roster recently.
+ * True when live ADP data is available and this browser has not loaded it recently.
  */
-export function isAdpSyncDue(config: AdpConnectionConfig, now: number = Date.now()): boolean {
-  if (!config.relayUrl) return false;
+export function isAdpSyncDue(
+  config: AdpConnectionConfig,
+  now: number = Date.now(),
+  liveSourceEnabled: boolean = isFirebaseConfigured()
+): boolean {
+  if (!liveSourceEnabled) return false;
   const last = config.lastCheckedAt ? Date.parse(config.lastCheckedAt) : NaN;
   return Number.isNaN(last) || now - last >= ADP_AUTO_SYNC_INTERVAL_MS;
 }
@@ -354,50 +360,61 @@ export function isAdpSyncDue(config: AdpConnectionConfig, now: number = Date.now
 /**
  * True when the roster came from ADP more than 36 hours ago.
  */
-export function isAdpDataStale(config: AdpConnectionConfig, now: number = Date.now()): boolean {
-  if (!config.relayUrl || !config.lastSyncTimestamp) return false;
+export function isAdpDataStale(
+  config: AdpConnectionConfig,
+  now: number = Date.now(),
+  liveSourceEnabled: boolean = isFirebaseConfigured()
+): boolean {
+  if (!liveSourceEnabled || !config.lastSyncTimestamp) return false;
   return now - Date.parse(config.lastSyncTimestamp) > ADP_STALE_AFTER_MS;
 }
 
-export async function fetchLiveAdpRoster(
-  relayUrl: string
-): Promise<{ workers: AdpWorker[]; syncedAt: string; lastAttempt?: { at: string; ok: boolean; error?: string } }> {
-  const res = await fetch(`${relayUrl.replace(/\/+$/, '')}/workers`, {
-    credentials: 'include',
-    headers: { Accept: 'application/json' }
-  });
-  if (!res.ok) {
-    let detail = '';
-    try {
-      detail = (await res.json()).error || '';
-    } catch {
-      // non-JSON error body
-    }
-    throw new Error(detail || `ADP relay returned ${res.status}`);
+/**
+ * Reads the daily ADP roster that the syncAdpRoster Cloud Function saves in Firestore.
+ * Requires a signed-in district Google account (enforced by firestore.rules).
+ */
+export async function fetchFirestoreAdpRoster(): Promise<{
+  workers: AdpWorker[];
+  syncedAt: string;
+  lastAttempt?: { at: string; ok: boolean; error?: string };
+}> {
+  if (!getSignedInDistrictUser()) {
+    throw new Error('Sign in with your district Google account to load ADP staff.');
   }
-  const data: {
-    syncedAt: string;
-    workers: AdpRelayWorker[];
-    lastAttempt?: { at: string; ok: boolean; error?: string };
-  } = await res.json();
+  const db = getDb();
+  const meta = await getDoc(doc(db, 'adpRoster', 'meta'));
+  const data = meta.data() as
+    | { syncedAt?: string; chunkCount?: number; lastAttempt?: { at: string; ok: boolean; error?: string } }
+    | undefined;
+  if (!data?.syncedAt) {
+    throw new Error(
+      data?.lastAttempt && !data.lastAttempt.ok
+        ? `The ADP roster has not loaded yet: ${data.lastAttempt.error || 'the first pull failed'}.`
+        : 'The ADP roster has not been pulled yet. It runs daily at 5:00 AM Central.'
+    );
+  }
+  const chunks = await Promise.all(
+    Array.from({ length: data.chunkCount || 0 }, (_, i) => getDoc(doc(db, 'adpRoster', `chunk-${i}`)))
+  );
+  const records = chunks.flatMap(c => ((c.data() as { workers?: AdpRelayWorker[] } | undefined)?.workers) || []);
   return {
     syncedAt: data.syncedAt,
     lastAttempt: data.lastAttempt,
-    workers: data.workers.map(w => workerFromRelayRecord(w, data.syncedAt))
+    workers: records.map(w => workerFromRelayRecord(w, data.syncedAt!))
   };
 }
 
 /**
- * Syncs the staff roster. With a relay URL configured this pulls live data from ADP;
- * without one it only refreshes the sample roster's timestamps.
+ * Syncs the staff roster. With Firebase configured this loads the daily ADP roster;
+ * without it, it only refreshes the sample roster's timestamps.
  */
 export async function syncFromAdpApi(
   config: AdpConnectionConfig = DEFAULT_ADP_CONFIG
 ): Promise<{ success: boolean; syncedCount: number; message: string; isLive: boolean }> {
   const current = getStoredAdpStaff();
 
-  if (config.relayUrl) {
-    const { workers, syncedAt, lastAttempt } = await fetchLiveAdpRoster(config.relayUrl);
+  if (isFirebaseConfigured()) {
+    const { workers, syncedAt, lastAttempt } = await fetchFirestoreAdpRoster();
     const merged = mergeAdpRoster(current, workers);
     saveStoredAdpStaff(merged);
     saveStoredAdpConfig({
@@ -410,7 +427,7 @@ export async function syncFromAdpApi(
       success: true,
       syncedCount: workers.length,
       isLive: true,
-      message: `Synced ${workers.length} staff records from ADP Workforce Now.`
+      message: `Loaded ${workers.length} staff records from ADP Workforce Now (refreshed ${new Date(syncedAt).toLocaleString()}).`
     };
   }
 
@@ -422,7 +439,7 @@ export async function syncFromAdpApi(
     success: true,
     syncedCount: refreshed.length,
     isLive: false,
-    message: 'No ADP relay is configured, so no live data was pulled. Add the relay URL under Settings to sync from ADP.'
+    message: 'Live ADP data is not connected yet, so the sample roster was kept. See docs/adp-firebase-setup.md.'
   };
 }
 

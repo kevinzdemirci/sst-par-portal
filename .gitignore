@@ -29,3 +29,9 @@ dist-ssr
 *.csr
 .dev.vars
 .wrangler/
+
+# Firebase local state
+.firebase/
+firebase-debug.log
+firestore-debug.log
+functions/.env*

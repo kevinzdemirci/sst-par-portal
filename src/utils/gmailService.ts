@@ -225,6 +225,27 @@ export function buildSstHtmlEmail(title: string, bodyText: string, actionUrl?: s
 /**
  * Dispatch an email via the configured Gmail method
  */
+/** District wording for emails: "CPO" and "IT Department". */
+const EMAIL_TERMS: [RegExp, string][] = [
+  [/Chief People Officer/gi, 'CPO'],
+  [/Information Technolog(y|ies)/gi, 'IT Department']
+];
+
+function useEmailTerms(text?: string): string | undefined {
+  return text === undefined ? text : EMAIL_TERMS.reduce((t, [pattern, term]) => t.replace(pattern, term), text);
+}
+
+/** Applies the district's email wording to the subject, body, and recipient name. */
+export function applyEmailTerminology(payload: EmailPayload): EmailPayload {
+  return {
+    ...payload,
+    subject: useEmailTerms(payload.subject) as string,
+    bodyText: useEmailTerms(payload.bodyText) as string,
+    htmlBody: useEmailTerms(payload.htmlBody),
+    toName: useEmailTerms(payload.toName)
+  };
+}
+
 /**
  * Test mode: send every email to the test recipient instead, naming the intended
  * recipient in the subject and in a banner (see src/config/notifications.ts).
@@ -266,7 +287,7 @@ export async function sendGmailEmail(
     };
   }
 
-  payload = applyNotificationTestMode(payload);
+  payload = applyNotificationTestMode(applyEmailTerminology(payload));
 
   // Ensure HTML body exists
   const finalHtml = payload.htmlBody || buildSstHtmlEmail(payload.subject, payload.bodyText);

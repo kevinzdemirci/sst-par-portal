@@ -50,7 +50,7 @@ import {
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { buildSubmissionEmails, buildApprovalEmails, buildReturnedEmails, buildRejectedEmails, renderParEmail, PORTAL_URL } from '../utils/parNotifications';
 import { getDistrictEmailCredentials } from '../utils/emailChannel';
-import { applyNotificationTestMode } from '../utils/gmailService';
+import { applyEmailTerminology, applyNotificationTestMode } from '../utils/gmailService';
 import { NOTIFICATION_TEST_MODE } from '../config/notifications';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
@@ -1347,6 +1347,11 @@ if (NOTIFICATION_TEST_MODE.enabled) {
   assert(redirected.subject === '[TEST → Kristy Stewart <kstewart@ssttx.org>] Action needed: X', `Test mode: subject names the intended recipient (Got: ${redirected.subject})`);
   assert(redirected.htmlBody!.includes('TEST MODE: this email would have been sent to Kristy Stewart &lt;kstewart@ssttx.org&gt; (cc hr@ssttx.org)'), 'Test mode: banner names the intended recipient and CC');
 }
+const worded = applyEmailTerminology({ to: 'x@ssttx.org', toName: 'Dr. Kevin Demirci (Chief People Officer)', subject: 'Chief People Officer Review', bodyText: 'Information Technology: upcoming change', htmlBody: '<p>Information Technology</p><p>chief people officer</p>' });
+assert(worded.subject === 'CPO Review' && worded.toName === 'Dr. Kevin Demirci (CPO)', 'Emails say "CPO", not "Chief People Officer"');
+assert(worded.bodyText === 'IT Department: upcoming change' && worded.htmlBody === '<p>IT Department</p><p>CPO</p>', 'Emails say "IT Department", not "Information Technology"');
+const itNotice = buildSubmissionEmails({ ...INITIAL_PAR_DATA[0], departmentNotifications: getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)') }).find(e => e.to === 'myuksel@ssttx.org');
+assert(!!itNotice && applyEmailTerminology({ to: itNotice.to, subject: itNotice.subject, bodyText: itNotice.bodyText, htmlBody: itNotice.htmlBody }).htmlBody!.includes('IT Department: upcoming personnel change'), 'Central Office IT notice to Mikail Yuksel is headed "IT Department"');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

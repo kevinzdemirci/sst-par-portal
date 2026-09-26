@@ -290,6 +290,13 @@ assert(saccRecipients.some(r => r.recipientEmail === 'akaya@ssttx.org' && r.type
 assert(saccRecipients.some(r => r.recipientEmail === 'adal@ssttx.org' && r.type === 'talent_acquisition'), 'SA & CC Talent Acquisition recipient is Ali Dal');
 assert(saccRecipients.every(r => r.actionRequired === false), 'All SA & CC notification records have actionRequired === false');
 
+const centralRecipients = getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)');
+assert(centralRecipients.length === 1 && centralRecipients[0].recipientEmail === 'myuksel@ssttx.org' && centralRecipients[0].type === 'it', 'Central Office PAR notifies only Mikail Yuksel (IT), no regional IT or Talent Acquisition');
+const centralTermination = getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)', 'termination');
+assert(centralTermination.map(r => r.recipientEmail).join(',') === 'myuksel@ssttx.org,hcelik@ssttx.org', 'Central Office termination notifies Mikail Yuksel and Personnel Services (DPS)');
+const houstonOfficeRecipients = getDepartmentNotificationRecipients('Houston', 'SST Houston Regional Office');
+assert(houstonOfficeRecipients.some(r => r.recipientEmail === 'esevik@ssttx.org'), 'Houston Regional Office still notifies the Houston regional IT team');
+
 // 7c. Verify canPersonaActOnPar returns false for all notification-only roles
 if (enesPersona) assert(canPersonaActOnPar(enesPersona, INITIAL_PAR_DATA[0]) === false, 'Enes Sevik (Notification-Only) CANNOT approve or sign PARs (No Action Required)');
 if (ahmetPersona) assert(canPersonaActOnPar(ahmetPersona, INITIAL_PAR_DATA[0]) === false, 'Ahmet Kaya (Notification-Only) CANNOT approve or sign PARs (No Action Required)');

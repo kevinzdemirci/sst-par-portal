@@ -433,6 +433,17 @@ export const PERSONNEL_SERVICES_CONTACT = {
   title: 'Director of Personnel Services'
 };
 
+/** Central Office IT contact. Central Office PARs notify only him (no regional IT or Talent Acquisition). */
+export const CENTRAL_OFFICE_IT_CONTACT = {
+  name: 'Mikail Yuksel',
+  email: 'myuksel@ssttx.org',
+  title: 'IT Department (Central Office)'
+};
+
+export function isCentralOfficeCampus(campus?: string): boolean {
+  return /central office/i.test(campus || '');
+}
+
 /**
  * Who is notified (no approval needed) when a PAR is submitted: regional IT and Talent
  * Acquisition, plus Personnel Services for every termination (DPS unsubscribe).
@@ -477,6 +488,24 @@ function regionalDepartmentNotificationRecipients(
     campusStr.includes('willow creek');
 
   const now = new Date().toISOString();
+
+  if (isCentralOfficeCampus(campus)) {
+    return [
+      {
+        id: 'notif-it-central',
+        recipientName: CENTRAL_OFFICE_IT_CONTACT.name,
+        recipientEmail: CENTRAL_OFFICE_IT_CONTACT.email,
+        recipientRole: CENTRAL_OFFICE_IT_CONTACT.title,
+        department: 'Information Technology',
+        region: 'SST Central Office',
+        type: 'it',
+        status: 'notified',
+        notifiedAt: now,
+        actionRequired: false,
+        purpose: 'IT equipment recovery (laptops, monitors, keycard badges), Google Workspace de-provisioning, and SIS access management'
+      }
+    ];
+  }
 
   if (isHouston) {
     return [

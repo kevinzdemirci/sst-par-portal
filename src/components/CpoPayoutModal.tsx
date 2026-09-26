@@ -10,8 +10,11 @@ import {
   isRegionalHrCoordinator,
   isPayrollCoordinator,
   formatPayoutTypeBadge, 
-  formatPayoutStatusBadge 
+  formatPayoutStatusBadge,
+  locationForCampus
 } from '../utils/formatters';
+import { AdpWorker } from '../types/adp';
+import { AdpEmployeeSearch } from './AdpEmployeeSearch';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { 
   X, 
@@ -101,6 +104,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const [formCampus, setFormCampus] = useState<string>('SST Champions Elementary');
   const [formRegion, setFormRegion] = useState<string>('Houston Area');
   const [formJobTitle, setFormJobTitle] = useState<string>('');
+  const [formLinkedWorker, setFormLinkedWorker] = useState<AdpWorker | null>(null);
   const [formPayoutType, setFormPayoutType] = useState<PayoutType>('payment');
   const [formCategory, setFormCategory] = useState<string>(PAYOUT_CATEGORIES.payment[0]);
   const [formAmount, setFormAmount] = useState<string>('');
@@ -219,11 +223,30 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onToast('Template removed from library', 'info');
   };
 
+  // Fill the staff fields from the ADP roster; they stay editable.
+  const applyAdpWorker = (w: AdpWorker) => {
+    setFormLinkedWorker(w);
+    setFormEmployeeName(w.fullName);
+    setFormAdpId(w.adpId);
+    setFormJobTitle(w.jobTitle || '');
+    const campusName = w.campus || w.locationName || '';
+    setFormCampus(campusName);
+    const region = w.campus ? locationForCampus(w.campus) : w.location;
+    setFormRegion(
+      region === 'Houston' ? 'Houston Area' : region === 'Central Administration' ? 'Central Administration' : 'San Antonio & Corpus Christi'
+    );
+  };
+
   // Submit New Payout / Deduction Request
   const handleSubmitNewRequest = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formEmployeeName.trim()) {
       alert('Please select or enter an employee name.');
+      return;
+    }
+    // Payroll keys this into ADP, so it must identify a real ADP record.
+    if (!formAdpId.trim()) {
+      alert('Enter the employee\'s ADP ID, or pick the employee from the ADP search.');
       return;
     }
     const numAmount = parseFloat(formAmount);
@@ -238,20 +261,20 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
     const nextNumber = payouts.length + 1;
     const prefix = formPayoutType === 'payment' ? 'SST-PAY' : 'SST-DED';
-    const tracking = `${prefix}-2026-${String(nextNumber).padStart(3, '0')}`;
+    const tracking = `${prefix}-${new Date().getFullYear()}-${String(nextNumber).padStart(3, '0')}`;
     const nowIso = new Date().toISOString();
 
     const newRequest: CpoPayoutRequest = {
       id: `payout-${Date.now()}`,
       trackingNumber: tracking,
       payoutType: formPayoutType,
-      employeeId: `emp-${Date.now()}`,
-      employeeName: formEmployeeName,
-      adpId: formAdpId || `ADP-SST-${Math.floor(10000 + Math.random() * 90000)}`,
+      employeeId: formLinkedWorker?.associateId || formAdpId.trim(),
+      employeeName: formEmployeeName.trim(),
+      adpId: formAdpId.trim(),
       campus: formCampus,
       region: formRegion,
-      jobTitle: formJobTitle || 'Staff Member',
-      currentSalary: 55000,
+      jobTitle: formJobTitle.trim(),
+      currentSalary: formLinkedWorker?.annualSalary || undefined,
       amount: numAmount,
       category: formCategory,
       reason: formReason,
@@ -292,6 +315,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onToast(`Created ${newRequest.trackingNumber} for ${formEmployeeName} ($${numAmount.toLocaleString()}) — Queued for CPO Approval`, 'success');
 
     // Reset form
+    setFormEmployeeName('');
+    setFormAdpId('');
+    setFormJobTitle('');
+    setFormLinkedWorker(null);
     setFormAmount('');
     setFormReason('');
     setFormDocs([]);
@@ -1139,8 +1166,27 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                 <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200 space-y-3">
                   <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                     <span>2. Target Staff Member Details</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Enter staff compensation details</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Search ADP, or enter details exactly as in ADP</span>
                   </div>
+
+                  <AdpEmployeeSearch
+                    idPrefix="payout-lookup"
+                    onSelect={applyAdpWorker}
+                    inputClassName="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
+                  />
+
+                  {formLinkedWorker && (
+                    <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900">
+                      <span>
+                        Filled from ADP: <strong>{formLinkedWorker.fullName}</strong> ({formLinkedWorker.adpId}).
+                        {formLinkedWorker.employmentStatus !== 'Active' && <> ADP status: <strong>{formLinkedWorker.employmentStatus}</strong>.</>}
+                        {!formLinkedWorker.campus && formLinkedWorker.locationName && <> ADP location did not match an SST campus; check the campus below.</>}
+                      </span>
+                      <button type="button" onClick={() => setFormLinkedWorker(null)} className="shrink-0 font-semibold hover:underline">
+                        Unlink
+                      </button>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -1156,10 +1202,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ADP Associate ID:</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ADP ID: *</label>
                       <input 
                         type="text"
-                        placeholder="ADP-SST-XXXXX"
+                        required
+                        placeholder="e.g. MRG92014A"
                         value={formAdpId}
                         onChange={(e) => setFormAdpId(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"

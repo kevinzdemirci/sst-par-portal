@@ -17,8 +17,7 @@ import {
 import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { AdpWorker } from '../types/adp';
-import { getStoredAdpConfig, getStoredAdpStaff, isAdpDataStale, syncFromAdpApi } from '../utils/adpService';
-import { isFirebaseConfigured, signInWithDistrictGoogle, watchDistrictUser } from '../utils/firebaseClient';
+import { AdpEmployeeSearch } from './AdpEmployeeSearch';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
@@ -42,7 +41,6 @@ import {
   Paperclip,
   ShieldCheck,
   Trash2,
-  Search,
   Link2
 } from 'lucide-react';
 
@@ -258,32 +256,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
-  // ADP employee lookup: selecting a person fills the employee fields, which stay editable.
-  const liveAdp = isFirebaseConfigured();
-  const [adpRoster, setAdpRoster] = useState<AdpWorker[]>(() => getStoredAdpStaff());
-  const [adpConfig, setAdpConfig] = useState(() => getStoredAdpConfig());
-  const [adpSignedIn, setAdpSignedIn] = useState(false);
-  const [adpLoadMessage, setAdpLoadMessage] = useState('');
-
-  useEffect(() => watchDistrictUser(user => setAdpSignedIn(!!user)), []);
-
-  const connectAdp = async () => {
-    setAdpLoadMessage('Signing in…');
-    try {
-      await signInWithDistrictGoogle();
-      setAdpLoadMessage('Loading ADP staff…');
-      await syncFromAdpApi(getStoredAdpConfig());
-      setAdpRoster(getStoredAdpStaff());
-      setAdpConfig(getStoredAdpConfig());
-      setAdpLoadMessage('');
-    } catch (e: any) {
-      setAdpLoadMessage(e?.message || 'Could not load ADP staff.');
-    }
-  };
+  // Worker chosen in the ADP search; the fields it fills stay editable.
   const [linkedWorker, setLinkedWorker] = useState<AdpWorker | null>(preSelectedWorker || null);
-  const [employeeQuery, setEmployeeQuery] = useState('');
-  const [isLookupOpen, setIsLookupOpen] = useState(false);
-  const [activeMatch, setActiveMatch] = useState(0);
   const issuesRef = useRef<HTMLDivElement>(null);
 
   const isTermination = actionType === 'termination';
@@ -489,19 +463,6 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     if (!proposedSalaryTouched) setProposedSalary(value);
   };
 
-  const employeeMatches = useMemo(() => {
-    const tokens = employeeQuery.toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0 || employeeQuery.trim().length < 2) return [];
-    const statusRank = (w: AdpWorker) => (w.employmentStatus === 'Terminated' ? 1 : 0);
-    return adpRoster
-      .filter(w => {
-        const haystack = `${w.fullName} ${w.adpId} ${w.associateId} ${w.workEmail} ${w.jobTitle} ${w.campus}`.toLowerCase();
-        return tokens.every(t => haystack.includes(t));
-      })
-      .sort((a, b) => statusRank(a) - statusRank(b) || a.lastName.localeCompare(b.lastName))
-      .slice(0, 8);
-  }, [employeeQuery, adpRoster]);
-
   const applyWorker = (w: AdpWorker) => {
     setLinkedWorker(w);
     setFirstName(w.firstName);
@@ -516,26 +477,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     setDpsSid(w.dpsSid || '');
     setTrsNotificationRequired(w.trsMember);
     if (w.workerType) setEmploymentStatus(w.workerType);
-    setEmployeeQuery('');
-    setIsLookupOpen(false);
     setIsDirty(true);
-  };
-
-  const onLookupKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setIsLookupOpen(true);
-      setActiveMatch(i => Math.min(i + 1, Math.max(employeeMatches.length - 1, 0)));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveMatch(i => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault(); // never submit the form from the search box
-      if (isLookupOpen && employeeMatches[activeMatch]) applyWorker(employeeMatches[activeMatch]);
-    } else if (e.key === 'Escape' && isLookupOpen) {
-      e.stopPropagation(); // close the list, not the whole form
-      setIsLookupOpen(false);
-    }
   };
 
   const addFiles = (fileList: FileList | null) => {
@@ -846,106 +788,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
             {/* 2. Employee */}
             <Section step={2} title="Employee information" description="Search ADP to fill these fields, or enter them exactly as they appear in ADP Workforce Now.">
-              <div className="relative">
-                <label htmlFor="par-lookup" className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Find employee in ADP
-                </label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    id="par-lookup"
-                    type="text"
-                    role="combobox"
-                    autoComplete="off"
-                    aria-expanded={isLookupOpen && employeeQuery.trim().length >= 2}
-                    aria-controls="par-lookup-list"
-                    aria-activedescendant={isLookupOpen && employeeMatches[activeMatch] ? `par-lookup-${activeMatch}` : undefined}
-                    value={employeeQuery}
-                    onChange={e => {
-                      setEmployeeQuery(e.target.value);
-                      setIsLookupOpen(true);
-                      setActiveMatch(0);
-                    }}
-                    onFocus={() => setIsLookupOpen(true)}
-                    onBlur={() => setIsLookupOpen(false)}
-                    onKeyDown={onLookupKeyDown}
-                    placeholder="Search by name, ADP ID, or email"
-                    className={`${inputCls} pl-8`}
-                  />
-                </div>
-                {isLookupOpen && employeeQuery.trim().length >= 2 && (
-                  <ul
-                    id="par-lookup-list"
-                    role="listbox"
-                    className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
-                  >
-                    {employeeMatches.length === 0 ? (
-                      <li className="px-3 py-2.5 text-[11px] text-slate-500">
-                        No match in the ADP roster. Enter the employee's details below.
-                      </li>
-                    ) : (
-                      employeeMatches.map((w, i) => (
-                        <li
-                          key={w.id}
-                          id={`par-lookup-${i}`}
-                          role="option"
-                          aria-selected={i === activeMatch}
-                          onMouseDown={e => {
-                            e.preventDefault();
-                            applyWorker(w);
-                          }}
-                          onMouseEnter={() => setActiveMatch(i)}
-                          className={`px-3 py-2 cursor-pointer border-b border-slate-100 last:border-0 ${
-                            i === activeMatch ? 'bg-[#0f2352]/5' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-slate-900 truncate">{w.fullName}</span>
-                            <span className="flex items-center gap-1.5 shrink-0">
-                              {w.employmentStatus !== 'Active' && (
-                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                                  w.employmentStatus === 'Terminated' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'
-                                }`}>
-                                  {w.employmentStatus}
-                                </span>
-                              )}
-                              <span className="font-mono text-[10px] text-slate-500">{w.adpId}</span>
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate">
-                            {[w.jobTitle, w.campus || w.locationName, w.workEmail].filter(Boolean).join(' · ')}
-                          </div>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                )}
-                {liveAdp && !adpSignedIn && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={connectAdp}
-                      className="px-2.5 py-1 rounded-md bg-[#0f2352] text-white text-[11px] font-semibold hover:bg-[#1a3880]"
-                    >
-                      Sign in to search ADP staff
-                    </button>
-                    <span className="text-[10px] text-slate-500">Use your @ssttx.org Google account.</span>
-                  </div>
-                )}
-                {adpLoadMessage && <p className="mt-1 text-[10px] font-semibold text-slate-700">{adpLoadMessage}</p>}
-                {liveAdp && adpSignedIn && (isAdpDataStale(adpConfig) || adpConfig.lastSyncError) && (
-                  <p className="mt-1 text-[10px] font-semibold text-amber-800">
-                    ADP data may be out of date: the daily ADP refresh has not succeeded since{' '}
-                    {adpConfig.lastSyncTimestamp ? new Date(adpConfig.lastSyncTimestamp).toLocaleString() : 'setup'}.
-                    Confirm details against ADP.
-                  </p>
-                )}
-                <p className="mt-1 text-[10px] text-slate-500">
-                  {liveAdp && adpSignedIn && adpConfig.lastSyncTimestamp
-                    ? `${adpRoster.length} staff records from ADP Workforce Now${adpConfig.lastSyncTimestamp ? `, synced ${new Date(adpConfig.lastSyncTimestamp).toLocaleString()}` : ''}.`
-                    : `${adpRoster.length} staff records in the local roster (sample or CSV import). Live ADP sync is not connected yet.`}
-                </p>
-              </div>
+              <AdpEmployeeSearch idPrefix="par-lookup" onSelect={applyWorker} inputClassName={inputCls} />
 
               {linkedWorker && (
                 <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">

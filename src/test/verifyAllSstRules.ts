@@ -10,7 +10,7 @@ import {
   canPersonaCreatePar,
   isSuperAdmin 
 } from '../utils/formatters';
-import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS } from '../types/par';
+import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS, Campus } from '../types/par';
 import { INITIAL_PAYOUT_REQUESTS, SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { CpoPayoutRequest } from '../types/payout';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
@@ -47,7 +47,7 @@ import {
 } from '../utils/adpService';
 import adpRelay from '../../adp-relay/src/index.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { matchSstCampus } from '../utils/formatters';
+import { matchSstCampus, locationForCampus } from '../utils/formatters';
 import { mapWorker } from '../../adp-relay/src/mapWorker.js';
 
 declare const process: { exit: (code?: number) => void };
@@ -1082,8 +1082,30 @@ const adpLocationCases: [string, string | undefined][] = [
   ['444444 444 SST Central Office', 'SST Central Office (District Administration)'],
   ['666666 666 Regional Office-Houston', 'SST Houston Regional Office'],
   ['015827 008 SONTERRA', 'SST Sonterra'],
-  ['CHAMP/CHAMPCP/HILLCOUNTRY', undefined]
+  ['CHAMP/CHAMPCP/HILLCOUNTRY', undefined],
+  ['015831 002-03 SST Bayshore', 'SST Bayshore'],
+  ['015831 002-04 SST CC EARLY ELEMENTARY', 'SST Corpus Christi Early Elementary'],
+  ['015827 007 SST Schertz', 'SST Schertz'],
+  ['015827 007 2 Schertz', 'SST Schertz'],
+  ['SCHERTZ', 'SST Schertz'],
+  ['555555 555 Regional Office-San Antonio', 'SST San Antonio Regional Office'],
+  ['015805 041 NF GREG GARCIA ELEM', 'NF Greg Garcia Elementary (NFPS Partner)'],
+  ['015805 001 NF FRANK L MADLA EARLY COLLEGE HS', 'NF Frank L. Madla Early College High School (NFPS Partner)'],
+  ['015827 004 SST Excellence', undefined],
+  ['015831 007 SST ONLINE ACADEMY', undefined]
 ];
+const expectedRegions: [string, string][] = [
+  ['SST Bayshore', 'Corpus Christi'],
+  ['SST Corpus Christi Early Elementary', 'Corpus Christi'],
+  ['SST Schertz', 'San Antonio'],
+  ['SST San Antonio Regional Office', 'San Antonio'],
+  ['NF Greg Garcia Elementary (NFPS Partner)', 'San Antonio'],
+  ['NF Frank L. Madla Early College High School (NFPS Partner)', 'San Antonio']
+];
+expectedRegions.forEach(([campusName, region]) => {
+  const got = locationForCampus(campusName as Campus);
+  assert(got === region, `${campusName} routes to the ${region} region (Got: ${got})`);
+});
 adpLocationCases.forEach(([adpName, expected]) => {
   const got = matchSstCampus(adpName);
   assert(got === expected, `ADP location "${adpName}" maps to ${expected ?? 'no campus'} (Got: ${got ?? 'none'})`);

@@ -631,7 +631,12 @@ const ADP_LOCATION_ALIASES: Record<string, Campus> = {
   'hill country college prep': 'SST Hill Country College Prep High School',
   'hill country cp': 'SST Hill Country College Prep High School',
   'central office': 'SST Central Office (District Administration)',
-  'regional office houston': 'SST Houston Regional Office'
+  'regional office houston': 'SST Houston Regional Office',
+  'regional office san antonio': 'SST San Antonio Regional Office',
+  'cc early elementary': 'SST Corpus Christi Early Elementary',
+  '2 schertz': 'SST Schertz',
+  'nf greg garcia elem': 'NF Greg Garcia Elementary (NFPS Partner)',
+  'nf frank l madla early college hs': 'NF Frank L. Madla Early College High School (NFPS Partner)'
 };
 
 /**

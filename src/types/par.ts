@@ -36,8 +36,14 @@ export const SST_CAMPUSES = [
   'SST Hill Country',
   'SST Hill Country College Prep High School',
   'SST Sonterra',
+  'SST Schertz',
+  'SST San Antonio Regional Office',
+  'NF Greg Garcia Elementary (NFPS Partner)',
+  'NF Frank L. Madla Early College High School (NFPS Partner)',
   // Corpus Christi Region
   'SST Corpus Christi Elementary',
+  'SST Corpus Christi Early Elementary',
+  'SST Bayshore',
   'SST Corpus Christi College Prep High School',
   'SST Main Campus (Corpus Christi)',
   // District Administration
@@ -65,10 +71,16 @@ export const SST_CAMPUS_REGIONS: Record<string, Campus[]> = {
     'SST Northwest',
     'SST Hill Country',
     'SST Hill Country College Prep High School',
-    'SST Sonterra'
+    'SST Sonterra',
+    'SST Schertz',
+    'SST San Antonio Regional Office',
+    'NF Greg Garcia Elementary (NFPS Partner)',
+    'NF Frank L. Madla Early College High School (NFPS Partner)'
   ],
   'Corpus Christi Area': [
     'SST Corpus Christi Elementary',
+    'SST Corpus Christi Early Elementary',
+    'SST Bayshore',
     'SST Corpus Christi College Prep High School',
     'SST Main Campus (Corpus Christi)'
   ],

@@ -14,6 +14,7 @@
  * ADP credentials, certificate, and private key are Google Secret Manager secrets.
  * Firestore rules (firestore.rules) let only signed-in @ssttx.org accounts read the roster.
  */
+import { createHash } from 'node:crypto';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
@@ -159,10 +160,14 @@ export const portalRelay = onCall(
       }
     }
 
+    // The deployed Apps Script recognizes emails by their "to" field and answers with its
+    // status page when an email request carries an action name, so emails go without one.
+    const { action: _action, ...fields } = body;
+    const forwarded = action === 'send_email' ? fields : body;
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, portalKey: APPS_SCRIPT_KEY.value(), requestedBy: email })
+      body: JSON.stringify({ ...forwarded, portalKey: APPS_SCRIPT_KEY.value().trim(), requestedBy: email })
     });
     const text = await res.text();
     if (!res.ok) {
@@ -170,7 +175,19 @@ export const portalRelay = onCall(
       throw new HttpsError('unavailable', `Google Apps Script returned HTTP ${res.status}.`);
     }
     try {
-      return JSON.parse(text);
+      const reply = JSON.parse(text);
+      if (reply?.status === 'error') {
+        // Same fingerprint as the Apps Script's keyFingerprint_(): shows whether the keys match
+        // without revealing either.
+        const key = APPS_SCRIPT_KEY.value().trim();
+        const fingerprint = `${key.length}:${createHash('sha256').update(key, 'utf8').digest('hex').slice(0, 8)}`;
+        logger.error(
+          `Apps Script refused ${action} by ${email} (portal key ${fingerprint}, script key ${reply.keyCheck || 'n/a'}): ${String(reply.message || '').slice(0, 200)}`
+        );
+      } else {
+        logger.info(`Apps Script ${action} by ${email}: ${reply?.status || 'ok'} ${String(reply?.message || '').slice(0, 120)}`);
+      }
+      return reply;
     } catch {
       logger.warn(`Apps Script returned non-JSON for ${action} by ${email}`, text.slice(0, 300));
       return null;

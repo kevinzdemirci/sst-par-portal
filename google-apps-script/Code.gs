@@ -502,6 +502,23 @@ function formatDateStr(dateVal) {
 }
 
 /**
+ * True only for requests relayed by the portal's portalRelay Cloud Function, which checks
+ * that the sender has an active portal account. The key is the PORTAL_KEY script property
+ * (Project Settings → Script properties) and the APPS_SCRIPT_KEY Firebase secret.
+ */
+function isPortalRequest_(key) {
+  var expected = PropertiesService.getScriptProperties().getProperty("PORTAL_KEY");
+  return !!expected && key === expected;
+}
+
+function denied_() {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "error",
+    message: "Not authorized. Use the SST PAR Portal."
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
  * Main Webhook POST Handler (doPost)
  */
 function doPost(e) {
@@ -517,6 +534,7 @@ function doPost(e) {
     }
 
     var payload = JSON.parse(e.postData.contents);
+    if (!isPortalRequest_(payload.portalKey)) return denied_();
     var action = payload.action || "track_par";
 
     // 1. ACTION: Track / Sync Single PAR
@@ -596,6 +614,7 @@ function doGet(e) {
     var action = e && e.parameter ? e.parameter.action : "status";
 
     if (action === "get_pars") {
+      if (!isPortalRequest_(e.parameter.portalKey)) return denied_();
       var sheet = ss.getSheetByName(TAB_PAR_TRACKER);
       if (!sheet) {
         return ContentService.createTextOutput(JSON.stringify({ status: "empty", pars: [] })).setMimeType(ContentService.MimeType.JSON);

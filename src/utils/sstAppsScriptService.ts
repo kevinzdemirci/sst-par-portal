@@ -5,6 +5,7 @@
 
 import { PersonnelActionRequest, UserPersona } from '../types/par';
 import { getStoredGmailCredentials, saveGmailCredentials } from './gmailService';
+import { postToAppsScript } from './appsScriptTransport';
 
 export interface AppsScriptConfig {
   scriptUrl: string;               // e.g. https://script.google.com/macros/s/.../exec
@@ -531,46 +532,22 @@ export async function testAppsScriptConnection(scriptUrl?: string): Promise<{
         activeAccount: data.activeAccount
       };
     }
-  } catch (getErr) {
-    // 2. Try POST with CORS
+  } catch {
+    // The status check can be blocked by the browser; set up the sheet tabs instead.
     try {
-      const postRes = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'init_sheets' })
-      });
-      if (postRes.ok) {
-        const postData = await postRes.json();
-        recordSyncLog('test_connection', url, 'success', 'Connected & initialized sheets via POST.');
-        return {
-          success: true,
-          message: 'Connected and verified Google Sheets tracker initialization!',
-          spreadsheetUrl: postData.url
-        };
-      }
+      const postData = await postToAppsScript(url, { action: 'init_sheets' });
+      recordSyncLog('test_connection', url, 'success', 'Connected & initialized sheets.');
+      return {
+        success: true,
+        message: 'Connected and verified Google Sheets tracker initialization!',
+        spreadsheetUrl: postData?.url
+      };
     } catch (postErr: any) {
-      // 3. Fallback: Direct POST gateway (mode: 'no-cors')
-      // If browser CORS policy restricts JSON reading on cross-origin redirects,
-      // the request still delivers to Apps Script and runs successfully.
-      try {
-        await fetch(url, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'init_sheets' })
-        });
-        recordSyncLog('test_connection', url, 'success', 'Connected via direct POST gateway.');
-        return {
-          success: true,
-          message: 'Connected to SST Google Apps Script! Webhook reached and sheet tabs verified.'
-        };
-      } catch (noCorsErr: any) {
-        recordSyncLog('test_connection', url, 'error', noCorsErr.message || 'CORS or unreachable endpoint.');
-        return {
-          success: false,
-          message: `Could not reach Google Apps Script. Please verify the Web App deployment has 'Who has access' set to 'Anyone'. Error: ${noCorsErr.message}`
-        };
-      }
+      recordSyncLog('test_connection', url, 'error', postErr.message || 'Unreachable endpoint.');
+      return {
+        success: false,
+        message: `Could not reach Google Apps Script: ${postErr.message || 'unknown error'}`
+      };
     }
   }
 
@@ -607,46 +584,31 @@ export async function syncParToSstGoogleSheet(
   };
 
   try {
-    const response = await fetch(config.scriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-
-    if (response.ok) {
-      let resJson: any = null;
-      try {
-        resJson = await response.json();
-      } catch {}
-
-      const msg = `Synced ${par.trackingNumber} to SSTTX Google Sheet (${resJson?.action || 'updated'})`;
-      recordSyncLog('track_par', par.trackingNumber, 'success', msg);
-      
-      // Update spreadsheet URL if returned
-      if (resJson?.sheetUrl && !config.spreadsheetUrl) {
-        config.spreadsheetUrl = resJson.sheetUrl;
-        saveAppsScriptConfig(config);
-      }
-
-      return {
-        success: true,
-        message: msg,
-        sheetUrl: resJson?.sheetUrl || config.spreadsheetUrl
-      };
-    } else {
-      const errMsg = `HTTP ${response.status} from Apps Script`;
+    const resJson = await postToAppsScript(config.scriptUrl, payload);
+    if (resJson && resJson.status === 'error') {
+      const errMsg = resJson.message || 'Apps Script returned an error.';
       recordSyncLog('track_par', par.trackingNumber, 'error', errMsg);
       return { success: false, message: errMsg };
     }
-  } catch (err: any) {
-    // If browser CORS swallowed response, the Apps Script may still have processed
-    const msg = `Dispatched to Google Sheet: ${err.message || 'Complete'}`;
+
+    const msg = `Synced ${par.trackingNumber} to SSTTX Google Sheet (${resJson?.action || 'updated'})`;
     recordSyncLog('track_par', par.trackingNumber, 'success', msg);
+
+    // Update spreadsheet URL if returned
+    if (resJson?.sheetUrl && !config.spreadsheetUrl) {
+      config.spreadsheetUrl = resJson.sheetUrl;
+      saveAppsScriptConfig(config);
+    }
+
     return {
       success: true,
       message: msg,
-      sheetUrl: config.spreadsheetUrl
+      sheetUrl: resJson?.sheetUrl || config.spreadsheetUrl
     };
+  } catch (err: any) {
+    const msg = `Could not sync to the Google Sheet: ${err.message || 'unknown error'}`;
+    recordSyncLog('track_par', par.trackingNumber, 'error', msg);
+    return { success: false, message: msg };
   }
 }
 
@@ -671,46 +633,31 @@ export async function bulkSyncParsToSstGoogleSheet(
   };
 
   try {
-    const response = await fetch(config.scriptUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-
-    if (response.ok) {
-      let resJson: any = null;
-      try {
-        resJson = await response.json();
-      } catch {}
-
-      const syncedCount = resJson?.syncedCount || pars.length;
-      const msg = `Successfully synchronized ${syncedCount} PARs to SST Google Sheet!`;
-      recordSyncLog('bulk_sync', `${syncedCount} Records`, 'success', msg);
-
-      if (resJson?.sheetUrl) {
-        config.spreadsheetUrl = resJson.sheetUrl;
-        saveAppsScriptConfig(config);
-      }
-
-      return {
-        success: true,
-        message: msg,
-        count: syncedCount,
-        sheetUrl: resJson?.sheetUrl || config.spreadsheetUrl
-      };
-    } else {
-      const errMsg = `Server returned HTTP ${response.status}`;
+    const resJson = await postToAppsScript(config.scriptUrl, payload);
+    if (resJson && resJson.status === 'error') {
+      const errMsg = resJson.message || 'Apps Script returned an error.';
       recordSyncLog('bulk_sync', 'Batch', 'error', errMsg);
       return { success: false, message: errMsg, count: 0 };
     }
-  } catch (err: any) {
-    const msg = `Bulk sync dispatched (${pars.length} records processed).`;
-    recordSyncLog('bulk_sync', `${pars.length} Records`, 'success', msg);
+
+    const syncedCount = resJson?.syncedCount || pars.length;
+    const msg = `Successfully synchronized ${syncedCount} PARs to SST Google Sheet!`;
+    recordSyncLog('bulk_sync', `${syncedCount} Records`, 'success', msg);
+
+    if (resJson?.sheetUrl) {
+      config.spreadsheetUrl = resJson.sheetUrl;
+      saveAppsScriptConfig(config);
+    }
+
     return {
       success: true,
       message: msg,
-      count: pars.length,
-      sheetUrl: config.spreadsheetUrl
+      count: syncedCount,
+      sheetUrl: resJson?.sheetUrl || config.spreadsheetUrl
     };
+  } catch (err: any) {
+    const msg = `Could not sync to the Google Sheet: ${err.message || 'unknown error'}`;
+    recordSyncLog('bulk_sync', 'Batch', 'error', msg);
+    return { success: false, message: msg, count: 0 };
   }
 }

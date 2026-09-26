@@ -1,4 +1,5 @@
 import { NOTIFICATION_TEST_MODE } from '../config/notifications';
+import { postToAppsScript } from './appsScriptTransport';
 
 /**
  * SST Gmail & Google Workspace Automated Dispatch Service
@@ -283,57 +284,36 @@ export async function sendGmailEmail(
     }
 
     try {
-      // Use text/plain to avoid CORS preflight options check on Google Apps Script
-      const response = await fetch(creds.scriptUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify({
-          to: payload.to,
-          toName: payload.toName || payload.to,
-          subject: payload.subject,
-          bodyText: payload.bodyText,
-          htmlBody: finalHtml,
-          cc: finalCc,
-          senderName: creds.senderName,
-          senderEmail: creds.senderEmail
-        })
+      const resJson = await postToAppsScript(creds.scriptUrl, {
+        action: 'send_email',
+        to: payload.to,
+        toName: payload.toName || payload.to,
+        subject: payload.subject,
+        bodyText: payload.bodyText,
+        htmlBody: finalHtml,
+        cc: finalCc,
+        category: payload.category,
+        senderName: creds.senderName,
+        senderEmail: creds.senderEmail
       });
-
-      if (response.ok) {
-        try {
-          const resJson = await response.json();
-          if (resJson && resJson.status === 'error') {
-            return {
-              success: false,
-              message: resJson.message || 'Google Script returned an error.',
-              provider: 'Google Apps Script (Gmail)',
-              timestamp
-            };
-          }
-        } catch {
-          // If response is not JSON (e.g. redirect), GmailApp.sendEmail was still invoked
-        }
-
-        return {
-          success: true,
-          message: `Dispatched successfully from ${creds.senderEmail} via Gmail`,
-          provider: 'Google Apps Script (Gmail)',
-          timestamp
-        };
-      } else {
+      if (resJson && resJson.status === 'error') {
         return {
           success: false,
-          message: `Google Script endpoint returned HTTP error ${response.status}`,
+          message: resJson.message || 'Google Script returned an error.',
           provider: 'Google Apps Script (Gmail)',
           timestamp
         };
       }
+      return {
+        success: true,
+        message: `Dispatched successfully from ${creds.senderEmail} via Gmail`,
+        provider: 'Google Apps Script (Gmail)',
+        timestamp
+      };
     } catch (err: any) {
       return {
         success: false,
-        message: `Network error reaching Google Apps Script: ${err.message || 'Check Script URL and deployment permissions'}`,
+        message: `Could not send through Google Apps Script: ${err.message || 'Check Script URL and deployment permissions'}`,
         provider: 'Google Apps Script (Gmail)',
         timestamp
       };

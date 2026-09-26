@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from 'firebase/firestore';
 import { ApproverRoleConfig, Campus, UserPersona, WorkflowStage } from '../types/par';
 import { AdpWorker } from '../types/adp';
 import { BOOTSTRAP_ADMIN_EMAILS, isAllowedSignInEmail } from '../config/firebase';
@@ -41,6 +41,15 @@ export function isBootstrapAdminEmail(email?: string | null): boolean {
 export async function fetchAccount(email: string): Promise<PortalAccount | null> {
   const snap = await getDoc(doc(getDb(), 'accounts', normalizeEmail(email)));
   return snap.exists() ? (snap.data() as PortalAccount) : null;
+}
+
+/** Calls back with the account (or null) now and whenever an admin changes it. */
+export function watchAccount(email: string, callback: (account: PortalAccount | null) => void): () => void {
+  return onSnapshot(
+    doc(getDb(), 'accounts', normalizeEmail(email)),
+    snap => callback(snap.exists() ? (snap.data() as PortalAccount) : null),
+    () => callback(null)
+  );
 }
 
 export async function fetchAllAccounts(): Promise<PortalAccount[]> {

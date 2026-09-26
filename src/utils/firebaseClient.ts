@@ -74,3 +74,12 @@ export async function requestAdpRefresh(): Promise<{ status: 'fresh' | 'refreshe
   );
   return (await call()).data;
 }
+
+/**
+ * Sends an email or SST Sheet update through the portalRelay Cloud Function, which only
+ * accepts active portal accounts. Returns the Apps Script's JSON reply.
+ */
+export async function callPortalRelay(body: Record<string, unknown>): Promise<any> {
+  const call = httpsCallable<Record<string, unknown>, any>(getFunctions(getApp(), 'us-central1'), 'portalRelay');
+  return (await call(body)).data;
+}

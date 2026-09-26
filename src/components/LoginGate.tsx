@@ -4,7 +4,7 @@ import { ShieldAlert } from 'lucide-react';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { DISTRICT_EMAIL_DOMAIN } from '../config/firebase';
 import { isFirebaseConfigured, signInWithDistrictGoogle, signOutDistrictGoogle, watchDistrictUser } from '../utils/firebaseClient';
-import { fetchAccount, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
+import { fetchAccount, isBootstrapAdminEmail, PortalAccount, watchAccount } from '../utils/accountsService';
 
 /** Who is signed in to the portal, and their shared account. */
 export interface PortalSession {
@@ -97,6 +97,15 @@ export const LoginGate: React.FC<{ children: (session: PortalSession | null) => 
       }
     });
   }, []);
+
+  // Lock the portal as soon as an admin deactivates or removes the signed-in account.
+  const sessionEmail = state.status === 'ready' ? state.session.email : null;
+  useEffect(() => {
+    if (!sessionEmail || isBootstrapAdminEmail(sessionEmail)) return;
+    return watchAccount(sessionEmail, account => {
+      if (!account || !account.active) setState({ status: 'no-account', email: sessionEmail });
+    });
+  }, [sessionEmail]);
 
   if (!isFirebaseConfigured()) return <>{children(null)}</>;
 

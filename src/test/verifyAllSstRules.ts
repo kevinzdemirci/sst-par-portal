@@ -1235,8 +1235,8 @@ assert(!canPersonaViewPar(alamoPrincipal, otherAlamoPar), 'Principal does not se
 assert(!canPersonaViewPar(alamoPrincipal, springPar), 'Principal does not see another school\'s PAR');
 assert(canPersonaViewPar(hrPersona, springPar) && canPersonaViewPar(cpoPersona, otherAlamoPar), 'HR and CPO still see all PARs');
 const payoutAccess = Object.fromEntries(['p-kevin', 'p-kristy', 'p-amber', 'p-paola', 'p-vanessa', 'p-atnan', 'p-serdar', 'p-ursula', 'p-enes', 'p-hasan'].map(id => [id, canPersonaAccessPayouts(USER_PERSONAS.find(p => p.id === id)!)]));
-assert(payoutAccess['p-kevin'] && payoutAccess['p-kristy'] && payoutAccess['p-amber'] && payoutAccess['p-paola'], 'CPO Payouts: Super Admin, both Regional HR Coordinators, and Payroll have access');
-assert(!payoutAccess['p-vanessa'] && !payoutAccess['p-atnan'] && !payoutAccess['p-serdar'] && !payoutAccess['p-ursula'] && !payoutAccess['p-enes'] && !payoutAccess['p-hasan'], 'CPO Payouts: principals, regional directors, Benefits, IT, and Talent Acquisition have no access');
+assert(payoutAccess['p-kevin'] && payoutAccess['p-kristy'] && payoutAccess['p-amber'] && payoutAccess['p-paola'] && payoutAccess['p-atnan'] && payoutAccess['p-serdar'], 'CPO Payouts: Super Admin, Regional HR Coordinators, Payroll, and Regional Executive Directors have access');
+assert(!payoutAccess['p-vanessa'] && !payoutAccess['p-ursula'] && !payoutAccess['p-enes'] && !payoutAccess['p-hasan'], 'CPO Payouts: principals, Benefits, IT, and Talent Acquisition have no access');
 assert(!canPersonaAccessPayouts(alamoPrincipal), 'CPO Payouts: campus principal accounts have no access');
 assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
 

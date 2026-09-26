@@ -224,10 +224,24 @@ export function getPriorityBadge(priority: Priority): {
 
 export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
 
-/** CPO Payouts are only for the Regional HR Coordinators, Payroll, and Super Admins. */
+/** Regional Executive Directors (not the notification-only IT / Talent Acquisition regional directors). */
+export function isRegionalExecutiveDirector(persona?: UserPersona | null): boolean {
+  if (!persona || persona.isNotificationOnly) return false;
+  return persona.canReviewStages.includes('regional_review') || /regional executive director/i.test(persona.role);
+}
+
+/**
+ * CPO Payouts are for the Regional HR Coordinators (entry), the CPO / Super Admins (approval),
+ * Payroll (processing), and the Regional Executive Directors (view only).
+ */
 export function canPersonaAccessPayouts(persona?: UserPersona | null): boolean {
   if (!persona || persona.isNotificationOnly) return false;
-  return isSuperAdmin(persona) || isRegionalHrCoordinator(persona) || isPayrollCoordinator(persona);
+  return (
+    isSuperAdmin(persona) ||
+    isRegionalHrCoordinator(persona) ||
+    isPayrollCoordinator(persona) ||
+    isRegionalExecutiveDirector(persona)
+  );
 }
 
 /** Campus principal (from ADP accounts, or the built-in Principal / Supervisor with a campus). */

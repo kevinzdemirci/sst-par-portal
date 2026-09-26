@@ -1,23 +1,29 @@
 import { GmailCredentials, getStoredGmailCredentials } from './gmailService';
 import { getStoredAppsScriptConfig } from './sstAppsScriptService';
 
+/** Every portal email comes from this district account. */
+export const DISTRICT_SENDER_EMAIL = 'sstpar@ssttx.org';
+export const DISTRICT_SENDER_NAME = 'SST Personnel Action Requests';
+
 /**
- * Email settings for PAR notifications. A browser with its own email setup uses it;
- * otherwise (e.g. a principal's first visit) mail goes through the district's Google
- * Apps Script web app, which sends from sstpar@ssttx.org.
+ * District email channel: the SST Google Apps Script web app, which sends through Gmail as
+ * sstpar@ssttx.org. Used for all portal notifications regardless of any browser's own
+ * email settings. Falls back to the browser's settings only if no Apps Script is configured.
  */
-export function getEffectiveEmailCredentials(): GmailCredentials {
-  const creds = getStoredGmailCredentials();
-  const ownSetupWorks = creds.isEnabled && (creds.mode !== 'google_script' || !!creds.scriptUrl);
-  if (ownSetupWorks) return creds;
+export function getDistrictEmailCredentials(): GmailCredentials {
+  const stored = getStoredGmailCredentials();
   const script = getStoredAppsScriptConfig();
-  if (!script.scriptUrl) return creds;
+  if (!script.scriptUrl) return stored;
   return {
-    ...creds,
+    ...stored,
     mode: 'google_script',
     scriptUrl: script.scriptUrl,
-    senderEmail: script.senderEmail || creds.senderEmail,
-    senderName: script.senderName || creds.senderName,
+    senderEmail: DISTRICT_SENDER_EMAIL,
+    senderName: DISTRICT_SENDER_NAME,
+    ccHrCopy: false,
     isEnabled: true
   };
 }
+
+/** @deprecated use getDistrictEmailCredentials */
+export const getEffectiveEmailCredentials = getDistrictEmailCredentials;

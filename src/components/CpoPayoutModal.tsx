@@ -41,7 +41,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
+import { sendGmailEmail } from '../utils/gmailService';
+import { getDistrictEmailCredentials } from '../utils/emailChannel';
 
 export interface PayoutTemplateItem {
   id: string;
@@ -306,7 +307,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onSavePayouts([newRequest, ...payouts]);
 
     // Automated Gmail dispatch to CPO for new payout request
-    const gmailCreds = getStoredGmailCredentials();
+    const gmailCreds = getDistrictEmailCredentials();
     if (gmailCreds.isEnabled) {
       sendGmailEmail({
         to: 'kdemirci@ssttx.org',
@@ -368,7 +369,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onSavePayouts(updated);
 
     // Automated Gmail dispatch to Payroll Coordinator upon CPO approval
-    const gmailCreds = getStoredGmailCredentials();
+    const gmailCreds = getDistrictEmailCredentials();
     if (gmailCreds.isEnabled && approvedItem) {
       const target: CpoPayoutRequest = approvedItem;
       sendGmailEmail({
@@ -485,7 +486,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onSavePayouts(updated);
 
     // Automated Gmail dispatch to Submitter confirming payroll entry
-    const gmailCreds = getStoredGmailCredentials();
+    const gmailCreds = getDistrictEmailCredentials();
     if (gmailCreds.isEnabled && executedItem) {
       const target: CpoPayoutRequest = executedItem;
       if (target.submitterEmail) {

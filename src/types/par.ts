@@ -197,6 +197,7 @@ export interface ApprovalStep {
   stage: WorkflowStage;
   stageLabel: string;
   assignedRole: string;
+  assignedName?: string;
   assignedDepartment: string;
   assignedEmail: string;
   status: 'pending' | 'approved' | 'rejected' | 'returned';

@@ -690,6 +690,7 @@ export function buildSstRouting(
       stage: rule.stage,
       stageLabel: rule.stageLabel,
       assignedRole,
+      assignedName: matchedApprover?.name,
       assignedDepartment: assignedDept,
       assignedEmail,
       status: 'pending'

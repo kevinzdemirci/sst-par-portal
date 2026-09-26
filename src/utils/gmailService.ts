@@ -29,7 +29,7 @@ export interface EmailPayload {
   bodyText: string;
   htmlBody?: string;
   cc?: string;
-  category?: 'activation' | 'notification' | 'payout' | 'test';
+  category?: 'activation' | 'notification' | 'payout' | 'test' | 'approval' | 'rejection' | 'completion';
 }
 
 export interface SendResult {

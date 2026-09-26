@@ -20,7 +20,8 @@ import {
   canPersonaViewSstSheet,
   isSuperAdmin
 } from '../utils/formatters';
-import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
+import { sendGmailEmail } from '../utils/gmailService';
+import { getDistrictEmailCredentials } from '../utils/emailChannel';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
 import { getStoredAdpStaff, executeAdpTerminationCloseout } from '../utils/adpService';
 import { 
@@ -189,7 +190,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
     const taContact = deptNotifications.find(n => n.type === 'talent_acquisition');
 
     // Automatically dispatch via configured Gmail if active
-    const creds = getStoredGmailCredentials();
+    const creds = getDistrictEmailCredentials();
     if (creds.isEnabled) {
       const empFullName = `${par.firstName} ${par.lastName}`;
       if (itContact?.recipientEmail) {
@@ -237,7 +238,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
 
   const handleApprove = () => {
     if (currentPersona.signingPin && pinInput.trim() !== currentPersona.signingPin) {
-      alert(`Texas UETA Authentication: Please enter your correct signing PIN to endorse this document (Preset PIN: ${currentPersona.signingPin})`);
+      alert('The signing PIN is incorrect. Enter your signing PIN to sign this document.');
       return;
     }
 
@@ -1462,14 +1463,6 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                       placeholder="PIN"
                       className="w-20 px-2 py-1 text-center font-mono font-bold bg-amber-50 border border-amber-300 rounded-lg text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setPinInput(currentPersona.signingPin || '')}
-                      className="text-[10px] text-amber-800 underline font-semibold hover:text-amber-900"
-                      title="Fill preset PIN for quick testing"
-                    >
-                      (Fill PIN: {currentPersona.signingPin})
-                    </button>
                   </div>
                 </div>
               )}

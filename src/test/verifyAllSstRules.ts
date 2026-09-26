@@ -48,6 +48,8 @@ import {
   isAdpDataStale
 } from '../utils/adpService';
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
+import { buildSubmissionEmails, buildApprovalEmails, buildReturnedEmails, buildRejectedEmails, renderParEmail, PORTAL_URL } from '../utils/parNotifications';
+import { getDistrictEmailCredentials } from '../utils/emailChannel';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
@@ -1292,6 +1294,44 @@ const albaPersona = personaFromAccount(officeAccounts[0]);
 assert(canPersonaAccessPayouts(albaPersona) && !isRegionalHrCoordinator(albaPersona), 'Director of HR (Alba Urcullu) can view CPO Payouts, in reviewer mode (not HR entry)');
 assert(!canPersonaAccessPayouts(hasanNow), 'Regional Directors of Talent Acquisition cannot see CPO Payouts');
 assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
+
+// 27. PAR email notifications (sstpar@ssttx.org, approval chain, privacy)
+console.log('\n--- 27. PAR Email Notifications ---');
+const notifRoute = buildSstRouting('termination', true, 'Houston', DEFAULT_WORKFLOW_CONFIG, 'SST Spring');
+const notifPar = {
+  ...INITIAL_PAR_DATA[0],
+  trackingNumber: 'PAR-2026-NOTIFY1', actionType: 'termination' as const, firstName: 'Jordan', lastName: 'Reyes',
+  workEmail: 'jreyes@ssttx.org', employeeId: 'UFP004455', campus: 'SST Spring' as const, location: 'Houston' as const,
+  submittedBy: 'Principal Test', submitterEmail: 'principal@ssttx.org', currentSalary: 58000,
+  reasonForTermination: 'CONFIDENTIAL-REASON-TEXT', dpsSid: '14000001', lastDayWorked: '2026-10-02',
+  currentStage: notifRoute[0].stage, routingSteps: notifRoute,
+  departmentNotifications: getDepartmentNotificationRecipients('Houston', 'SST Spring', 'termination')
+};
+const subEmails = buildSubmissionEmails(notifPar);
+const subTo = subEmails.map(e => e.to);
+assert(subTo.includes(notifRoute[0].assignedEmail), `Submission emails the first approver (${notifRoute[0].assignedEmail})`);
+assert(subTo.includes('principal@ssttx.org'), 'Submission sends the submitter a receipt');
+assert(subTo.includes('hcelik@ssttx.org') && subTo.some(t => /esevik|akaya/.test(t)) && subTo.some(t => /hkendirci|adal/.test(t)), 'Submission sends DPS, IT, and Talent Acquisition notices');
+assert(!subTo.includes('jreyes@ssttx.org'), 'The employee is never emailed about their own PAR');
+const allText = subEmails.map(e => e.subject + e.bodyText + e.htmlBody).join(' ');
+assert(!allText.includes('CONFIDENTIAL-REASON-TEXT') && !allText.includes('58,000') && !allText.includes('58000'), 'Emails leave out the separation reason and salary');
+assert(subEmails.find(e => e.to === 'hcelik@ssttx.org')!.bodyText.includes('14000001'), 'DPS notice includes the DPS SID');
+assert(subEmails.every(e => e.htmlBody.includes(`${PORTAL_URL}/`) && e.bodyText.includes('sstpar@ssttx.org')), 'Every email links to the portal and names sstpar@ssttx.org');
+assert(subEmails.find(e => e.to === notifRoute[0].assignedEmail)!.htmlBody.includes('?par=PAR-2026-NOTIFY1'), 'Action emails link straight to the PAR');
+const approverPersona = USER_PERSONAS.find(p => p.id === 'p-vanessa')!;
+const afterStep1 = { ...notifPar, routingSteps: notifRoute.map((st, i) => i === 0 ? { ...st, status: 'approved' as const } : st) };
+const apprEmails = buildApprovalEmails(afterStep1, approverPersona);
+assert(apprEmails.length === 1 && apprEmails[0].to === notifRoute[1].assignedEmail && apprEmails[0].subject.startsWith('Action needed'), `Approval emails the next approver in the chain (${notifRoute[1].assignedEmail})`);
+const allSigned = { ...notifPar, routingSteps: notifRoute.map(st => ({ ...st, status: 'approved' as const })) };
+const doneEmails = buildApprovalEmails(allSigned, USER_PERSONAS.find(p => p.id === 'p-paola')!);
+assert(doneEmails.length === 1 && doneEmails[0].to === 'principal@ssttx.org' && doneEmails[0].subject.startsWith('Completed'), 'Final approval emails the submitter that the PAR is complete');
+assert(buildReturnedEmails(notifPar, approverPersona, 'Fix LDW')[0].to === 'principal@ssttx.org', 'Returned-for-revision email goes to the submitter');
+assert(buildRejectedEmails(notifPar, approverPersona, 'No')[0].to === 'principal@ssttx.org', 'Rejection email goes to the submitter, not the employee');
+const selfStep = { ...afterStep1, routingSteps: afterStep1.routingSteps.map((st, i) => i === 1 ? { ...st, assignedEmail: 'vnguyen@ssttx.org' } : st) };
+assert(buildApprovalEmails(selfStep, approverPersona).length === 0, 'No "action needed" email to the person who just acted');
+assert(renderParEmail({ subject: 's', badge: 'b', tone: 'info', heading: '<script>x</script>', greetingName: 'A', paragraphs: [], details: [] }).htmlBody.includes('&lt;script&gt;'), 'Email content is HTML-escaped');
+const district = getDistrictEmailCredentials();
+assert(district.mode === 'google_script' && district.senderEmail === 'sstpar@ssttx.org' && !!district.scriptUrl, 'All portal email goes through the district Apps Script as sstpar@ssttx.org');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

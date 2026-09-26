@@ -18,6 +18,7 @@ import {
   getStoredGmailCredentials, 
   sendGmailEmail 
 } from '../utils/gmailService';
+import { getDistrictEmailCredentials } from '../utils/emailChannel';
 
 interface ActivationEmailModalProps {
   role: ApproverRoleConfig | UserPersona;
@@ -82,7 +83,7 @@ School of Science and Technology Charter District`;
   const outlookWebUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(role.email)}&cc=${encodeURIComponent(hrEmail)}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBodyText)}`;
 
   const handleSendGmail = async () => {
-    const creds = getStoredGmailCredentials();
+    const creds = getDistrictEmailCredentials();
     if (!creds.isEnabled || (!creds.scriptUrl && !creds.emailJsServiceId && !creds.smtpEndpoint)) {
       if (onOpenGmailSettings) {
         onOpenGmailSettings();

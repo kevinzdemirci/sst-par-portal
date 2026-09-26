@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   PersonnelActionRequest, 
   UserPersona, 
@@ -31,9 +31,10 @@ import { AuthModal } from './components/AuthModal';
 import { PayScheduleModal } from './components/PayScheduleModal';
 import { AdpStaffModal } from './components/AdpStaffModal';
 import { AdpWorker } from './types/adp';
-import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
+import { sendGmailEmail } from './utils/gmailService';
+import { getDistrictEmailCredentials } from './utils/emailChannel';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
-import { getEffectiveEmailCredentials } from './utils/emailChannel';
+import { buildApprovalEmails, buildRejectedEmails, buildReturnedEmails, buildSubmissionEmails, sendParEmails } from './utils/parNotifications';
 import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpService';
 import { watchDistrictUser } from './utils/firebaseClient';
 import type { PortalSession } from './components/LoginGate';
@@ -381,6 +382,25 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     }
   }, [toastMessage]);
 
+  // Email links (?par=<tracking number>) open that PAR once the signed-in user's role is set.
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const tracking = new URLSearchParams(window.location.search).get('par');
+    if (!tracking) return;
+    if (session && normalizeEmail(currentPersona.email) !== normalizeEmail(session.email) && !session.isAdmin) return;
+    deepLinkHandled.current = true;
+    const found = pars.find(p => p.trackingNumber === tracking);
+    if (found && canPersonaViewPar(currentPersona, found)) {
+      setSelectedPar(found);
+    } else {
+      showToast(`PAR ${tracking} is not available here yet.`, 'info');
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('par');
+    window.history.replaceState({}, '', url.toString());
+  }, [currentPersona, pars, session]);
+
   // Handle URL activation link (e.g., from an email invitation: ?activate=<roleId>).
   // Signed-in staff can only activate their own role; only Super Admins can open others'.
   useEffect(() => {
@@ -630,28 +650,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           );
         }
 
-        // Automated Gmail dispatch on stage transition or completion
-        const gmailCreds = getEffectiveEmailCredentials();
-        if (gmailCreds.isEnabled) {
-          const empFullName = `${par.firstName} ${par.lastName}`;
-          if (nextStage === 'completed') {
-            sendGmailEmail({
-              to: par.workEmail || gmailCreds.hrEmail,
-              toName: empFullName,
-              subject: `✅ [SST PAR COMPLETED]: ${par.trackingNumber} - ${empFullName}`,
-              bodyText: `Dear SST Team,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) has completed all approval stages and been executed in ADP payroll.\n\nAll departmental actions are complete.\n\nSchool of Science and Technology Human Resources`,
-              category: 'notification'
-            }, gmailCreds).catch(console.error);
-          } else if (nextPendingStep?.assignedEmail) {
-            sendGmailEmail({
-              to: nextPendingStep.assignedEmail,
-              toName: nextPendingStep.assignedRole,
-              subject: `⏳ [SST PAR PENDING YOUR REVIEW]: ${par.trackingNumber} - ${empFullName}`,
-              bodyText: `Dear ${nextPendingStep.assignedRole},\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) is now pending your endorsement in the "${nextPendingStep.stageLabel}" stage.\n\nPlease sign in to the SST HR Hub to review and execute your digital signature.\n\nSchool of Science and Technology Human Resources`,
-              category: 'notification'
-            }, gmailCreds).catch(console.error);
-          }
-        }
+        // Email the next approver in the chain, or the submitter when complete (from sstpar@ssttx.org)
+        sendParEmails(buildApprovalEmails(updatedPar, persona));
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
@@ -709,18 +709,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           setSelectedPar(updatedPar);
         }
 
-        // Automated Gmail dispatch on rejection
-        const gmailCreds = getEffectiveEmailCredentials();
-        if (gmailCreds.isEnabled) {
-          const empFullName = `${par.firstName} ${par.lastName}`;
-          sendGmailEmail({
-            to: par.workEmail || gmailCreds.hrEmail,
-            toName: empFullName,
-            subject: `❌ [SST PAR REJECTED]: ${par.trackingNumber} - ${empFullName}`,
-            bodyText: `Dear SST Team,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) was rejected by ${persona.name} (${persona.role}).\n\nReason / Notes: ${comments}\n\nSchool of Science and Technology Human Resources`,
-            category: 'notification'
-          }, gmailCreds).catch(console.error);
-        }
+        // Email the submitter (not the employee) about the rejection
+        sendParEmails(buildRejectedEmails(updatedPar, persona, comments));
 
         showToast(`❌ ${par.trackingNumber} has been declined.`, 'warning');
 
@@ -780,18 +770,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           setSelectedPar(updatedPar);
         }
 
-        // Automated Gmail dispatch on revision request
-        const gmailCreds = getEffectiveEmailCredentials();
-        if (gmailCreds.isEnabled) {
-          const empFullName = `${par.firstName} ${par.lastName}`;
-          sendGmailEmail({
-            to: par.workEmail || gmailCreds.hrEmail,
-            toName: empFullName,
-            subject: `⚠️ [SST PAR REVISION REQUESTED]: ${par.trackingNumber} - ${empFullName}`,
-            bodyText: `Dear SST Campus Initiator,\n\nPersonnel Action Request ${par.trackingNumber} for ${empFullName} (${par.title}, ${par.campus}) has been returned for revisions by ${persona.name} (${persona.role}).\n\nRequested Changes: ${comments}\n\nPlease sign in to the SST HR Hub to modify and resubmit.\n\nSchool of Science and Technology Human Resources`,
-            category: 'notification'
-          }, gmailCreds).catch(console.error);
-        }
+        // Email the submitter (not the employee): the PAR needs their changes
+        sendParEmails(buildReturnedEmails(updatedPar, persona, comments));
 
         showToast(`⚠️ ${par.trackingNumber} returned to campus initiator for revisions.`, 'warning');
 
@@ -845,46 +825,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     setPars([newPar, ...pars]);
     setIsNewParModalOpen(false);
 
-    // Automated Gmail notifications on new PAR submission
-    const gmailCreds = getEffectiveEmailCredentials();
-    if (gmailCreds.isEnabled) {
-      const empFullName = `${newPar.firstName} ${newPar.lastName}`;
-      const firstPendingStep = newPar.routingSteps.find((s) => s.status === 'pending');
-
-      // 1. Notify first approver (e.g. Principal)
-      if (firstPendingStep?.assignedEmail) {
-        sendGmailEmail({
-          to: firstPendingStep.assignedEmail,
-          toName: firstPendingStep.assignedRole,
-          subject: `📋 [NEW SST PAR PENDING ENDORSEMENT]: ${newPar.trackingNumber} - ${empFullName}`,
-          bodyText: `Dear ${firstPendingStep.assignedRole},\n\nA new Personnel Action Request (${newPar.actionType.replace('_', ' ').toUpperCase()}) has been initiated for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nTracking Number: ${newPar.trackingNumber}\nEffective Date: ${newPar.effectiveDate}\n\nPlease sign in to the SST HR Hub to review and execute your digital signature endorsement.\n\nSchool of Science and Technology Human Resources`,
-          category: 'notification'
-        }, gmailCreds).catch(console.error);
-      }
-
-      // 2. Dispatch department notifications (IT & Talent Acquisition)
-      if (newPar.departmentNotifications && newPar.departmentNotifications.length > 0) {
-        newPar.departmentNotifications.forEach((dept) => {
-          if (dept.type === 'dps') {
-            sendGmailEmail({
-              to: dept.recipientEmail,
-              toName: dept.recipientName,
-              subject: `[ACTION: DPS UNSUBSCRIBE] ${newPar.trackingNumber} - ${empFullName} separation`,
-              bodyText: `Dear ${dept.recipientName},\n\nA separation PAR was submitted for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nADP Position ID: ${newPar.employeeId}\nDPS SID: ${newPar.dpsSid || 'not recorded on the PAR (check ADP)'}\nLast day worked: ${newPar.lastDayWorked || 'not recorded'}\nSeparation effective date: ${newPar.effectiveDate}\nTracking number: ${newPar.trackingNumber}\n\nPlease remove this employee's fingerprint subscription from the DPS system after the separation date.\n\nSchool of Science and Technology Human Resources`,
-              category: 'notification'
-            }, gmailCreds).catch(console.error);
-            return;
-          }
-          sendGmailEmail({
-            to: dept.recipientEmail,
-            toName: dept.recipientName,
-            subject: `📢 [FYI - ${dept.department.toUpperCase()} NOTIFICATION]: ${newPar.trackingNumber} - ${empFullName}`,
-            bodyText: `Dear ${dept.recipientName} (${dept.recipientRole}),\n\nThis is an automated operational notification regarding a new Personnel Action Request for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nAction: ${newPar.actionType.replace('_', ' ').toUpperCase()}\nEffective Date: ${newPar.effectiveDate}\n\nScope / Purpose: ${dept.purpose}\nNote: INFORMATIONAL ONLY — No signature or approval action required from you.\n\nSchool of Science and Technology Human Resources`,
-            category: 'notification'
-          }, gmailCreds).catch(console.error);
-        });
-      }
-    }
+    // Email the first approver, a receipt to the submitter, and department notices
+    sendParEmails(buildSubmissionEmails(newPar));
 
     showToast(`🎉 New request ${newPar.trackingNumber} submitted for ${newPar.firstName} ${newPar.lastName}! Forwarded to Principal/Supervisor endorsement.`, 'success');
 
@@ -1004,7 +946,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     }
 
     // 4. Automated Gmail dispatch for new approver invitation if enabled
-    const gmailCreds = getStoredGmailCredentials();
+    const gmailCreds = getDistrictEmailCredentials();
     if (gmailCreds.isEnabled && safePersona.email && !safePersona.isAccountActivated && safePersona.id !== 'p-kevin') {
       const baseUrl = window.location.origin + window.location.pathname;
       const activationUrl = `${baseUrl}?activate=${encodeURIComponent(safePersona.id)}`;

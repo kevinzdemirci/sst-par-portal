@@ -11,6 +11,9 @@ import {
   WorkflowConfig,
   LEAVE_TYPES,
   LeaveType,
+  MEDICAL_LEAVE_TYPES,
+  BEREAVEMENT_RELATIONSHIPS,
+  MedicalCertificationStatus,
   RehireEligibility,
   TERMINATION_CODES
 } from '../types/par';
@@ -248,10 +251,19 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [salaryReason, setSalaryReason] = useState('');
 
   // Leave of absence
-  const [leaveType, setLeaveType] = useState<LeaveType | ''>('');
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveStartDate, setLeaveStartDate] = useState('');
   const [expectedReturnDate, setExpectedReturnDate] = useState('');
   const [isPaidLeave, setIsPaidLeave] = useState<boolean | null>(null);
+  const [firstDayOfEmployment, setFirstDayOfEmployment] = useState<string>(preSelectedWorker?.hireDate || '');
+  const [bereavementRelationship, setBereavementRelationship] = useState('');
+  const [emergencyLeaveReason, setEmergencyLeaveReason] = useState('');
+  const [otherLeaveReason, setOtherLeaveReason] = useState('');
+  const [medicalCertificationStatus, setMedicalCertificationStatus] = useState<MedicalCertificationStatus | ''>('');
+  const [leavePremiumsAcknowledged, setLeavePremiumsAcknowledged] = useState(false);
+  const [leaveReturnCertAcknowledged, setLeaveReturnCertAcknowledged] = useState(false);
+  const [employeeLeaveRequestSigned, setEmployeeLeaveRequestSigned] = useState(false);
+  const [middleInitial, setMiddleInitial] = useState('');
 
   // Certification & submission state
   const [attested, setAttested] = useState(false);
@@ -388,9 +400,29 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     }
 
     if (isLeave) {
-      if (!leaveType) errs.push('Select the leave type.');
-      if (!leaveStartDate) errs.push('Enter the leave start date.');
-      if (!expectedReturnDate) errs.push('Enter the expected return date.');
+      const has = (t: LeaveType) => leaveTypes.includes(t);
+      if (leaveTypes.length === 0) errs.push('Select at least one type of leave.');
+      if (has('Bereavement Leave') && !bereavementRelationship) errs.push('Select the relationship of the deceased to the employee.');
+      if (has('Emergency Leave') && !emergencyLeaveReason.trim()) errs.push('Specify the reason for the emergency leave.');
+      if (has('Other') && !otherLeaveReason.trim()) errs.push('Describe the other type of leave.');
+      if (leaveTypes.some(t => MEDICAL_LEAVE_TYPES.includes(t)) && !medicalCertificationStatus) {
+        errs.push('Indicate whether the medical certification has been sent to Benefits.');
+      }
+      if (!firstDayOfEmployment) errs.push("Enter the employee's first day of employment.");
+      if (!leaveStartDate) errs.push('Enter the date on which the leave begins.');
+      if (!expectedReturnDate) errs.push('Enter the date of anticipated return.');
+      if (firstDayOfEmployment && leaveStartDate && leaveStartDate < firstDayOfEmployment) {
+        errs.push('The leave cannot begin before the first day of employment.');
+      }
+      if (!employeeLeaveRequestSigned || !leavePremiumsAcknowledged || !leaveReturnCertAcknowledged) {
+        errs.push("Confirm the employee's signed Employee Request For Leave and both agreements.");
+      }
+      if (has('Family and Medical Leave (FMLA)') && firstDayOfEmployment && leaveStartDate && addDaysIso(firstDayOfEmployment, 365) > leaveStartDate) {
+        warns.push('The employee will have worked less than 12 months when the leave begins. FMLA requires 12 months of employment and 1,250 hours worked; Benefits will confirm eligibility.');
+      }
+      if ((has('Military Leave') || has('Jury Duty or Other Court Appearance')) && attachments.length === 0) {
+        warns.push('Attach the military orders or court/jury summons under Supporting documentation.');
+      }
       if (leaveStartDate && expectedReturnDate && expectedReturnDate < leaveStartDate) {
         errs.push('The expected return date cannot be earlier than the leave start date.');
       }
@@ -412,8 +444,10 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     returnedCharterProperty, outstandingPropertyNotes, hasWrittenStatements, attachments.length,
     outstandingStipendsOwed, rehireEligibility, laptopReturned, keysBadgesReturned, sisGradebookClosed,
     finalPay.deadline, today, proposedCampus, campus, proposedTitle, notesRelatingToPositionChange,
-    showCompSection, currentSalary, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveType,
-    leaveStartDate, expectedReturnDate, isPaidLeave, attested
+    showCompSection, currentSalary, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveTypes,
+    leaveStartDate, expectedReturnDate, isPaidLeave, attested, firstDayOfEmployment, bereavementRelationship,
+    emergencyLeaveReason, otherLeaveReason, medicalCertificationStatus, employeeLeaveRequestSigned,
+    leavePremiumsAcknowledged, leaveReturnCertAcknowledged
   ]);
 
   const requestClose = () => {
@@ -482,6 +516,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     setDpsSid(w.dpsSid || '');
     setTrsNotificationRequired(w.trsMember);
     if (w.workerType) setEmploymentStatus(w.workerType);
+    if (w.hireDate) setFirstDayOfEmployment(w.hireDate);
     setIsDirty(true);
   };
 
@@ -548,6 +583,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       employeeId: employeeId.trim().toUpperCase(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      middleInitial: middleInitial.trim().toUpperCase() || undefined,
       title: title.trim(),
       location,
       campus,
@@ -611,7 +647,17 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       salaryChangeReason: showCompSection ? salaryReason.trim() : undefined,
 
       // Leave of absence
-      leaveType: isLeave ? (leaveType || undefined) : undefined,
+      leaveType: isLeave ? leaveTypes[0] : undefined,
+      leaveTypes: isLeave ? leaveTypes : undefined,
+      firstDayOfEmployment: isLeave ? firstDayOfEmployment : undefined,
+      bereavementRelationship: isLeave && leaveTypes.includes('Bereavement Leave') ? bereavementRelationship : undefined,
+      emergencyLeaveReason: isLeave && leaveTypes.includes('Emergency Leave') ? emergencyLeaveReason.trim() : undefined,
+      otherLeaveReason: isLeave && leaveTypes.includes('Other') ? otherLeaveReason.trim() : undefined,
+      medicalCertificationStatus:
+        isLeave && leaveTypes.some(t => MEDICAL_LEAVE_TYPES.includes(t)) ? (medicalCertificationStatus || undefined) : undefined,
+      leavePremiumsAcknowledged: isLeave ? leavePremiumsAcknowledged : undefined,
+      leaveReturnCertAcknowledged: isLeave ? leaveReturnCertAcknowledged : undefined,
+      employeeLeaveRequestSigned: isLeave ? employeeLeaveRequestSigned : undefined,
       leaveStartDate: isLeave ? leaveStartDate : undefined,
       expectedReturnDate: isLeave ? expectedReturnDate : undefined,
       isPaidLeave: isLeave ? isPaidLeave === true : undefined,
@@ -849,6 +895,11 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 <Field label="Last name" htmlFor="par-last" required>
                   <input id="par-last" name="par-last" type="text" required autoComplete="off" data-1p-ignore data-lpignore="true" value={lastName}
                     onChange={e => setLastName(e.target.value)} className={inputCls} />
+                </Field>
+                <Field label="MI" htmlFor="par-mi">
+                  <input id="par-mi" name="par-mi" type="text" maxLength={1} autoComplete="off" data-1p-ignore data-lpignore="true"
+                    value={middleInitial} onChange={e => setMiddleInitial(e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase())}
+                    className={`${inputCls} w-16`} />
                 </Field>
                 <Field label="ADP Position ID" htmlFor="par-adp" required>
                   <input
@@ -1188,27 +1239,111 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
               </Section>
             )}
 
-            {/* 3d. Leave of absence */}
+            {/* 3d. Leave of absence (SST Employee Request For Leave) */}
             {isLeave && (
               <Section step={nextStep()} title="Leave details"
-                description="Benefits will confirm FMLA eligibility and send the required notices.">
+                description="From the employee's signed SST Employee Request For Leave. Benefits confirms FMLA eligibility and sends the required notices.">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Field label="Leave type" htmlFor="par-leave-type" required>
-                    <select id="par-leave-type" value={leaveType}
-                      onChange={e => setLeaveType(e.target.value as LeaveType)} className={inputCls}>
-                      <option value="">Select…</option>
-                      {LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                  <Field label="First day of employment" htmlFor="par-first-day" required hint={linkedWorker?.hireDate ? 'From ADP (original hire date).' : undefined}>
+                    <input id="par-first-day" type="date" value={firstDayOfEmployment}
+                      onChange={e => setFirstDayOfEmployment(e.target.value)} className={inputCls} />
                   </Field>
-                  <Field label="Leave start date" htmlFor="par-leave-start" required>
+                  <Field label="Date on which leave begins" htmlFor="par-leave-start" required>
                     <input id="par-leave-start" type="date" value={leaveStartDate}
                       onChange={e => changeLeaveStart(e.target.value)} className={inputCls} />
                   </Field>
-                  <Field label="Expected return date" htmlFor="par-leave-return" required>
+                  <Field label="Date of anticipated return" htmlFor="par-leave-return" required>
                     <input id="par-leave-return" type="date" value={expectedReturnDate} min={leaveStartDate || undefined}
                       onChange={e => setExpectedReturnDate(e.target.value)} className={inputCls} />
                   </Field>
                 </div>
+
+                <fieldset className="rounded-lg border border-slate-200 p-3 space-y-2">
+                  <legend className="px-1 text-xs font-semibold text-slate-800">
+                    Type of leave<span className="text-rose-600 ml-0.5">*</span>
+                    <span className="ml-1 font-normal text-slate-500">(select all that apply)</span>
+                  </legend>
+                  {LEAVE_TYPES.map(t => {
+                    const checked = leaveTypes.includes(t);
+                    return (
+                      <div key={t} className={`rounded-md border px-3 py-2 ${checked ? 'border-[#0f2352] bg-[#0f2352]/5' : 'border-slate-200'}`}>
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
+                          <input type="checkbox" checked={checked} className="rounded accent-[#0f2352]"
+                            onChange={e => setLeaveTypes(prev => e.target.checked ? [...prev, t] : prev.filter(x => x !== t))} />
+                          {t}
+                        </label>
+                        {checked && t === 'Family and Medical Leave (FMLA)' && (
+                          <p className="mt-1.5 ml-6 text-[11px] text-slate-600">
+                            The employee's health care provider completes{' '}
+                            <a href="https://www.dol.gov/agencies/whd/forms/wh380e" target="_blank" rel="noreferrer" className="font-semibold text-[#0f2352] underline">WH-380-E</a>{' '}
+                            (employee's own condition) or{' '}
+                            <a href="https://www.dol.gov/agencies/whd/forms/wh380f" target="_blank" rel="noreferrer" className="font-semibold text-[#0f2352] underline">WH-380-F</a>{' '}
+                            (family member's condition).
+                          </p>
+                        )}
+                        {checked && t === 'Short-term Disability Leave' && (
+                          <p className="mt-1.5 ml-6 text-[11px] text-slate-600">Requires a medical certification from the employee's health care provider.</p>
+                        )}
+                        {checked && t === 'Bereavement Leave' && (
+                          <div className="mt-1.5 ml-6 max-w-xs">
+                            <label htmlFor="par-bereavement" className="block text-[11px] text-slate-600 mb-1">
+                              Relationship of the deceased to the employee<span className="text-rose-600 ml-0.5">*</span>
+                            </label>
+                            <select id="par-bereavement" value={bereavementRelationship}
+                              onChange={e => setBereavementRelationship(e.target.value)} className={inputCls}>
+                              <option value="">Select…</option>
+                              {BEREAVEMENT_RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        {checked && t === 'Military Leave' && (
+                          <p className="mt-1.5 ml-6 text-[11px] text-slate-600">Attach documentation of military service (e.g. orders) under Supporting documentation.</p>
+                        )}
+                        {checked && t === 'Emergency Leave' && (
+                          <div className="mt-1.5 ml-6">
+                            <label htmlFor="par-emergency" className="block text-[11px] text-slate-600 mb-1">Specify the reason<span className="text-rose-600 ml-0.5">*</span></label>
+                            <input id="par-emergency" type="text" value={emergencyLeaveReason}
+                              onChange={e => setEmergencyLeaveReason(e.target.value)} className={inputCls} />
+                          </div>
+                        )}
+                        {checked && t === 'Jury Duty or Other Court Appearance' && (
+                          <p className="mt-1.5 ml-6 text-[11px] text-slate-600">Attach the jury summons or court documentation under Supporting documentation.</p>
+                        )}
+                        {checked && t === 'Other' && (
+                          <div className="mt-1.5 ml-6">
+                            <label htmlFor="par-other-leave" className="block text-[11px] text-slate-600 mb-1">Describe the leave<span className="text-rose-600 ml-0.5">*</span></label>
+                            <input id="par-other-leave" type="text" value={otherLeaveReason}
+                              onChange={e => setOtherLeaveReason(e.target.value)} className={inputCls} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </fieldset>
+
+                {leaveTypes.some(t => MEDICAL_LEAVE_TYPES.includes(t)) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2 text-[11px] text-amber-950">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+                      <span>
+                        A leave based on the employee's or a family member's serious health condition requires a medical certification
+                        from a physician. <strong>Send it directly to Benefits; do not attach it to this PAR</strong> (medical records are kept
+                        in a separate confidential file). Do not enter a diagnosis on this form.
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-6" role="radiogroup" aria-label="Medical certification">
+                      {(['Sent to Benefits', 'Employee will send to Benefits'] as MedicalCertificationStatus[]).map(v => (
+                        <label key={v} className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 cursor-pointer bg-white ${
+                          medicalCertificationStatus === v ? 'border-[#0f2352] text-[#0f2352] font-semibold' : 'border-amber-200'}`}>
+                          <input type="radio" name="par-med-cert" checked={medicalCertificationStatus === v}
+                            onChange={() => setMedicalCertificationStatus(v)} className="accent-[#0f2352]" />
+                          Medical certification: {v.toLowerCase()}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <YesNo name="par-leave-paid" question="Pay status during leave" value={isPaidLeave}
                     onChange={setIsPaidLeave} yesLabel="Paid (using accrued leave)" noLabel="Unpaid" />
@@ -1218,13 +1353,32 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     <span>Employee is a TRS member. Report the leave status to the Teacher Retirement System.</span>
                   </label>
                 </div>
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-[11px] text-amber-900">
-                  <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
-                  <span>
-                    Do not enter a diagnosis or medical information on this form. Send medical certifications directly to Benefits.
-                    They are stored separately from the personnel file.
-                  </span>
-                </div>
+
+                <fieldset className="rounded-lg border border-slate-200 p-3 space-y-2 text-[11px] text-slate-700">
+                  <legend className="px-1 text-xs font-semibold text-slate-800">
+                    Employee's request and agreements<span className="text-rose-600 ml-0.5">*</span>
+                  </legend>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked={employeeLeaveRequestSigned} onChange={e => setEmployeeLeaveRequestSigned(e.target.checked)} className="mt-0.5 rounded accent-[#0f2352]" />
+                    <span>The employee completed and signed the SST <strong>Employee Request For Leave</strong>.</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked={leavePremiumsAcknowledged} onChange={e => setLeavePremiumsAcknowledged(e.target.checked)} className="mt-0.5 rounded accent-[#0f2352]" />
+                    <span>
+                      The employee agreed that while on leave they are responsible for paying all benefit premiums, in full upfront or
+                      each pay cycle, unless they discontinue coverage; coverage ends if payments are late. Benefits will contact them about a payment plan.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked={leaveReturnCertAcknowledged} onChange={e => setLeaveReturnCertAcknowledged(e.target.checked)} className="mt-0.5 rounded accent-[#0f2352]" />
+                    <span>
+                      The employee agreed to provide medical certification if they cannot perform their job functions, or are needed to care for a
+                      spouse, parent, or child with a serious health condition, when the leave expires, and understands they may not resume their
+                      position until they do.
+                    </span>
+                  </label>
+                  <p className="text-slate-500">Falsification of the request or a doctor's statement may result in disciplinary action, including denied leave or termination.</p>
+                </fieldset>
               </Section>
             )}
 
@@ -1236,7 +1390,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 description={
                   isTermination
                     ? 'For example: the resignation letter, written warnings, PIP, notice of termination, or relevant emails.'
-                    : 'Attach any documents that support this request (optional).'
+                    : isLeave
+                      ? "For example: the employee's signed Employee Request For Leave, military orders, or a jury summons. Never attach medical records here."
+                      : 'Attach any documents that support this request (optional).'
                 }
               >
                 <label

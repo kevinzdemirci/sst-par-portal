@@ -861,23 +861,30 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   </div>
                 )}
 
-                {/* Leave of Absence Details */}
-                {par.actionType === 'leave_of_absence' && par.leaveType && (
-                  <div className="border border-slate-400 rounded-lg p-3.5 mb-6 bg-white text-xs">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-3">
+                {/* Leave of Absence Details (SST Employee Request For Leave) */}
+                {par.actionType === 'leave_of_absence' && (par.leaveTypes?.length || par.leaveType) && (
+                  <div className="border border-slate-400 rounded-lg p-3.5 mb-6 bg-white text-xs space-y-3">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5">
                       Leave of Absence Details
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[11px]">Type of Leave:</span>
+                      <strong className="text-slate-900">{(par.leaveTypes?.length ? par.leaveTypes : [par.leaveType]).join(', ')}</strong>
+                      {par.bereavementRelationship && <div className="text-slate-700 mt-0.5">Bereavement: relationship of the deceased: {par.bereavementRelationship}</div>}
+                      {par.emergencyLeaveReason && <div className="text-slate-700 mt-0.5">Emergency leave reason: {par.emergencyLeaveReason}</div>}
+                      {par.otherLeaveReason && <div className="text-slate-700 mt-0.5">Other: {par.otherLeaveReason}</div>}
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
-                        <span className="text-slate-500 block text-[11px]">Leave Type:</span>
-                        <strong className="text-slate-900">{par.leaveType}</strong>
+                        <span className="text-slate-500 block text-[11px]">First Day of Employment:</span>
+                        <strong className="text-slate-900">{formatDate(par.firstDayOfEmployment)}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[11px]">Start Date:</span>
+                        <span className="text-slate-500 block text-[11px]">Leave Begins:</span>
                         <strong className="text-slate-900">{formatDate(par.leaveStartDate)}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[11px]">Expected Return:</span>
+                        <span className="text-slate-500 block text-[11px]">Anticipated Return:</span>
                         <strong className="text-slate-900">{formatDate(par.expectedReturnDate)}</strong>
                       </div>
                       <div>
@@ -885,6 +892,18 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         <strong className="text-slate-900">{par.isPaidLeave ? 'Paid (accrued leave)' : 'Unpaid'}</strong>
                       </div>
                     </div>
+                    {par.medicalCertificationStatus && (
+                      <div className="rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-amber-950">
+                        Medical certification: <strong>{par.medicalCertificationStatus}</strong> (kept by Benefits, not attached to this PAR)
+                      </div>
+                    )}
+                    {par.employeeLeaveRequestSigned !== undefined && (
+                      <ul className="text-slate-700 space-y-0.5">
+                        <li>{par.employeeLeaveRequestSigned ? '✓' : '✗'} Employee signed the SST Employee Request For Leave</li>
+                        <li>{par.leavePremiumsAcknowledged ? '✓' : '✗'} Employee agreed to pay benefit premiums while on leave</li>
+                        <li>{par.leaveReturnCertAcknowledged ? '✓' : '✗'} Employee agreed to provide medical certification to return if required</li>
+                      </ul>
+                    )}
                   </div>
                 )}
 

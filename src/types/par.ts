@@ -94,16 +94,36 @@ export type Priority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type RehireEligibility = 'Yes' | 'No' | 'Review Required';
 
+/** Leave types on SST's Employee Request For Leave. */
 export const LEAVE_TYPES = [
-  'FMLA',
-  'Medical (Non-FMLA)',
-  'Parental',
-  'Military (USERRA)',
-  "Workers' Compensation",
-  'Personal'
+  'Family and Medical Leave (FMLA)',
+  'Short-term Disability Leave',
+  'Bereavement Leave',
+  'Military Leave',
+  'Emergency Leave',
+  'Jury Duty or Other Court Appearance',
+  'Other'
 ] as const;
 
 export type LeaveType = typeof LEAVE_TYPES[number];
+
+/** Leave types that need a medical certification (sent to Benefits, never attached to the PAR). */
+export const MEDICAL_LEAVE_TYPES: readonly LeaveType[] = ['Family and Medical Leave (FMLA)', 'Short-term Disability Leave'];
+
+export const BEREAVEMENT_RELATIONSHIPS = [
+  'Spouse',
+  'Child',
+  'Parent',
+  'Sibling',
+  'Grandparent',
+  'Grandchild',
+  'Parent-in-law',
+  'Son- or daughter-in-law',
+  'Brother- or sister-in-law',
+  'Other relative'
+] as const;
+
+export type MedicalCertificationStatus = 'Sent to Benefits' | 'Employee will send to Benefits';
 
 export const TERMINATION_CODES = [
   'A = Job Abandonment',
@@ -205,6 +225,7 @@ export interface PersonnelActionRequest {
   employeeId: string;
   firstName: string;
   lastName: string;
+  middleInitial?: string;
   title: string;
   location: SchoolLocation;
   campus: Campus;
@@ -242,11 +263,20 @@ export interface PersonnelActionRequest {
   rehireEligibility?: RehireEligibility;
   finalPayDeadline?: string; // Texas Payday Law (Tex. Lab. Code § 61.014) deadline, YYYY-MM-DD
 
-  // Leave of Absence
-  leaveType?: LeaveType;
+  // Leave of Absence (SST Employee Request For Leave)
+  leaveType?: LeaveType;            // first selected type (older PARs have only this)
+  leaveTypes?: LeaveType[];
   leaveStartDate?: string;
   expectedReturnDate?: string;
   isPaidLeave?: boolean;
+  firstDayOfEmployment?: string;
+  bereavementRelationship?: string;
+  emergencyLeaveReason?: string;
+  otherLeaveReason?: string;
+  medicalCertificationStatus?: MedicalCertificationStatus;
+  leavePremiumsAcknowledged?: boolean;       // employee pays benefit premiums while on leave
+  leaveReturnCertAcknowledged?: boolean;     // employee provides medical certification to return
+  employeeLeaveRequestSigned?: boolean;      // employee signed SST's Employee Request For Leave
 
   // Texas Charter HR Compliance & Employment Agreement Status
   contractType?: 'At-Will';

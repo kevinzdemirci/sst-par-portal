@@ -14,6 +14,15 @@ let memoryAdpStaffStore: AdpWorker[] | null = null;
 let memoryAdpConfigStore: AdpConnectionConfig | null = null;
 
 /**
+ * Recomputes the campus from the ADP location, so a roster saved before a campus change
+ * (e.g. SST Schertz splitting into Schertz Elementary and Early Elementary) stays current.
+ */
+function withCurrentCampus(w: AdpWorker): AdpWorker {
+  const campus = w.locationName ? matchSstCampus(w.locationName) : undefined;
+  return campus && campus !== w.campus ? { ...w, campus, location: locationForCampus(campus) } : w;
+}
+
+/**
  * Retrieve saved ADP staff roster from localStorage or initialize with defaults.
  */
 export function getStoredAdpStaff(): AdpWorker[] {
@@ -25,7 +34,7 @@ export function getStoredAdpStaff(): AdpWorker[] {
         if (Array.isArray(parsed)) {
           // The employee ID shown and recorded is the ADP Position ID (older saved rosters used the worker ID).
           return withoutLegacySamples(parsed as AdpWorker[], LEGACY_SAMPLE_ADP_WORKER_IDS).map(w =>
-            w.positionId && w.adpId !== w.positionId ? { ...w, adpId: w.positionId } : w
+            withCurrentCampus(w.positionId && w.adpId !== w.positionId ? { ...w, adpId: w.positionId } : w)
           );
         }
       }

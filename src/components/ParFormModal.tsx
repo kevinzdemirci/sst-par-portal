@@ -32,6 +32,7 @@ import {
   getDepartmentNotificationRecipients,
   getTexasFinalPayDeadline,
   getTeaMisconductReportDeadline,
+  matchSstCampus,
   isCampusPrincipal,
   isValidAdpPositionId,
   locationForCampus
@@ -528,7 +529,11 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     setAssociateId(w.associateId || w.adpId);
     setTitle(w.jobTitle || '');
     setWorkEmail(w.workEmail || '');
-    if (w.campus) setCampus(w.campus);
+    // Only a current campus name; an outdated one leaves the campus for the submitter to choose.
+    const workerCampus = [w.campus, matchSstCampus(w.locationName)].find(
+      (c): c is Campus => !!c && (SST_CAMPUSES as readonly string[]).includes(c)
+    );
+    if (workerCampus) setCampus(workerCampus);
     changeCurrentSalary(w.annualSalary || 0);
     setSupervisorName(w.supervisorName || '');
     setDpsSid(w.dpsSid || '');

@@ -1287,6 +1287,10 @@ assert(buildSstRouting('salary_change', false, 'San Antonio', schertzConfig, 'SS
 assert(buildSstRouting('salary_change', false, 'Houston', DEFAULT_WORKFLOW_CONFIG, 'SST Spring')[0].assignedEmail !== 'vnguyen@ssttx.org', 'A Houston campus with no endorser never falls back to Vanessa Nguyen');
 const noCampusStep = buildSstRouting('salary_change', false, 'Houston', DEFAULT_WORKFLOW_CONFIG)[0];
 assert(noCampusStep.assignedRole === 'Campus Principal' && noCampusStep.assignedEmail === '', 'Routing preview without a campus names the Campus Principal role, not Vanessa Nguyen');
+const orphanStep = buildSstRouting('salary_change', false, 'San Antonio', schertzConfig, 'SST Schertz' as Campus)[0];
+assert(orphanStep.stageLabel === 'Regional Executive Director Endorsement', `Stand-in endorsement is named for the Regional Executive Director (Got: ${orphanStep.stageLabel})`);
+const orphanResignation = buildSstRouting('termination', true, 'San Antonio', schertzConfig, 'SST Schertz' as Campus);
+assert(orphanResignation.filter(s => s.assignedEmail === 'sbulut@ssttx.org').length === 1, 'Regional Executive Director signs a resignation once, not twice, when standing in for a missing principal');
 const houstonOfficePar = { ...INITIAL_PAR_DATA[0], campus: 'SST Houston Regional Office' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Houston Regional Office') };
 assert(canPersonaActOnPar(hasanNow, houstonOfficePar) && !canPersonaActOnPar(hasanNow, { ...houstonOfficePar, campus: 'SST Spring' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Spring') }), 'Hasan endorses Houston Regional Office PARs only');
 const loaHouston = buildSstRouting('leave_of_absence', false, 'Houston', officeConfig, 'SST Spring');

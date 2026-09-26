@@ -699,13 +699,23 @@ export function buildSstRouting(
     steps.push({
       id: `step-${rule.id}`,
       stage: rule.stage,
-      stageLabel: rule.stageLabel,
+      stageLabel: regionalFallback && matchedApprover === regionalFallback
+        ? `${regionalFallback.title.replace(/\s*\(.*\)$/, '')} Endorsement`
+        : rule.stageLabel,
       assignedRole,
       assignedName: matchedApprover?.name,
       assignedDepartment: assignedDept,
       assignedEmail,
       status: 'pending'
     });
+  }
+
+  // When the Regional Executive Director stands in for a missing principal and also has a later
+  // step on this PAR, they sign once, at the later step.
+  const first = steps[0];
+  if (first?.stage === 'supervisor_review' && first.assignedEmail &&
+      steps.slice(1).some(s => s.assignedEmail.toLowerCase() === first.assignedEmail.toLowerCase())) {
+    steps.shift();
   }
 
   const allowedStages = ACTION_STAGE_POLICY[actionType];

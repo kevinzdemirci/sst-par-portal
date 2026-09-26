@@ -1201,6 +1201,10 @@ assert(principalPlan.toCreate[0].campus === 'SST Alamo' && principalPlan.toCreat
 assert(principalPlan.alreadyHaveAccount.length === 1 && principalPlan.alreadyHaveAccount[0].account.name === 'Vanessa Nguyen', 'Vanessa Nguyen keeps her existing account (no duplicate)');
 assert(principalPlan.missingEmail.length === 1 && principalPlan.missingCampus.length === 1, 'Principals without an email or a single campus are listed for attention, not created');
 assert(!principalPlan.toCreate.some(a => /assistant|fp@|former/i.test(a.name + a.email)), 'Assistant principals and terminated principals are skipped');
+  const partnerPlan = planPrincipalAccounts([mkWorker({ id: 'N1', adpId: 'N1', associateId: 'N1', fullName: 'ALYSSA  GAMEZ', jobTitle: 'PRINCIPAL', workEmail: 'agamez@newfrontierspublicschools.org', campus: 'SST Alamo', employmentStatus: 'Active' }),
+    mkWorker({ id: 'N2', adpId: 'N2', associateId: 'N2', fullName: 'HALIL  CICEK', jobTitle: 'PRINCIPAL', workEmail: 'hcicek@ssttx.org', campus: 'SST The Woodlands', employmentStatus: 'Active' })], []);
+  assert(partnerPlan.otherDomain.length === 1 && partnerPlan.toCreate.length === 1, 'Principals with a non-@ssttx.org email are not given accounts (they could not sign in)');
+  assert(partnerPlan.toCreate[0].name === 'Halil Cicek', `ADP names are tidied: extra spaces collapsed, ALL-CAPS title-cased (Got: ${partnerPlan.toCreate[0].name})`);
 
 const alamoApprovers = mergeAccountsIntoApprovers(DEFAULT_WORKFLOW_CONFIG.approvers, principalPlan.toCreate);
 assert(alamoApprovers.length === DEFAULT_WORKFLOW_CONFIG.approvers.length + 1, 'Shared principal accounts join the approver directory once');

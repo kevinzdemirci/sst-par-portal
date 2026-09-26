@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ApproverRoleConfig, Campus, UserPersona, WorkflowStage } from '../types/par';
 import { AdpWorker } from '../types/adp';
-import { BOOTSTRAP_ADMIN_EMAILS } from '../config/firebase';
+import { BOOTSTRAP_ADMIN_EMAILS, DISTRICT_EMAIL_DOMAIN } from '../config/firebase';
 import { getDb } from './firebaseClient';
 import { getInitialsAvatarUrl, locationForCampus } from './formatters';
 
@@ -94,6 +94,15 @@ export interface PrincipalImportPlan {
   alreadyHaveAccount: { worker: AdpWorker; account: PortalAccount }[];
   missingEmail: AdpWorker[];
   missingCampus: AdpWorker[];
+  /** Work email outside the district Google domain, so they could not sign in. */
+  otherDomain: AdpWorker[];
+}
+
+/** Tidies ADP names: collapses repeated spaces and title-cases names stored in all capitals. */
+export function cleanPersonName(name: string): string {
+  const collapsed = name.replace(/\s+/g, ' ').trim();
+  if (collapsed !== collapsed.toUpperCase()) return collapsed;
+  return collapsed.toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase());
 }
 
 /**
@@ -102,10 +111,14 @@ export interface PrincipalImportPlan {
  */
 export function planPrincipalAccounts(roster: AdpWorker[], existing: PortalAccount[]): PrincipalImportPlan {
   const byEmail = new Map(existing.map(a => [normalizeEmail(a.email), a]));
-  const plan: PrincipalImportPlan = { toCreate: [], alreadyHaveAccount: [], missingEmail: [], missingCampus: [] };
+  const plan: PrincipalImportPlan = { toCreate: [], alreadyHaveAccount: [], missingEmail: [], missingCampus: [], otherDomain: [] };
   for (const w of findAdpPrincipals(roster)) {
     if (!w.workEmail) {
       plan.missingEmail.push(w);
+      continue;
+    }
+    if (!normalizeEmail(w.workEmail).endsWith(`@${DISTRICT_EMAIL_DOMAIN}`)) {
+      plan.otherDomain.push(w);
       continue;
     }
     const existingAccount = byEmail.get(normalizeEmail(w.workEmail));
@@ -120,7 +133,7 @@ export function planPrincipalAccounts(roster: AdpWorker[], existing: PortalAccou
     const location = locationForCampus(w.campus as Campus);
     plan.toCreate.push({
       email: normalizeEmail(w.workEmail),
-      name: w.fullName,
+      name: cleanPersonName(w.fullName),
       title: CAMPUS_PRINCIPAL_TITLE,
       roleKey: 'supervisor',
       department: 'Campus Leadership',

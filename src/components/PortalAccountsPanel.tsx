@@ -157,6 +157,7 @@ export const PortalAccountsPanel: React.FC<PortalAccountsPanelProps> = ({
             {plan.alreadyHaveAccount.length > 0 && `, ${plan.alreadyHaveAccount.length} already have an account`}
             {plan.missingEmail.length > 0 && `, ${plan.missingEmail.length} without a work email`}
             {plan.missingCampus.length > 0 && `, ${plan.missingCampus.length} without a matching campus`}
+            {plan.otherDomain.length > 0 && `, ${plan.otherDomain.length} with a non-district email`}
           </div>
           {plan.toCreate.length > 0 && (
             <ul className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 text-xs">
@@ -171,6 +172,12 @@ export const PortalAccountsPanel: React.FC<PortalAccountsPanelProps> = ({
           {plan.alreadyHaveAccount.length > 0 && (
             <p className="text-[11px] text-slate-500">
               Kept as they are: {plan.alreadyHaveAccount.map(x => `${x.worker.fullName} (${x.account.title})`).join(', ')}.
+            </p>
+          )}
+          {plan.otherDomain.length > 0 && (
+            <p className="text-[11px] text-amber-800">
+              Not created because their work email is not @ssttx.org, so they could not sign in:{' '}
+              {plan.otherDomain.map(w => `${w.fullName} (${w.workEmail})`).join(', ')}.
             </p>
           )}
           {[...plan.missingEmail, ...plan.missingCampus].length > 0 && (

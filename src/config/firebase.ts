@@ -8,7 +8,14 @@ import type { FirebaseOptions } from 'firebase/app';
  *
  * Leave as null to run without live ADP data (sample roster and CSV import only).
  */
-export const FIREBASE_CONFIG: FirebaseOptions | null = null;
+export const FIREBASE_CONFIG: FirebaseOptions | null = {
+  apiKey: 'AIzaSyBCQDrfwTWyyZn5SygxdVqd8oG6RbLL9_w',
+  authDomain: 'sst-par-portal.firebaseapp.com',
+  projectId: 'sst-par-portal',
+  storageBucket: 'sst-par-portal.firebasestorage.app',
+  messagingSenderId: '822793591182',
+  appId: '1:822793591182:web:f20dd3766a9d540b38ecdf'
+};
 
 /** Only Google Workspace accounts in this domain can load ADP staff data. */
 export const DISTRICT_EMAIL_DOMAIN = 'ssttx.org';

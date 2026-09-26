@@ -35,6 +35,9 @@ import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService'
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
 import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpService';
 import { watchDistrictUser } from './utils/firebaseClient';
+import type { PortalSession } from './components/LoginGate';
+import { PortalAccountsPanel } from './components/PortalAccountsPanel';
+import { fetchAllAccounts, mergeAccountsIntoApprovers, normalizeEmail, personaFromAccount, PortalAccount } from './utils/accountsService';
 import { CpoPayoutRequest } from './types/payout';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
 
@@ -77,7 +80,7 @@ export const CPO_CANONICAL_APPROVER: ApproverRoleConfig = {
   signingPin: '1234'
 };
 
-export function App() {
+export function App({ session = null }: { session?: PortalSession | null }) {
   const [pars, setPars] = useState<PersonnelActionRequest[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -209,6 +212,39 @@ export function App() {
     }
     return CPO_CANONICAL_PERSONA; // Default to Dr. Kevin Demirci (Chief People Officer / Super Admin)
   });
+
+  // Signed-in session: the Google account decides who the user is. Only admins may
+  // switch personas ("Simulate Role"); without Firebase (local development) anyone can.
+  const canSwitchPersona = !session || session.isAdmin;
+  const [portalAccounts, setPortalAccounts] = useState<PortalAccount[]>([]);
+
+  useEffect(() => {
+    if (!session) return;
+    const email = normalizeEmail(session.email);
+    const localMatch =
+      availablePersonas.find(p => normalizeEmail(p.email) === email) ||
+      workflowConfig.approvers.find(a => normalizeEmail(a.email) === email);
+    if (session.account) {
+      setCurrentPersona(personaFromAccount(session.account, localMatch));
+    } else {
+      // Bootstrap Super Admin without an account record acts as the Chief People Officer.
+      setCurrentPersona(CPO_CANONICAL_PERSONA);
+    }
+
+    fetchAllAccounts()
+      .then(accounts => {
+        setPortalAccounts(accounts);
+        // Shared accounts (e.g. campus principals) join routing and the persona list.
+        setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
+        setAvailablePersonas(prev => {
+          const known = new Set(prev.map(p => normalizeEmail(p.email)));
+          const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(a => personaFromAccount(a));
+          return added.length ? [...prev, ...added] : prev;
+        });
+      })
+      .catch(err => console.error('Could not load portal accounts:', err));
+    // Runs once per signed-in session.
+  }, [session?.email]);
 
   // UI state
   const [selectedPar, setSelectedPar] = useState<PersonnelActionRequest | null>(null);
@@ -1118,7 +1154,10 @@ export function App() {
       {/* Top Navbar with Persona Switcher */}
       <Navbar
         currentPersona={currentPersona}
-        onSelectPersona={setCurrentPersona}
+        onSelectPersona={canSwitchPersona ? setCurrentPersona : () => {}}
+        canSwitchPersona={canSwitchPersona}
+        signedInEmail={session?.email}
+        onSignOut={session ? () => session.signOut() : undefined}
         onOpenNewParModal={() => setIsNewParModalOpen(true)}
         onOpenWorkflowModal={() => setIsWorkflowModalOpen(true)}
         onOpenAdminModal={() => setIsWorkflowAdminOpen(true)}
@@ -1135,7 +1174,7 @@ export function App() {
         activeHubTab={activeHubTab}
         onSelectHubTab={setActiveHubTab}
         onOpenGmailSettings={() => setIsGmailModalOpen(true)}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenAuthModal={canSwitchPersona ? () => setIsAuthModalOpen(true) : undefined}
         onOpenAppsScriptModal={() => setIsAppsScriptModalOpen(true)}
         onOpenPayScheduleModal={() => setIsPayScheduleModalOpen(true)}
         onOpenAdpStaffModal={() => setIsAdpStaffModalOpen(true)}
@@ -1468,7 +1507,20 @@ export function App() {
         )}
 
         {isAdmin && activeHubTab === 'directory' && (
-          <div className="animate-fadeIn">
+          <div className="animate-fadeIn space-y-6">
+            {session && (
+              <PortalAccountsPanel
+                accounts={portalAccounts}
+                approvers={workflowConfig.approvers}
+                personas={availablePersonas}
+                adminEmail={session.email}
+                onAccountsChanged={accounts => {
+                  setPortalAccounts(accounts);
+                  setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
+                }}
+                onToast={showToast}
+              />
+            )}
             <RoleManagerModal
               embedded={true}
               availablePersonas={availablePersonas}
@@ -1518,7 +1570,7 @@ export function App() {
           onAddComment={handleAddComment}
           onDeletePar={handleDeletePar}
           onUpdatePar={handleUpdatePar}
-          onSwitchPersona={setCurrentPersona}
+          onSwitchPersona={canSwitchPersona ? setCurrentPersona : undefined}
           availablePersonas={availablePersonas}
         />
       )}

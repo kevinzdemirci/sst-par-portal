@@ -19,3 +19,9 @@ export const FIREBASE_CONFIG: FirebaseOptions | null = {
 
 /** Only Google Workspace accounts in this domain can load ADP staff data. */
 export const DISTRICT_EMAIL_DOMAIN = 'ssttx.org';
+
+/**
+ * Accounts that can always sign in as portal Super Admin (manage accounts, invite staff),
+ * even before the shared accounts list exists. Must match isBootstrapAdmin() in firestore.rules.
+ */
+export const BOOTSTRAP_ADMIN_EMAILS = ['kdemirci@ssttx.org', 'sstpar@ssttx.org'];

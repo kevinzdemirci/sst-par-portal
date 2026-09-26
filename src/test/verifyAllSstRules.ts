@@ -51,6 +51,7 @@ import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus } from '../utils/formatters';
+import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
 declare const process: { exit: (code?: number) => void };
@@ -1180,6 +1181,43 @@ assert(!isAdpSyncDue(DEFAULT_ADP_CONFIG, nowMs, false), 'No auto-sync when live 
   const tokenBody = new URLSearchParams({ grant_type: 'client_credentials', client_id: 'e09c8b13', client_secret: 'x' }).toString();
   assert(withContentLength({ 'Content-Type': 'application/x-www-form-urlencoded' }, tokenBody)['Content-Length'] === Buffer.byteLength(tokenBody), 'ADP token request sends Content-Length (ADP rejects chunked bodies with unsupported_grant_type)');
   assert(!('Content-Length' in withContentLength({ Accept: 'application/json' })), 'GET requests without a body get no Content-Length');
+
+// 26. Portal accounts: campus principals from ADP, principal routing, endorsement scope
+console.log('\n--- 26. Portal Accounts & Campus Principals ---');
+const mkWorker = (over: Partial<typeof SAMPLE_ADP_ROSTER[number]>) => ({ ...SAMPLE_ADP_ROSTER[0], ...over });
+const adpForPrincipals = [
+  mkWorker({ id: 'P1', adpId: 'P1', associateId: 'P1', fullName: 'Pat Alamo', firstName: 'Pat', lastName: 'Alamo', jobTitle: 'PRINCIPAL', workEmail: 'PAlamo@ssttx.org', campus: 'SST Alamo', location: 'San Antonio', employmentStatus: 'Active' }),
+  mkWorker({ id: 'P2', adpId: 'P2', associateId: 'P2', fullName: 'Vanessa Nguyen', jobTitle: 'Principal', workEmail: 'vnguyen@ssttx.org', campus: 'SST Champions Elementary', location: 'Houston', employmentStatus: 'Active' }),
+  mkWorker({ id: 'P3', adpId: 'P3', associateId: 'P3', fullName: 'Ann Assistant', jobTitle: 'ASSISTANT PRINCIPAL', workEmail: 'aa@ssttx.org', campus: 'SST Alamo', employmentStatus: 'Active' }),
+  mkWorker({ id: 'P4', adpId: 'P4', associateId: 'P4', fullName: 'No Email', jobTitle: 'PRINCIPAL', workEmail: '', campus: 'SST Spring', employmentStatus: 'Active' }),
+  mkWorker({ id: 'P5', adpId: 'P5', associateId: 'P5', fullName: 'Former Principal', jobTitle: 'PRINCIPAL', workEmail: 'fp@ssttx.org', campus: 'SST Spring', employmentStatus: 'Terminated' }),
+  mkWorker({ id: 'P6', adpId: 'P6', associateId: 'P6', fullName: 'Shared Principal', jobTitle: 'PRINCIPAL', workEmail: 'sp@ssttx.org', campus: '', locationName: 'CHAMP/CHAMPCP', employmentStatus: 'Active' })
+];
+const vanessaApprover = DEFAULT_WORKFLOW_CONFIG.approvers.find(a => a.id === 'p-vanessa')!;
+const existingAccounts: PortalAccount[] = [accountFromApprover(vanessaApprover)];
+const principalPlan = planPrincipalAccounts(adpForPrincipals, existingAccounts);
+assert(principalPlan.toCreate.length === 1 && principalPlan.toCreate[0].email === 'palamo@ssttx.org', 'Creates an account only for the new active "Principal" (email lower-cased)');
+assert(principalPlan.toCreate[0].campus === 'SST Alamo' && principalPlan.toCreate[0].roleKey === 'supervisor', 'Principal account carries campus and supervisor role');
+assert(principalPlan.alreadyHaveAccount.length === 1 && principalPlan.alreadyHaveAccount[0].account.name === 'Vanessa Nguyen', 'Vanessa Nguyen keeps her existing account (no duplicate)');
+assert(principalPlan.missingEmail.length === 1 && principalPlan.missingCampus.length === 1, 'Principals without an email or a single campus are listed for attention, not created');
+assert(!principalPlan.toCreate.some(a => /assistant|fp@|former/i.test(a.name + a.email)), 'Assistant principals and terminated principals are skipped');
+
+const alamoApprovers = mergeAccountsIntoApprovers(DEFAULT_WORKFLOW_CONFIG.approvers, principalPlan.toCreate);
+assert(alamoApprovers.length === DEFAULT_WORKFLOW_CONFIG.approvers.length + 1, 'Shared principal accounts join the approver directory once');
+assert(mergeAccountsIntoApprovers(alamoApprovers, principalPlan.toCreate).length === alamoApprovers.length, 'Merging the same accounts again adds nobody');
+const alamoConfig = { ...DEFAULT_WORKFLOW_CONFIG, approvers: alamoApprovers };
+const alamoRoute = buildSstRouting('salary_change', false, 'San Antonio', alamoConfig, 'SST Alamo');
+assert(alamoRoute[0].assignedEmail === 'palamo@ssttx.org', `First step routes to the SST Alamo principal (Got: ${alamoRoute[0].assignedEmail})`);
+const discoveryRoute = buildSstRouting('salary_change', false, 'San Antonio', alamoConfig, 'SST Discovery');
+assert(discoveryRoute[0].assignedEmail === 'vnguyen@ssttx.org', 'A campus without a principal account falls back to the default first approver');
+
+const alamoPrincipal = personaFromAccount(principalPlan.toCreate[0]);
+const alamoPar = { ...INITIAL_PAR_DATA[0], campus: 'SST Alamo' as const, currentStage: 'supervisor_review' as const, routingSteps: alamoRoute };
+const springPar = { ...INITIAL_PAR_DATA[0], campus: 'SST Spring' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', alamoConfig, 'SST Spring') };
+assert(canPersonaActOnPar(alamoPrincipal, alamoPar) === true, 'SST Alamo principal can endorse an SST Alamo PAR');
+assert(canPersonaActOnPar(alamoPrincipal, springPar) === false, 'SST Alamo principal cannot endorse another campus\'s PAR');
+assert(approverFromAccount(principalPlan.toCreate[0]).campus === 'SST Alamo', 'Account converts to a campus-scoped approver');
+assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

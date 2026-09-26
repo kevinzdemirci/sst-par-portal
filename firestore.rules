@@ -9,9 +9,38 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@ssttx[.]org$');
     }
 
-    // Daily ADP staff roster: readable by district staff, written only by the Cloud Function.
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // Must match BOOTSTRAP_ADMIN_EMAILS in src/config/firebase.ts.
+    function isBootstrapAdmin() {
+      return isDistrictStaff() && myEmail() in ['kdemirci@ssttx.org', 'sstpar@ssttx.org'];
+    }
+
+    function myAccountPath() {
+      return /databases/$(database)/documents/accounts/$(myEmail());
+    }
+
+    // Has an active portal account (created by an admin).
+    function hasPortalAccount() {
+      return isDistrictStaff() && exists(myAccountPath()) && get(myAccountPath()).data.active == true;
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (hasPortalAccount() && get(myAccountPath()).data.isAdmin == true);
+    }
+
+    // Portal accounts (who can sign in, and their role). Staff can read the directory
+    // and their own account; only admins create or change accounts.
+    match /accounts/{accountEmail} {
+      allow read: if hasPortalAccount() || isAdmin() || (isDistrictStaff() && accountEmail == myEmail());
+      allow write: if isAdmin();
+    }
+
+    // Daily ADP staff roster: readable by portal account holders, written only by the Cloud Function.
     match /adpRoster/{docId} {
-      allow read: if isDistrictStaff();
+      allow read: if hasPortalAccount() || isAdmin();
       allow write: if false;
     }
 

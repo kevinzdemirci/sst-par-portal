@@ -1,0 +1,189 @@
+import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { ApproverRoleConfig, Campus, UserPersona, WorkflowStage } from '../types/par';
+import { AdpWorker } from '../types/adp';
+import { BOOTSTRAP_ADMIN_EMAILS } from '../config/firebase';
+import { getDb } from './firebaseClient';
+import { getInitialsAvatarUrl, locationForCampus } from './formatters';
+
+/**
+ * A portal account in the shared Firestore directory (accounts/{email}).
+ * Signing in with Google looks up this record to decide who the user is and what they can do.
+ */
+export interface PortalAccount {
+  email: string;
+  name: string;
+  title: string;
+  roleKey: ApproverRoleConfig['roleKey'];
+  department: string;
+  campus?: string;
+  region: string;
+  canReviewStages: WorkflowStage[];
+  isAdmin?: boolean;
+  isNotificationOnly?: boolean;
+  notificationRoleType?: 'it' | 'talent_acquisition' | 'other';
+  active: boolean;
+  source: 'directory' | 'adp';
+  adpAssociateId?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function isBootstrapAdminEmail(email?: string | null): boolean {
+  return !!email && BOOTSTRAP_ADMIN_EMAILS.includes(normalizeEmail(email));
+}
+
+export async function fetchAccount(email: string): Promise<PortalAccount | null> {
+  const snap = await getDoc(doc(getDb(), 'accounts', normalizeEmail(email)));
+  return snap.exists() ? (snap.data() as PortalAccount) : null;
+}
+
+export async function fetchAllAccounts(): Promise<PortalAccount[]> {
+  const snap = await getDocs(collection(getDb(), 'accounts'));
+  return snap.docs.map(d => d.data() as PortalAccount);
+}
+
+/** Creates or updates accounts (admins only; enforced by firestore.rules). */
+export async function saveAccounts(accounts: PortalAccount[], updatedBy: string): Promise<void> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  // Firestore batches hold up to 500 writes.
+  for (let i = 0; i < accounts.length; i += 400) {
+    const batch = writeBatch(db);
+    accounts.slice(i, i + 400).forEach(acc => {
+      const clean = Object.fromEntries(Object.entries({ ...acc, email: normalizeEmail(acc.email), updatedAt: now, updatedBy }).filter(([, v]) => v !== undefined));
+      batch.set(doc(db, 'accounts', normalizeEmail(acc.email)), clean, { merge: true });
+    });
+    await batch.commit();
+  }
+}
+
+/** Directory approver (workflow configuration) → shared account. */
+export function accountFromApprover(a: ApproverRoleConfig | UserPersona): PortalAccount {
+  const isApprover = 'roleKey' in a;
+  const roleKey: PortalAccount['roleKey'] = isApprover ? (a as ApproverRoleConfig).roleKey : 'custom';
+  return {
+    email: normalizeEmail(a.email),
+    name: a.name,
+    title: isApprover ? (a as ApproverRoleConfig).title : (a as UserPersona).role,
+    roleKey,
+    department: a.department,
+    campus: a.campus,
+    region: a.region || 'All SST Campuses',
+    canReviewStages: a.canReviewStages || [],
+    isAdmin: roleKey === 'cpo' || undefined,
+    isNotificationOnly: a.isNotificationOnly || undefined,
+    notificationRoleType: a.notificationRoleType,
+    active: true,
+    source: 'directory'
+  };
+}
+
+/** Workers whose ADP job title is exactly "Principal" (not assistant principals). */
+export function findAdpPrincipals(roster: AdpWorker[]): AdpWorker[] {
+  return roster.filter(w => w.employmentStatus === 'Active' && /^principal$/i.test((w.jobTitle || '').trim()));
+}
+
+export interface PrincipalImportPlan {
+  toCreate: PortalAccount[];
+  alreadyHaveAccount: { worker: AdpWorker; account: PortalAccount }[];
+  missingEmail: AdpWorker[];
+  missingCampus: AdpWorker[];
+}
+
+/**
+ * Plans campus principal accounts from the ADP roster. Existing accounts (matched by
+ * email) are left as they are, so no one gets a duplicate account.
+ */
+export function planPrincipalAccounts(roster: AdpWorker[], existing: PortalAccount[]): PrincipalImportPlan {
+  const byEmail = new Map(existing.map(a => [normalizeEmail(a.email), a]));
+  const plan: PrincipalImportPlan = { toCreate: [], alreadyHaveAccount: [], missingEmail: [], missingCampus: [] };
+  for (const w of findAdpPrincipals(roster)) {
+    if (!w.workEmail) {
+      plan.missingEmail.push(w);
+      continue;
+    }
+    const existingAccount = byEmail.get(normalizeEmail(w.workEmail));
+    if (existingAccount) {
+      plan.alreadyHaveAccount.push({ worker: w, account: existingAccount });
+      continue;
+    }
+    if (!w.campus) {
+      plan.missingCampus.push(w);
+      continue;
+    }
+    const location = locationForCampus(w.campus as Campus);
+    plan.toCreate.push({
+      email: normalizeEmail(w.workEmail),
+      name: w.fullName,
+      title: CAMPUS_PRINCIPAL_TITLE,
+      roleKey: 'supervisor',
+      department: 'Campus Leadership',
+      campus: w.campus,
+      region: location === 'Central Administration' ? 'District Offices' : `${location} Area Campuses`,
+      canReviewStages: ['draft', 'supervisor_review'],
+      active: true,
+      source: 'adp',
+      adpAssociateId: w.associateId
+    });
+  }
+  return plan;
+}
+
+/**
+ * Account → the portal's user profile. Signature and PIN settings are kept from this
+ * browser's matching approver when there is one.
+ */
+export function personaFromAccount(acc: PortalAccount, localMatch?: UserPersona | ApproverRoleConfig): UserPersona {
+  return {
+    id: localMatch?.id || `acct-${normalizeEmail(acc.email)}`,
+    name: acc.name,
+    role: acc.title,
+    department: acc.department,
+    email: normalizeEmail(acc.email),
+    campus: acc.campus,
+    region: acc.region,
+    avatar: localMatch?.avatar || getInitialsAvatarUrl(acc.name, '0f2352'),
+    canReviewStages: acc.canReviewStages,
+    ipAddress: localMatch?.ipAddress || '',
+    signerId: localMatch?.signerId || `acct-${normalizeEmail(acc.email)}`,
+    signingPin: localMatch?.signingPin,
+    signatureImage: localMatch?.signatureImage,
+    isAccountActivated: true,
+    isNotificationOnly: acc.isNotificationOnly,
+    notificationRoleType: acc.notificationRoleType
+  };
+}
+
+/** Account → workflow approver, so routing can find each campus's principal. */
+export function approverFromAccount(acc: PortalAccount): ApproverRoleConfig {
+  return {
+    id: `acct-${normalizeEmail(acc.email)}`,
+    roleKey: acc.roleKey,
+    title: acc.title,
+    name: acc.name,
+    email: normalizeEmail(acc.email),
+    department: acc.department,
+    campus: acc.campus,
+    region: acc.region,
+    signerId: `acct-${normalizeEmail(acc.email)}`,
+    ipAddress: '',
+    avatar: getInitialsAvatarUrl(acc.name, '0f2352'),
+    canReviewStages: acc.canReviewStages,
+    isAccountActivated: true,
+    isNotificationOnly: acc.isNotificationOnly,
+    notificationRoleType: acc.notificationRoleType
+  };
+}
+
+/** Adds shared accounts that this browser's directory does not have yet (matched by email). */
+export function mergeAccountsIntoApprovers(approvers: ApproverRoleConfig[], accounts: PortalAccount[]): ApproverRoleConfig[] {
+  const known = new Set(approvers.map(a => normalizeEmail(a.email)));
+  const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(approverFromAccount);
+  return added.length ? [...approvers, ...added] : approvers;
+}

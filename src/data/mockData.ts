@@ -592,7 +592,8 @@ export function buildSstRouting(
   actionType: ActionType,
   isVoluntary?: boolean,
   location?: SchoolLocation,
-  config: WorkflowConfig = DEFAULT_WORKFLOW_CONFIG
+  config: WorkflowConfig = DEFAULT_WORKFLOW_CONFIG,
+  campus?: string
 ): ApprovalStep[] {
   const steps: ApprovalStep[] = [];
   const rules = config.routingRules && config.routingRules.length > 0
@@ -638,7 +639,13 @@ export function buildSstRouting(
     }
 
     // 5. Approver resolution
-    const matchedApprover = config.approvers.find(a => a.id === rule.assignedApproverId)
+    // The Principal / Supervisor step goes to the principal of the employee's campus when one is set up.
+    const campusPrincipal = rule.stage === 'supervisor_review' && campus
+      ? config.approvers.find(a => a.roleKey === 'supervisor' && a.campus === campus && !a.isNotificationOnly)
+      : undefined;
+
+    const matchedApprover = campusPrincipal
+      || config.approvers.find(a => a.id === rule.assignedApproverId)
       || config.approvers.find(a => a.roleKey === rule.assignedApproverId)
       || (rule.assignedApproverId === 'p-atnan' && location !== 'Houston' ? config.approvers.find(a => a.id === 'p-serdar') : null)
       || (rule.assignedApproverId === 'p-kristy' && location !== 'Houston' ? config.approvers.find(a => a.id === 'p-amber') : null);

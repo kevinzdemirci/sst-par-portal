@@ -283,9 +283,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const routingPreview = useMemo(
     () =>
       actionType
-        ? buildSstRouting(actionType, isTermination ? isVoluntary === true : false, location, workflowConfig)
+        ? buildSstRouting(actionType, isTermination ? isVoluntary === true : false, location, workflowConfig, campus || undefined)
         : [],
-    [actionType, isTermination, isVoluntary, location, workflowConfig]
+    [actionType, isTermination, isVoluntary, location, workflowConfig, campus]
   );
 
   const sendsDepartmentNotices = actionType !== null && ACTIONS_WITH_DEPARTMENT_NOTICES.includes(actionType);
@@ -504,7 +504,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     const trackingNumber = `PAR-${new Date().getFullYear()}-${randomSuffix}`;
     const gtpuid = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
     const voluntary = isTermination ? isVoluntary === true : false;
-    const routingSteps = buildSstRouting(actionType, voluntary, location, workflowConfig);
+    const routingSteps = buildSstRouting(actionType, voluntary, location, workflowConfig, campus);
     const actionLabel = actionTypes.find(a => a.type === actionType)?.label || actionType;
     const resolvedProposedCampus = proposedCampus || campus;
 

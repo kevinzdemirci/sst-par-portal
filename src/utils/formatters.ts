@@ -234,7 +234,12 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
 
   // 1. Supervisor / Principal Review
   if (par.currentStage === 'supervisor_review') {
-    return persona.canReviewStages.includes('supervisor_review') || persona.role.includes('Principal') || persona.role.includes('Supervisor');
+    const isEndorser = persona.canReviewStages.includes('supervisor_review') || persona.role.includes('Principal') || persona.role.includes('Supervisor');
+    if (!isEndorser) return false;
+    // A campus principal endorses only their own campus's PARs, unless the step is assigned to them.
+    const step = par.routingSteps.find(s => s.stage === 'supervisor_review' && s.status === 'pending');
+    const assignedToMe = !!step?.assignedEmail && step.assignedEmail.toLowerCase() === persona.email.toLowerCase();
+    return !persona.campus || persona.campus === par.campus || assignedToMe;
   }
 
   // 2. Chief People Officer Review (Involuntary Terminations & Executive approvals)

@@ -3,7 +3,7 @@ import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
 import { canPersonaActOnPar, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
-import { Plus, Users, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
+import { Plus, Users, LogOut, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
 import { getStoredGmailCredentials } from '../utils/gmailService';
 import { getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
@@ -31,6 +31,10 @@ interface NavbarProps {
   onOpenAppsScriptModal?: () => void;
   onOpenPayScheduleModal?: () => void;
   onOpenAdpStaffModal?: () => void;
+  /** False for signed-in staff who are not admins: they cannot switch personas. */
+  canSwitchPersona?: boolean;
+  signedInEmail?: string;
+  onSignOut?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -55,7 +59,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onOpenAppsScriptModal,
   onOpenPayScheduleModal,
-  onOpenAdpStaffModal
+  onOpenAdpStaffModal,
+  canSwitchPersona = true,
+  signedInEmail,
+  onSignOut
 }) => {
   const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isAdmin = isSuperAdmin(currentPersona);
@@ -105,9 +112,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Authenticated Staff Persona Badge & Switch Account */}
             <div className="relative flex items-center bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200 shadow-2xs">
               <div 
-                className="flex items-center px-2 py-1 space-x-2.5 cursor-pointer"
-                onClick={onOpenAuthModal}
-                title="Click to Switch Staff Account or Authenticate"
+                className={`flex items-center px-2 py-1 space-x-2.5 ${canSwitchPersona ? 'cursor-pointer' : ''}`}
+                onClick={canSwitchPersona ? onOpenAuthModal : undefined}
+                title={signedInEmail ? `Signed in as ${signedInEmail}` : 'Click to Switch Staff Account or Authenticate'}
               >
                 <img 
                   src={currentPersona.avatar} 
@@ -127,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               </div>
 
-              {onOpenAuthModal && (
+              {canSwitchPersona && onOpenAuthModal && (
                 <button
                   type="button"
                   onClick={onOpenAuthModal}
@@ -138,6 +145,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
+              {canSwitchPersona && (
               <select
                 value={currentPersona.id}
                 onChange={(e) => {
@@ -210,12 +218,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </optgroup>
               </select>
+              )}
 
-              <span className="text-xs font-semibold text-[#0f2352] bg-white shadow-2xs border border-slate-200 px-2.5 py-1 rounded-xl pointer-events-none hidden lg:inline-flex items-center space-x-1">
-                <Users className="w-3.5 h-3.5 mr-1 text-[#b91c1c]" />
-                <span>Simulate Role</span>
-              </span>
+              {canSwitchPersona && (
+                <span className="text-xs font-semibold text-[#0f2352] bg-white shadow-2xs border border-slate-200 px-2.5 py-1 rounded-xl pointer-events-none hidden lg:inline-flex items-center space-x-1">
+                  <Users className="w-3.5 h-3.5 mr-1 text-[#b91c1c]" />
+                  <span>Simulate Role</span>
+                </span>
+              )}
             </div>
+
+            {onSignOut && (
+              <button
+                type="button"
+                onClick={onSignOut}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                title={signedInEmail ? `Sign out ${signedInEmail}` : 'Sign out'}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Sign out</span>
+              </button>
+            )}
 
             {/* SSTTX Google Apps Script & Sheets Tracker Button (Super Admin only) */}
             {isAdmin && onOpenAppsScriptModal && (

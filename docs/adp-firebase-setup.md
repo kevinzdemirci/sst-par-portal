@@ -46,8 +46,8 @@ Cloud Functions and Secret Manager need the pay-as-you-go **Blaze** plan. At SST
 ## Step 3. Turn on Google sign-in
 1. **Build → Authentication → Get started**.
 2. Go to the **Sign-in method** tab, then **Google → Enable**. Choose your email as the support email, then click **Save**.
-3. Go to the **Settings** tab, then **Authorized domains → Add domain**, and add `kevinzdemirci.github.io`,
-   the portal's address.
+3. The portal is hosted at `https://sst-par-portal.web.app` (Firebase Hosting), which is already an
+   authorized sign-in domain. If you add a custom domain (e.g. par.ssttx.org), add it under **Settings → Authorized domains**.
 
 ## Step 4. Create the database
 1. **Build → Firestore Database → Create database**.
@@ -107,7 +107,7 @@ and type part of a name.
 
 | What you see | What to do |
 |---|---|
-| "Sign-in failed" or a popup closes right away | Check that `kevinzdemirci.github.io` is in **Authentication → Settings → Authorized domains**. Allow popups for the site. |
+| "Sign-in failed" or a popup closes right away | Check that the address you opened (e.g. `sst-par-portal.web.app`) is in **Authentication → Settings → Authorized domains**. Allow popups for the site. |
 | "Use your @ssttx.org Google account" | A personal Google account was chosen. Sign in with the district account. |
 | "The ADP roster has not been pulled yet" | Do Step 9, or wait until after 5:00 AM Central. |
 | `meta.lastAttempt.error` or the log says `HTTP 401 invalid_client` | Wrong Client ID or Secret. A Client ID is 36 characters; on 2026-09-25 it had been pasted three times into the secret. Repeat Step 7 carefully (paste once), then run `npx firebase-tools deploy --only functions`, because functions keep the secret version from their last deploy. |

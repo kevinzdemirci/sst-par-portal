@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserPersona, PersonnelActionRequest } from '../types/par';
 import { USER_PERSONAS } from '../data/mockData';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { canPersonaActOnPar, canPersonaCreatePar, isSuperAdmin } from '../utils/formatters';
+import { canPersonaActOnPar, canPersonaCreatePar, isCampusPrincipal, isParSubmittedBy, isSuperAdmin } from '../utils/formatters';
 import { CAMPUS_PRINCIPAL_TITLE } from '../utils/accountsService';
 import { Plus, Users, LogOut, ShieldAlert, Sliders, UserCheck, Mail, Lock, FileSpreadsheet, ChevronDown, Settings, GitBranch, DollarSign, Calendar } from 'lucide-react';
 import { ApproverRoleConfig } from '../types/par';
@@ -65,7 +65,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   signedInEmail,
   onSignOut
 }) => {
-  const pendingForPersona = pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
+  const isPrincipal = isCampusPrincipal(currentPersona);
+  // Principals: their PARs still in progress plus anything waiting on them. Others: approvals due.
+  const pendingForPersona = isPrincipal
+    ? pars.filter(p =>
+        (isParSubmittedBy(currentPersona, p) && !['completed', 'rejected'].includes(p.currentStage)) ||
+        canPersonaActOnPar(currentPersona, p)
+      ).length
+    : pars.filter(p => canPersonaActOnPar(currentPersona, p)).length;
   const isAdmin = isSuperAdmin(currentPersona);
   const canCreatePar = canPersonaCreatePar(currentPersona);
   const gmailCreds = getStoredGmailCredentials();
@@ -279,10 +286,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' 
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
-              title="Filter requests requiring your department's approval"
+              title={isPrincipal ? 'PARs you submitted, and anything returned to you' : "Filter requests requiring your department's approval"}
             >
               <ShieldAlert className={`w-4 h-4 ${filterActionQueue ? 'text-white' : 'text-amber-500'}`} />
-              <span className="hidden sm:inline">My Approvals</span>
+              <span className="hidden sm:inline">{isPrincipal ? 'My PARs' : 'My Approvals'}</span>
               {pendingForPersona > 0 && (
                 <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-black ${
                   filterActionQueue ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-800'

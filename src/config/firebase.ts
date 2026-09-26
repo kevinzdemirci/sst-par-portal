@@ -8,7 +8,11 @@ import type { FirebaseOptions } from 'firebase/app';
  *
  * Leave as null to run without live ADP data (sample roster and CSV import only).
  */
-export const FIREBASE_CONFIG: FirebaseOptions | null = {
+// Local test builds only: VITE_DISABLE_FIREBASE=true builds the portal without sign-in or live
+// ADP data, for automated browser tests. The published site is built without it.
+const disableFirebase = (import.meta as { env?: Record<string, string> }).env?.VITE_DISABLE_FIREBASE === 'true';
+
+export const FIREBASE_CONFIG: FirebaseOptions | null = disableFirebase ? null : {
   apiKey: 'AIzaSyBCQDrfwTWyyZn5SygxdVqd8oG6RbLL9_w',
   authDomain: 'sst-par-portal.firebaseapp.com',
   projectId: 'sst-par-portal',

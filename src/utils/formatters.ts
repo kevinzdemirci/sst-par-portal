@@ -222,6 +222,39 @@ export function getPriorityBadge(priority: Priority): {
   }
 }
 
+export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
+
+/** CPO Payouts are only for the Regional HR Coordinators, Payroll, and Super Admins. */
+export function canPersonaAccessPayouts(persona?: UserPersona | null): boolean {
+  if (!persona || persona.isNotificationOnly) return false;
+  return isSuperAdmin(persona) || isRegionalHrCoordinator(persona) || isPayrollCoordinator(persona);
+}
+
+/** Campus principal (from ADP accounts, or the built-in Principal / Supervisor with a campus). */
+export function isCampusPrincipal(persona?: UserPersona | null): boolean {
+  if (!persona || isChiefPeopleOfficer(persona)) return false;
+  return persona.role === CAMPUS_PRINCIPAL_TITLE || (!!persona.campus && persona.role.includes('Principal'));
+}
+
+export function isParSubmittedBy(persona: UserPersona, par: PersonnelActionRequest): boolean {
+  return !!par.submitterEmail && par.submitterEmail.toLowerCase() === persona.email.toLowerCase();
+}
+
+/**
+ * Principals see only their own PARs: ones they submitted, and their own school's PARs that
+ * are assigned to them or waiting on their signature (e.g. HR started a PAR for their
+ * campus). Everyone else sees all PARs.
+ */
+export function canPersonaViewPar(persona: UserPersona, par: PersonnelActionRequest): boolean {
+  if (!isCampusPrincipal(persona)) return true;
+  if (isParSubmittedBy(persona, par)) return true;
+  // Never another school's PAR, even if routing fell back to this principal.
+  if (par.campus !== persona.campus) return false;
+  const endorsement = par.routingSteps.find(s => s.stage === 'supervisor_review');
+  const assignedToMe = !!endorsement?.assignedEmail && endorsement.assignedEmail.toLowerCase() === persona.email.toLowerCase();
+  return assignedToMe || canPersonaActOnPar(persona, par);
+}
+
 export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionRequest): boolean {
   // Notification-only personas have no action required
   if (persona.isNotificationOnly) {

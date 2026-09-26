@@ -11,7 +11,7 @@ import {
 } from './types/par';
 import { USER_PERSONAS, DEFAULT_WORKFLOW_CONFIG, getNormalizedLogoUrl } from './data/mockData';
 import { LEGACY_SAMPLE_PAR_IDS, LEGACY_SAMPLE_PAYOUT_IDS, withoutLegacySamples } from './data/legacySampleIds';
-import { canPersonaActOnPar, isChiefPeopleOfficer, isSuperAdmin, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
+import { canPersonaAccessPayouts, canPersonaActOnPar, canPersonaViewPar, isCampusPrincipal, isParSubmittedBy, isChiefPeopleOfficer, isSuperAdmin, getInitialsAvatarUrl, isRegionalHrCoordinator, exportParsToCsv } from './utils/formatters';
 import { Navbar } from './components/Navbar';
 import { DashboardStats } from './components/DashboardStats';
 import { ParFilters } from './components/ParFilters';
@@ -283,11 +283,18 @@ export function App({ session = null }: { session?: PortalSession | null }) {
   // District tools and platform setup (routing rules, directory management, Gmail,
   // Google Sheets, ADP sync, payroll schedule) are restricted to the Super Admin.
   const isAdmin = isSuperAdmin(currentPersona);
+  // Campus principals work only with their own PARs. CPO Payouts are only for the
+  // Regional HR Coordinators, Payroll, and Super Admins.
+  const isPrincipalView = isCampusPrincipal(currentPersona);
+  const canSeePayouts = canPersonaAccessPayouts(currentPersona);
   useEffect(() => {
-    if (!isAdmin && (activeHubTab === 'directory' || activeHubTab === 'workflow')) {
+    if (
+      (!isAdmin && (activeHubTab === 'directory' || activeHubTab === 'workflow')) ||
+      (!canSeePayouts && activeHubTab === 'payouts')
+    ) {
       setActiveHubTab('pars');
     }
-  }, [isAdmin, activeHubTab]);
+  }, [isAdmin, canSeePayouts, activeHubTab]);
 
   // CPO Payout & Deduction Approval System State
   const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
@@ -1099,6 +1106,11 @@ export function App({ session = null }: { session?: PortalSession | null }) {
   // Filtered PARs calculation
   const filteredPars = useMemo(() => {
     return pars.filter((par) => {
+      // Principals see only their own submissions and their campus's PARs
+      if (!canPersonaViewPar(currentPersona, par)) {
+        return false;
+      }
+
       // Search text filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -1139,6 +1151,9 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           const isHouston = (currentPersona.region || '').includes('Houston') || currentPersona.role.includes('Houston');
           if (isHouston && par.location !== 'Houston') return false;
           if (!isHouston && par.location === 'Houston') return false;
+        } else if (isCampusPrincipal(currentPersona)) {
+          // "My PARs": what they submitted, plus anything waiting on them
+          if (!isParSubmittedBy(currentPersona, par) && !canPersonaActOnPar(currentPersona, par)) return false;
         } else if (!canPersonaActOnPar(currentPersona, par)) {
           return false;
         }
@@ -1303,7 +1318,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
                   <span>+ CPO Payout Entry</span>
                 </button>
               </>
-            ) : (
+            ) : !canSeePayouts ? null : (
               <>
                 <button
                   onClick={() => setActiveHubTab('payouts')}
@@ -1355,7 +1370,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
               </span>
             </button>
 
-            {/* Tab 2: CPO Payout Entry (HR) vs CPO Payout Reviewer (Other) */}
+            {/* Tab 2: CPO Payout Entry (HR) vs CPO Payout Reviewer; HR coordinators, Payroll, Super Admins only */}
+            {canSeePayouts && (
             <button
               onClick={() => setActiveHubTab('payouts')}
               className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
@@ -1392,6 +1408,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
                 </span>
               )}
             </button>
+
+            )}
 
             {/* Tab 3: District Approvers Directory (Super Admin) */}
             {isAdmin && (
@@ -1439,7 +1457,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           <div className="space-y-6 animate-fadeIn">
             {/* Real-time KPI Stats Cards */}
             <DashboardStats
-              pars={pars}
+              pars={pars.filter(p => canPersonaViewPar(currentPersona, p))}
               selectedStageFilter={selectedStageFilter}
               onSelectStageFilter={setSelectedStageFilter}
             />
@@ -1457,7 +1475,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               totalFilteredCount={filteredPars.length}
-              totalCount={pars.length}
+              totalCount={pars.filter(p => canPersonaViewPar(currentPersona, p)).length}
+              simplified={isPrincipalView}
               onResetFilters={() => {
                 setSearchQuery('');
                 setSelectedActionType('all');
@@ -1496,7 +1515,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
           </div>
         )}
 
-        {activeHubTab === 'payouts' && (
+        {activeHubTab === 'payouts' && canSeePayouts && (
           <div className="animate-fadeIn">
             <CpoPayoutModal
               embedded={true}
@@ -1701,7 +1720,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
       {/* CPO Payout & Deduction Approval Modal */}
       <CpoPayoutModal
-        isOpen={isPayoutModalOpen}
+        isOpen={isPayoutModalOpen && canSeePayouts}
         onClose={() => setIsPayoutModalOpen(false)}
         currentPersona={currentPersona}
         payouts={payouts}

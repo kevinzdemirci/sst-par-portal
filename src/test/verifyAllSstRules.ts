@@ -50,7 +50,7 @@ import {
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { matchSstCampus, locationForCampus } from '../utils/formatters';
+import { matchSstCampus, locationForCampus, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
 import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
@@ -1223,6 +1223,21 @@ const springPar = { ...INITIAL_PAR_DATA[0], campus: 'SST Spring' as const, curre
 assert(canPersonaActOnPar(alamoPrincipal, alamoPar) === true, 'SST Alamo principal can endorse an SST Alamo PAR');
 assert(canPersonaActOnPar(alamoPrincipal, springPar) === false, 'SST Alamo principal cannot endorse another campus\'s PAR');
 assert(approverFromAccount(principalPlan.toCreate[0]).campus === 'SST Alamo', 'Account converts to a campus-scoped approver');
+// Principals see only their own PARs
+const hrPersona = USER_PERSONAS.find(p => p.id === 'p-kristy')!;
+const cpoPersona = USER_PERSONAS.find(p => p.id === 'p-kevin')!;
+assert(isCampusPrincipal(alamoPrincipal) && !isCampusPrincipal(hrPersona) && !isCampusPrincipal(cpoPersona), 'Principal detection: campus principals yes; HR and CPO no');
+const ownPar = { ...alamoPar, submitterEmail: 'palamo@ssttx.org', currentStage: 'hr_review' as const };
+const otherAlamoPar = { ...alamoPar, submitterEmail: 'kstewart@ssttx.org', currentStage: 'hr_review' as const, routingSteps: alamoRoute.map((st, i) => i === 0 ? { ...st, assignedEmail: 'someoneelse@ssttx.org' } : st) };
+assert(isParSubmittedBy(alamoPrincipal, ownPar) && canPersonaViewPar(alamoPrincipal, ownPar), 'Principal sees a PAR they submitted');
+assert(canPersonaViewPar(alamoPrincipal, alamoPar), 'Principal sees a PAR waiting on their endorsement');
+assert(!canPersonaViewPar(alamoPrincipal, otherAlamoPar), 'Principal does not see a same-campus PAR that is not theirs');
+assert(!canPersonaViewPar(alamoPrincipal, springPar), 'Principal does not see another school\'s PAR');
+assert(canPersonaViewPar(hrPersona, springPar) && canPersonaViewPar(cpoPersona, otherAlamoPar), 'HR and CPO still see all PARs');
+const payoutAccess = Object.fromEntries(['p-kevin', 'p-kristy', 'p-amber', 'p-paola', 'p-vanessa', 'p-atnan', 'p-serdar', 'p-ursula', 'p-enes', 'p-hasan'].map(id => [id, canPersonaAccessPayouts(USER_PERSONAS.find(p => p.id === id)!)]));
+assert(payoutAccess['p-kevin'] && payoutAccess['p-kristy'] && payoutAccess['p-amber'] && payoutAccess['p-paola'], 'CPO Payouts: Super Admin, both Regional HR Coordinators, and Payroll have access');
+assert(!payoutAccess['p-vanessa'] && !payoutAccess['p-atnan'] && !payoutAccess['p-serdar'] && !payoutAccess['p-ursula'] && !payoutAccess['p-enes'] && !payoutAccess['p-hasan'], 'CPO Payouts: principals, regional directors, Benefits, IT, and Talent Acquisition have no access');
+assert(!canPersonaAccessPayouts(alamoPrincipal), 'CPO Payouts: campus principal accounts have no access');
 assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing

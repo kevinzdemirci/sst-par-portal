@@ -25,6 +25,7 @@ import {
   formatDate,
   getDepartmentNotificationRecipients,
   getTexasFinalPayDeadline,
+  isCampusPrincipal,
   locationForCampus
 } from '../utils/formatters';
 import {
@@ -504,7 +505,30 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     const trackingNumber = `PAR-${new Date().getFullYear()}-${randomSuffix}`;
     const gtpuid = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
     const voluntary = isTermination ? isVoluntary === true : false;
-    const routingSteps = buildSstRouting(actionType, voluntary, location, workflowConfig, campus);
+    const routedSteps = buildSstRouting(actionType, voluntary, location, workflowConfig, campus);
+    // When the campus principal (or the assigned first approver) submits, the submission is their
+    // endorsement: they certify and sign here instead of approving their own PAR afterwards.
+    const firstStep = routedSteps[0];
+    const submitterEndorses =
+      firstStep?.stage === 'supervisor_review' &&
+      ((firstStep.assignedEmail || '').toLowerCase() === currentPersona.email.toLowerCase() ||
+        (isCampusPrincipal(currentPersona) && currentPersona.campus === campus));
+    const routingSteps = submitterEndorses
+      ? routedSteps.map((s, i) =>
+          i === 0
+            ? {
+                ...s,
+                status: 'approved' as const,
+                reviewerName: currentPersona.name,
+                decisionDate: nowIso,
+                comments: 'Endorsed by the submitting principal at submission.',
+                signerId: currentPersona.signerId,
+                ipAddress: currentPersona.ipAddress
+              }
+            : s
+        )
+      : routedSteps;
+    const firstPendingStage = routingSteps.find(s => s.status === 'pending')?.stage || 'completed';
     const actionLabel = actionTypes.find(a => a.type === actionType)?.label || actionType;
     const resolvedProposedCampus = proposedCampus || campus;
 
@@ -514,7 +538,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       gtpuid,
       actionType,
       priority,
-      currentStage: 'supervisor_review',
+      currentStage: submitterEndorses ? firstPendingStage : 'supervisor_review',
       effectiveDate,
 
       employeeId: employeeId.trim(),
@@ -602,7 +626,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           signerEmail: currentPersona.email,
           signerId: currentPersona.signerId,
           ipAddress: currentPersona.ipAddress,
-          status: 'pending'
+          status: submitterEndorses ? 'signed' : 'pending',
+          timestamp: submitterEndorses ? `${new Date().toLocaleString('en-US')} (${nowIso})` : undefined,
+          notes: submitterEndorses ? 'Signed at submission by the submitting principal (Google sign-in + certification).' : undefined
         },
         ...(isTermination && voluntary
           ? (location === 'Houston'
@@ -674,7 +700,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           authorRole: currentPersona.role,
           authorDepartment: currentPersona.department,
           timestamp: nowIso,
-          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. Routed for Principal/Supervisor endorsement.`
+          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. ${submitterEndorses ? 'Principal endorsement recorded at submission.' : 'Routed for Principal/Supervisor endorsement.'}`
         }
       ],
 

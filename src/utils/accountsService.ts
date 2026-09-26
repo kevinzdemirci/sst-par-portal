@@ -3,7 +3,7 @@ import { ApproverRoleConfig, Campus, UserPersona, WorkflowStage } from '../types
 import { AdpWorker } from '../types/adp';
 import { BOOTSTRAP_ADMIN_EMAILS, isAllowedSignInEmail } from '../config/firebase';
 import { getDb } from './firebaseClient';
-import { getInitialsAvatarUrl, locationForCampus } from './formatters';
+import { CAMPUS_PRINCIPAL_TITLE, getInitialsAvatarUrl, locationForCampus } from './formatters';
 
 /**
  * A portal account in the shared Firestore directory (accounts/{email}).
@@ -28,7 +28,7 @@ export interface PortalAccount {
   updatedBy?: string;
 }
 
-export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
+export { CAMPUS_PRINCIPAL_TITLE } from './formatters';
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();

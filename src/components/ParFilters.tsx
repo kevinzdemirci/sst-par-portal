@@ -34,6 +34,8 @@ interface ParFiltersProps {
   myActionCount?: number;
   filterActionQueue?: boolean;
   onToggleActionQueue?: () => void;
+  /** Principals see only their own PARs, so the campus, region, type, and HR filters are hidden. */
+  simplified?: boolean;
 }
 
 export const ParFilters: React.FC<ParFiltersProps> = ({
@@ -54,7 +56,8 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
   onOpenAppsScript,
   myActionCount = 0,
   filterActionQueue = false,
-  onToggleActionQueue
+  onToggleActionQueue,
+  simplified = false
 }) => {
   const locations: SchoolLocation[] = [
     'Houston',
@@ -86,6 +89,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             />
           </div>
 
+          {!simplified && (<>
           {/* Action Type Selector */}
           <div className="flex items-center space-x-1.5">
             <Filter className="w-3.5 h-3.5 text-slate-400 hidden sm:inline" />
@@ -139,6 +143,8 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
               ))}
             </select>
           </div>
+
+          </>)}
 
           {/* Clear Filter button */}
           {hasActiveFilters && (
@@ -214,6 +220,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
 
       {/* Bottom Row: HR Quick Filter Pills */}
       <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+        {!simplified && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mr-1">
             HR Quick Filters:
@@ -309,7 +316,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             <span>Campus Transfers</span>
           </button>
         </div>
-
+        )}
         <div className="text-slate-500 text-[11px]">
           Showing <strong className="text-slate-900 font-bold">{totalFilteredCount}</strong> of {totalCount} records
         </div>

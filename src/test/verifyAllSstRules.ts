@@ -1109,9 +1109,11 @@ const adpLocationCases: [string, string | undefined][] = [
   ['CHAMP/CHAMPCP/HILLCOUNTRY', undefined],
   ['015831 002-03 SST Bayshore', 'SST Bayshore'],
   ['015831 002-04 SST CC EARLY ELEMENTARY', 'SST Corpus Christi Early Elementary'],
-  ['015827 007 SST Schertz', 'SST Schertz'],
-  ['015827 007 2 Schertz', 'SST Schertz'],
-  ['SCHERTZ', 'SST Schertz'],
+  ['015827 007 SST Schertz', 'SST Schertz Early Elementary'],
+  ['015827 007 2 Schertz', 'SST Schertz Elementary'],
+  ['SCHERTZ', 'SST Schertz Early Elementary'],
+  ['SST Schertz Elementary', 'SST Schertz Elementary'],
+  ['SST Schertz Early Elementary', 'SST Schertz Early Elementary'],
   ['555555 555 Regional Office-San Antonio', 'SST San Antonio Regional Office'],
   ['015805 041 NF GREG GARCIA ELEM', 'NF Greg Garcia Elementary (NFPS Partner)'],
   ['015805 001 NF FRANK L MADLA EARLY COLLEGE HS', 'NF Frank L. Madla Early College High School (NFPS Partner)'],
@@ -1121,6 +1123,8 @@ const adpLocationCases: [string, string | undefined][] = [
 const expectedRegions: [string, string][] = [
   ['SST Bayshore', 'Corpus Christi'],
   ['SST Corpus Christi Early Elementary', 'Corpus Christi'],
+  ['SST Schertz Elementary', 'San Antonio'],
+  ['SST Schertz Early Elementary', 'San Antonio'],
   ['SST Schertz', 'San Antonio'],
   ['SST San Antonio Regional Office', 'San Antonio'],
   ['NF Greg Garcia Elementary (NFPS Partner)', 'San Antonio'],
@@ -1272,6 +1276,13 @@ assert(route('Houston', 'SST Houston Regional Office') === 'hkendirci@ssttx.org'
 assert(route('San Antonio', 'SST San Antonio Regional Office') === 'adal@ssttx.org', 'San Antonio Regional Office step 1 routes to Ali Dal');
 const hasanNow = mergeAccountsIntoPersonas(USER_PERSONAS, officeAccounts).find(p => p.email === 'hkendirci@ssttx.org')!;
 assert(hasanNow.isNotificationOnly === false && hasanNow.campus === 'SST Houston Regional Office', 'Account settings override the built-in FYI-only persona');
+const schertzAccounts: PortalAccount[] = [
+  { email: 'bmaginn@ssttx.org', name: 'Britney Maginn', title: 'Campus Principal', roleKey: 'supervisor', department: 'Campus Leadership', campus: 'SST Schertz Elementary', region: 'San Antonio Area', canReviewStages: ['draft', 'supervisor_review'], active: true, source: 'adp' },
+  { email: 'sstone@ssttx.org', name: 'Stacey Stone', title: 'Campus Principal', roleKey: 'supervisor', department: 'Campus Leadership', campus: 'SST Schertz Early Elementary', region: 'San Antonio Area', canReviewStages: ['draft', 'supervisor_review'], active: true, source: 'adp' }
+];
+const schertzConfig = { ...DEFAULT_WORKFLOW_CONFIG, approvers: mergeAccountsIntoApprovers(DEFAULT_WORKFLOW_CONFIG.approvers, schertzAccounts) };
+assert(buildSstRouting('salary_change', false, 'San Antonio', schertzConfig, 'SST Schertz Elementary')[0].assignedEmail === 'bmaginn@ssttx.org', 'SST Schertz Elementary step 1 routes to Britney Maginn');
+assert(buildSstRouting('salary_change', false, 'San Antonio', schertzConfig, 'SST Schertz Early Elementary')[0].assignedEmail === 'sstone@ssttx.org', 'SST Schertz Early Elementary step 1 routes to Stacey Stone');
 const houstonOfficePar = { ...INITIAL_PAR_DATA[0], campus: 'SST Houston Regional Office' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Houston Regional Office') };
 assert(canPersonaActOnPar(hasanNow, houstonOfficePar) && !canPersonaActOnPar(hasanNow, { ...houstonOfficePar, campus: 'SST Spring' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Spring') }), 'Hasan endorses Houston Regional Office PARs only');
 const loaHouston = buildSstRouting('leave_of_absence', false, 'Houston', officeConfig, 'SST Spring');

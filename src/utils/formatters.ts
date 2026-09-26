@@ -755,7 +755,11 @@ const REGION_TO_LOCATION: Record<string, SchoolLocation> = {
  */
 export function locationForCampus(campus: Campus): SchoolLocation {
   if (campus.includes('Houston')) return 'Houston';
-  const region = Object.keys(SST_CAMPUS_REGIONS).find(r => SST_CAMPUS_REGIONS[r].includes(campus));
+  // Older records may use a retired campus name (e.g. "SST Schertz"); resolve it like an ADP location.
+  const known = Object.values(SST_CAMPUS_REGIONS).some(list => list.includes(campus))
+    ? campus
+    : matchSstCampus(campus) || campus;
+  const region = Object.keys(SST_CAMPUS_REGIONS).find(r => SST_CAMPUS_REGIONS[r].includes(known));
   return (region && REGION_TO_LOCATION[region]) || 'Central Administration';
 }
 
@@ -784,7 +788,9 @@ const ADP_LOCATION_ALIASES: Record<string, Campus> = {
   'regional office houston': 'SST Houston Regional Office',
   'regional office san antonio': 'SST San Antonio Regional Office',
   'cc early elementary': 'SST Corpus Christi Early Elementary',
-  '2 schertz': 'SST Schertz',
+  // ADP has two Schertz locations: "2 Schertz" (Elementary) and "SST Schertz" (Early Elementary).
+  '2 schertz': 'SST Schertz Elementary',
+  'schertz': 'SST Schertz Early Elementary',
   'nf greg garcia elem': 'NF Greg Garcia Elementary (NFPS Partner)',
   'nf frank l madla early college hs': 'NF Frank L. Madla Early College High School (NFPS Partner)'
 };

@@ -16,10 +16,12 @@ import {
   canPersonaActOnPar,
   getDepartmentNotificationRecipients,
   HR_REVISION_REASONS,
-  getTexasCobraDeadline
+  getTexasCobraDeadline,
+  canPersonaViewSstSheet,
+  isSuperAdmin
 } from '../utils/formatters';
 import { getStoredGmailCredentials, sendGmailEmail } from '../utils/gmailService';
-import { syncParToSstGoogleSheet } from '../utils/sstAppsScriptService';
+import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from '../utils/sstAppsScriptService';
 import { getStoredAdpStaff, executeAdpTerminationCloseout } from '../utils/adpService';
 import { 
   X, 
@@ -38,6 +40,7 @@ import {
   Trash2,
   Bell,
   Laptop,
+  Fingerprint,
   UserPlus,
   Mail,
   Info,
@@ -179,7 +182,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
 
   const deptNotifications = par.departmentNotifications && par.departmentNotifications.length > 0 
     ? par.departmentNotifications 
-    : getDepartmentNotificationRecipients(par.location, par.campus);
+    : getDepartmentNotificationRecipients(par.location, par.campus, par.actionType);
 
   const handleResendNotifications = () => {
     const itContact = deptNotifications.find(n => n.type === 'it');
@@ -353,16 +356,31 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleSyncToGoogleSheet}
-              disabled={isSyncingSheet}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 transition-colors shadow-2xs"
-              title="Synchronize this request immediately to SSTTX Google Sheets"
-            >
-              <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-700 ${isSyncingSheet ? 'animate-spin' : ''}`} />
-              <span>{isSyncingSheet ? 'Syncing...' : 'Sync to SSTTX Sheet'}</span>
-            </button>
+            {/* PARs sync to the SST Sheet automatically; only the Sheet's viewers see it here. */}
+            {canPersonaViewSstSheet(currentPersona) && (
+              <a
+                href={getStoredAppsScriptConfig().spreadsheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 transition-colors shadow-2xs"
+                title="Open the SST PAR tracker in Google Sheets (view only). PARs sync automatically."
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                <span>SST Sheet</span>
+              </a>
+            )}
+            {isSuperAdmin(currentPersona) && (
+              <button
+                type="button"
+                onClick={handleSyncToGoogleSheet}
+                disabled={isSyncingSheet}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-900 transition-colors shadow-2xs"
+                title="Send this PAR to the SST Sheet again (it syncs automatically on every submission and approval)"
+              >
+                <FileSpreadsheet className={`w-3.5 h-3.5 text-emerald-700 ${isSyncingSheet ? 'animate-spin' : ''}`} />
+                <span>{isSyncingSheet ? 'Syncing...' : 'Re-sync'}</span>
+              </button>
+            )}
 
             <button
               onClick={handlePrint}
@@ -1131,7 +1149,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="font-bold text-slate-900 text-xs flex items-center space-x-1.5">
-                                {notif.type === 'it' ? <Laptop className="w-3.5 h-3.5 text-blue-600" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-600" />}
+                                {notif.type === 'it' ? <Laptop className="w-3.5 h-3.5 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-3.5 h-3.5 text-rose-700" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-600" />}
                                 <span>{notif.department}</span>
                               </span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center space-x-1">
@@ -1308,7 +1326,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     <div key={nIdx} className="p-5 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/60 to-white shadow-2xs space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs uppercase tracking-wider text-purple-900 flex items-center space-x-1.5">
-                          {notif.type === 'it' ? <Laptop className="w-4 h-4 text-blue-600" /> : <UserPlus className="w-4 h-4 text-emerald-600" />}
+                          {notif.type === 'it' ? <Laptop className="w-4 h-4 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-4 h-4 text-rose-700" /> : <UserPlus className="w-4 h-4 text-emerald-600" />}
                           <span>{notif.department}</span>
                         </span>
                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center space-x-1">

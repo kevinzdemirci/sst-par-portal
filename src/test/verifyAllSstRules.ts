@@ -50,7 +50,7 @@ import {
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { matchSstCampus, locationForCampus, isValidAdpPositionId, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
+import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
 import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
@@ -1271,6 +1271,12 @@ assert(TERMINATION_REASONS.length === 17 && new Set(TERMINATION_REASONS.map(r =>
 assert(TERMINATION_CODES.includes('R = Resignation - Personal Reasons') && TERMINATION_CODES.includes('Y = Reduction in Force'), 'Termination reasons use ADP codes and wording');
 assert(TERMINATION_REASONS.filter(r => r.voluntary && !r.involuntary).every(r => /Resignation|Retirement/.test(r.label)), 'Voluntary-only reasons are resignations and retirement');
 assert(TERMINATION_REASONS.filter(r => r.involuntary && !r.voluntary).every(r => !/Resignation|Retirement/.test(r.label)), 'Involuntary-only reasons exclude resignations and retirement');
+const termNotices = getDepartmentNotificationRecipients('Houston', 'SST Spring', 'termination');
+assert(termNotices.some(n => n.type === 'dps' && n.recipientEmail === 'hcelik@ssttx.org'), 'Every termination notifies Halil Celik (Director of Personnel Services) to unsubscribe from DPS');
+assert(!getDepartmentNotificationRecipients('Houston', 'SST Spring', 'campus_transfer').some(n => n.type === 'dps'), 'Non-termination PARs do not notify Personnel Services');
+const sheetViewers = ['p-kevin', 'p-kristy', 'p-amber', 'p-ursula', 'p-paola', 'p-atnan', 'p-serdar', 'p-hasan', 'p-ali'].map(id => USER_PERSONAS.find(p => p.id === id)!);
+assert(sheetViewers.every(p => canPersonaViewSstSheet(p)), 'SST Sheet: Super Admin, Regional HR, Benefits, Payroll, Regional Talent, Regional Executive Directors can view');
+assert(!canPersonaViewSstSheet(USER_PERSONAS.find(p => p.id === 'p-vanessa')!) && !canPersonaViewSstSheet(USER_PERSONAS.find(p => p.id === 'p-enes')!) && !canPersonaViewSstSheet(alamoPrincipal), 'SST Sheet: principals and IT cannot view');
 const loaCentral = buildSstRouting('leave_of_absence', false, 'Central Administration', officeConfig, 'SST Central Office (District Administration)');
 assert(loaCentral.map(st => st.assignedEmail).join(',') === 'aurcullu@ssttx.org,uvillanueva@ssttx.org', `Central Office leave: Alba Urcullu (HR) then Benefits (Got: ${loaCentral.map(st => st.assignedEmail).join(', ')})`);
 const centralSalary = buildSstRouting('salary_change', false, 'Central Administration', DEFAULT_WORKFLOW_CONFIG, 'SST Central Office (District Administration)');

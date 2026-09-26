@@ -234,7 +234,7 @@ export interface DepartmentNotificationRecord {
   recipientRole: string;
   department: string;
   region: string;
-  type: 'it' | 'talent_acquisition' | 'other';
+  type: 'it' | 'talent_acquisition' | 'dps' | 'other';
   status: 'notified' | 'pending';
   notifiedAt?: string;
   actionRequired: boolean;

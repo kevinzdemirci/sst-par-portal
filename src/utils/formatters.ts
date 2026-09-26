@@ -225,6 +225,23 @@ export function getPriorityBadge(priority: Priority): {
 export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
 
 /**
+ * Who may open the SST PAR Google Sheet (view only): Super Admins, Regional HR Coordinators,
+ * Benefits, Payroll, Regional Directors of Talent Acquisition, and Regional Executive Directors.
+ */
+export function canPersonaViewSstSheet(persona?: UserPersona | null): boolean {
+  if (!persona) return false;
+  const role = persona.role || '';
+  return (
+    isSuperAdmin(persona) ||
+    isRegionalHrCoordinator(persona) ||
+    isPayrollCoordinator(persona) ||
+    persona.canReviewStages.includes('benefits_review') || /benefits/i.test(role) ||
+    /regional director of talent acquisition/i.test(role) ||
+    /regional executive director/i.test(role) || persona.canReviewStages.includes('regional_review')
+  );
+}
+
+/**
  * ADP Position ID: a 3-character company code (UFP, UFR, ELA, ...) followed by 6 digits,
  * e.g. UFP000123. This is the ID the portal records for each employee.
  */
@@ -409,7 +426,42 @@ export function getPersonaPermissions(persona: UserPersona): PersonaPermissions 
  * for a PAR based on its campus and geographical region.
  * These departments receive FYI notifications with NO action or approval required.
  */
+/** Director of Personnel Services: removes separated employees from the DPS fingerprint subscription. */
+export const PERSONNEL_SERVICES_CONTACT = {
+  name: 'Halil Celik',
+  email: 'hcelik@ssttx.org',
+  title: 'Director of Personnel Services'
+};
+
+/**
+ * Who is notified (no approval needed) when a PAR is submitted: regional IT and Talent
+ * Acquisition, plus Personnel Services for every termination (DPS unsubscribe).
+ */
 export function getDepartmentNotificationRecipients(
+  location?: string,
+  campus?: string,
+  actionType?: ActionType
+): import('../types/par').DepartmentNotificationRecord[] {
+  const recipients = regionalDepartmentNotificationRecipients(location, campus);
+  if (actionType === 'termination') {
+    recipients.push({
+      id: 'notif-dps-personnel-services',
+      recipientName: PERSONNEL_SERVICES_CONTACT.name,
+      recipientEmail: PERSONNEL_SERVICES_CONTACT.email,
+      recipientRole: PERSONNEL_SERVICES_CONTACT.title,
+      department: 'Personnel Services',
+      region: 'All SST Campuses',
+      type: 'dps',
+      status: 'notified',
+      notifiedAt: new Date().toISOString(),
+      actionRequired: true,
+      purpose: "Remove the separated employee's fingerprint subscription from the DPS system after the separation date"
+    });
+  }
+  return recipients;
+}
+
+function regionalDepartmentNotificationRecipients(
   location?: string,
   campus?: string
 ): import('../types/par').DepartmentNotificationRecord[] {

@@ -306,8 +306,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
   const sendsDepartmentNotices = actionType !== null && ACTIONS_WITH_DEPARTMENT_NOTICES.includes(actionType);
   const noticeRecipients = useMemo(
-    () => (sendsDepartmentNotices && campus ? getDepartmentNotificationRecipients(location, campus) : []),
-    [sendsDepartmentNotices, location, campus]
+    () => (sendsDepartmentNotices && campus ? getDepartmentNotificationRecipients(location, campus, actionType ?? undefined) : []),
+    [sendsDepartmentNotices, location, campus, actionType]
   );
 
   const { errors, warnings } = useMemo(() => {

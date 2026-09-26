@@ -33,6 +33,7 @@ import { AdpStaffModal } from './components/AdpStaffModal';
 import { AdpWorker } from './types/adp';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
+import { getEffectiveEmailCredentials } from './utils/emailChannel';
 import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpService';
 import { watchDistrictUser } from './utils/firebaseClient';
 import type { PortalSession } from './components/LoginGate';
@@ -621,7 +622,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Automated Gmail dispatch on stage transition or completion
-        const gmailCreds = getStoredGmailCredentials();
+        const gmailCreds = getEffectiveEmailCredentials();
         if (gmailCreds.isEnabled) {
           const empFullName = `${par.firstName} ${par.lastName}`;
           if (nextStage === 'completed') {
@@ -645,7 +646,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
-        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+        if (appsScriptConfig.scriptUrl) {
           syncParToSstGoogleSheet(updatedPar, 'Department Approval', persona, comments).catch(console.error);
         }
 
@@ -700,7 +701,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Automated Gmail dispatch on rejection
-        const gmailCreds = getStoredGmailCredentials();
+        const gmailCreds = getEffectiveEmailCredentials();
         if (gmailCreds.isEnabled) {
           const empFullName = `${par.firstName} ${par.lastName}`;
           sendGmailEmail({
@@ -716,7 +717,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
-        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+        if (appsScriptConfig.scriptUrl) {
           syncParToSstGoogleSheet(updatedPar, 'Department Rejection', persona, comments).catch(console.error);
         }
 
@@ -771,7 +772,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Automated Gmail dispatch on revision request
-        const gmailCreds = getStoredGmailCredentials();
+        const gmailCreds = getEffectiveEmailCredentials();
         if (gmailCreds.isEnabled) {
           const empFullName = `${par.firstName} ${par.lastName}`;
           sendGmailEmail({
@@ -787,7 +788,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
-        if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+        if (appsScriptConfig.scriptUrl) {
           syncParToSstGoogleSheet(updatedPar, 'Revision Requested', persona, comments).catch(console.error);
         }
 
@@ -836,7 +837,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     setIsNewParModalOpen(false);
 
     // Automated Gmail notifications on new PAR submission
-    const gmailCreds = getStoredGmailCredentials();
+    const gmailCreds = getEffectiveEmailCredentials();
     if (gmailCreds.isEnabled) {
       const empFullName = `${newPar.firstName} ${newPar.lastName}`;
       const firstPendingStep = newPar.routingSteps.find((s) => s.status === 'pending');
@@ -855,6 +856,16 @@ export function App({ session = null }: { session?: PortalSession | null }) {
       // 2. Dispatch department notifications (IT & Talent Acquisition)
       if (newPar.departmentNotifications && newPar.departmentNotifications.length > 0) {
         newPar.departmentNotifications.forEach((dept) => {
+          if (dept.type === 'dps') {
+            sendGmailEmail({
+              to: dept.recipientEmail,
+              toName: dept.recipientName,
+              subject: `[ACTION: DPS UNSUBSCRIBE] ${newPar.trackingNumber} - ${empFullName} separation`,
+              bodyText: `Dear ${dept.recipientName},\n\nA separation PAR was submitted for ${empFullName} (${newPar.title}, ${newPar.campus}).\n\nADP Position ID: ${newPar.employeeId}\nDPS SID: ${newPar.dpsSid || 'not recorded on the PAR (check ADP)'}\nLast day worked: ${newPar.lastDayWorked || 'not recorded'}\nSeparation effective date: ${newPar.effectiveDate}\nTracking number: ${newPar.trackingNumber}\n\nPlease remove this employee's fingerprint subscription from the DPS system after the separation date.\n\nSchool of Science and Technology Human Resources`,
+              category: 'notification'
+            }, gmailCreds).catch(console.error);
+            return;
+          }
           sendGmailEmail({
             to: dept.recipientEmail,
             toName: dept.recipientName,
@@ -870,7 +881,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
     // Automated SSTTX Google Sheets Background Synchronization
     const appsScriptConfig = getStoredAppsScriptConfig();
-    if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+    if (appsScriptConfig.scriptUrl) {
       syncParToSstGoogleSheet(newPar, 'New PAR Submission', currentPersona, 'Submitted & Forwarded to Principal').catch(console.error);
     }
   };
@@ -894,7 +905,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
     // Automated SSTTX Google Sheets Background Synchronization
     const appsScriptConfig = getStoredAppsScriptConfig();
-    if (appsScriptConfig.scriptUrl && appsScriptConfig.autoSyncEnabled) {
+    if (appsScriptConfig.scriptUrl) {
       syncParToSstGoogleSheet(updatedPar, 'Employee Info Edited', currentPersona).catch(console.error);
     }
   };

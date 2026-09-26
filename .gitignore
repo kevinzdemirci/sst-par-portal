@@ -35,3 +35,6 @@ dist-ssr
 firebase-debug.log
 firestore-debug.log
 functions/.env*
+
+# Apps Script portal key (written by scripts/rotate-portal-key.sh)
+google-apps-script/deployed/PortalKey.js

@@ -338,8 +338,10 @@ function doPost(e) {
   return handlePost_(e);
 }
 
-// The PORTAL_KEY script property, tolerating spaces, lowercase, or a space for the underscore in its name.
+// The portal key: PORTAL_KEY_VALUE from PortalKey.js (written by scripts/rotate-portal-key.sh),
+// else the PORTAL_KEY script property (tolerating spaces, lowercase, or a space for the underscore).
 function getPortalKey_() {
+  if (typeof PORTAL_KEY_VALUE === "string" && PORTAL_KEY_VALUE.trim()) return PORTAL_KEY_VALUE.trim();
   var props = PropertiesService.getScriptProperties().getProperties();
   for (var name in props) {
     if (name.replace(/[\s_]+/g, "").toUpperCase() === "PORTALKEY") return String(props[name] || "").trim();

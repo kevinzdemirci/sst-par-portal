@@ -870,6 +870,14 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                           <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
                             Assigned Approver:
                           </label>
+                          {rule.stage === 'supervisor_review' ? (
+                            <div className="p-2 bg-white border border-slate-200 rounded-lg text-[11px] leading-snug text-slate-700">
+                              <span className="font-bold text-slate-900 block">The employee's campus principal</span>
+                              Central Office: Director of HR. Regional offices: Regional Director of Talent Acquisition.
+                              No endorser on file: the Regional Executive Director.
+                            </div>
+                          ) : (
+                          <>
                           <select
                             value={rule.assignedApproverId}
                             onChange={(e) => handleRuleChange(rule.id, 'assignedApproverId', e.target.value)}
@@ -895,6 +903,8 @@ export const WorkflowAdminModal: React.FC<WorkflowAdminModalProps> = ({
                                 <span className="text-slate-500 text-[10px] font-mono truncate">{matchedApprover.email}</span>
                               </div>
                             </div>
+                          )}
+                          </>
                           )}
                         </div>
 

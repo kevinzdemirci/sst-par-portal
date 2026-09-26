@@ -682,16 +682,19 @@ export function buildSstRouting(
         )
       : undefined;
 
+    // The principal step always follows the campus; with no campus yet (e.g. a routing preview)
+    // it names the role rather than any one principal.
+    const isPrincipalStep = rule.stage === 'supervisor_review';
     const matchedApprover = campusPrincipal
       || regionalFallback
-      || config.approvers.find(a => a.id === rule.assignedApproverId)
-      || config.approvers.find(a => a.roleKey === rule.assignedApproverId)
+      || (isPrincipalStep ? undefined : config.approvers.find(a => a.id === rule.assignedApproverId))
+      || (isPrincipalStep ? undefined : config.approvers.find(a => a.roleKey === rule.assignedApproverId))
       || (rule.assignedApproverId === 'p-atnan' && location !== 'Houston' ? config.approvers.find(a => a.id === 'p-serdar') : null)
       || (rule.assignedApproverId === 'p-kristy' && location !== 'Houston' ? config.approvers.find(a => a.id === 'p-amber') : null);
 
-    const assignedRole = matchedApprover ? matchedApprover.title : (rule.customRoleTitle || 'Authorized Approver');
-    const assignedDept = matchedApprover ? matchedApprover.department : (rule.customDepartment || 'District Administration');
-    const assignedEmail = matchedApprover ? matchedApprover.email : (rule.customEmail || 'hr@ssttx.org');
+    const assignedRole = matchedApprover ? matchedApprover.title : isPrincipalStep ? 'Campus Principal' : (rule.customRoleTitle || 'Authorized Approver');
+    const assignedDept = matchedApprover ? matchedApprover.department : isPrincipalStep ? 'Campus Leadership' : (rule.customDepartment || 'District Administration');
+    const assignedEmail = matchedApprover ? matchedApprover.email : isPrincipalStep ? '' : (rule.customEmail || 'hr@ssttx.org');
 
     steps.push({
       id: `step-${rule.id}`,
@@ -716,9 +719,9 @@ export function buildSstRouting(
       id: 'step-supervisor-fallback',
       stage: 'supervisor_review',
       stageLabel: 'Principal / Supervisor Endorsement',
-      assignedRole: 'Principal / Supervisor',
-      assignedDepartment: 'Campus Leadership',
-      assignedEmail: 'vnguyen@ssttx.org',
+      assignedRole: 'Chief People Officer',
+      assignedDepartment: 'Human Resources',
+      assignedEmail: 'kdemirci@ssttx.org',
       status: 'pending'
     });
   }

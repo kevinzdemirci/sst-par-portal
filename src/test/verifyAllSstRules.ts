@@ -1267,6 +1267,14 @@ const loaHouston = buildSstRouting('leave_of_absence', false, 'Houston', officeC
 const loaSa = buildSstRouting('leave_of_absence', false, 'San Antonio', officeConfig, 'SST Alamo');
 assert(loaHouston.map(st => st.assignedEmail).join(',') === 'kstewart@ssttx.org,uvillanueva@ssttx.org', 'Houston leave: Kristy Stewart (Regional HR) then Ursula Villanueva (Benefits)');
 assert(loaSa.map(st => st.assignedEmail).join(',') === 'ajohnson@ssttx.org,uvillanueva@ssttx.org', 'San Antonio leave: Amber Johnson (Regional HR) then Ursula Villanueva (Benefits)');
+const loaCentral = buildSstRouting('leave_of_absence', false, 'Central Administration', officeConfig, 'SST Central Office (District Administration)');
+assert(loaCentral.map(st => st.assignedEmail).join(',') === 'aurcullu@ssttx.org,uvillanueva@ssttx.org', `Central Office leave: Alba Urcullu (HR) then Benefits (Got: ${loaCentral.map(st => st.assignedEmail).join(', ')})`);
+const centralSalary = buildSstRouting('salary_change', false, 'Central Administration', DEFAULT_WORKFLOW_CONFIG, 'SST Central Office (District Administration)');
+assert(centralSalary.some(st => st.stage === 'hr_review' && st.assignedEmail === 'aurcullu@ssttx.org'), 'Central Office PARs include an HR review by Alba Urcullu (even before accounts load)');
+const albaHr = { ...personaFromAccount(officeAccounts[0]), canReviewStages: ['draft', 'supervisor_review', 'hr_review'] as UserPersona['canReviewStages'] };
+const centralHrPar = { ...INITIAL_PAR_DATA[0], campus: 'SST Central Office (District Administration)' as const, location: 'Central Administration' as const, currentStage: 'hr_review' as const, routingSteps: loaCentral };
+assert(canPersonaActOnPar(albaHr, centralHrPar), 'Alba Urcullu can sign the Central Office HR review');
+assert(!canPersonaActOnPar(USER_PERSONAS.find(p => p.id === 'p-kristy')!, centralHrPar), 'Regional HR Coordinators cannot sign the Central Office HR review');
 const customRules = { ...DEFAULT_WORKFLOW_CONFIG, routingRules: DEFAULT_WORKFLOW_CONFIG.routingRules.map(r => ({ ...r, actionTypes: [...r.actionTypes, 'leave_of_absence' as const] })) };
 assert(buildSstRouting('leave_of_absence', false, 'Houston', customRules, 'SST Spring').every(st => st.stage === 'hr_review' || st.stage === 'benefits_review'), 'Leave route stays HR + Benefits even if saved routing rules include other stages');
 assert(!(SST_CAMPUSES as readonly string[]).includes('SST Main Campus (Corpus Christi)'), '"SST Main Campus (Corpus Christi)" removed (it is SST San Antonio College Prep)');

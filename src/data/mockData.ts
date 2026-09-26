@@ -101,6 +101,22 @@ export const DEFAULT_SST_ROUTING_RULES: SstRoutingRule[] = [
     priorityOrder: 6
   },
   {
+    id: 'rule-hr-central',
+    name: 'HR Review (Central Office)',
+    description: 'HR review of Central Office staff by the Director of HR, Alba Urcullu',
+    stage: 'hr_review',
+    stageLabel: 'HR Review (Director of HR)',
+    actionTypes: ['termination', 'role_change', 'salary_change', 'promotion', 'campus_transfer', 'leave_of_absence'],
+    voluntaryCondition: 'all',
+    regionCondition: 'Central Administration',
+    assignedApproverId: 'acct-aurcullu@ssttx.org',
+    customRoleTitle: 'Director of Human Resources',
+    customEmail: 'aurcullu@ssttx.org',
+    customDepartment: 'Human Resources',
+    isEnabled: true,
+    priorityOrder: 6
+  },
+  {
     id: 'rule-benefits-all',
     name: 'Benefits & Leave Verification',
     description: 'COBRA, TRS, and benefit calculations verification by Ursula Villanueva',

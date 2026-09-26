@@ -335,7 +335,9 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
       if (par.location === 'San Antonio' || par.location === 'Corpus Christi') {
         return persona.email === 'ajohnson@ssttx.org' || persona.email === 'ajohnson@ssttx.orf' || (persona.region?.includes('San Antonio') ?? false) || (persona.region?.includes('Corpus Christi') ?? false);
       }
-      return persona.department === 'Human Resources';
+      // Central Office: the Director of HR, or whoever the HR step is assigned to.
+      const hrStep = par.routingSteps.find(s => s.stage === 'hr_review' && s.status === 'pending');
+      return (!!hrStep?.assignedEmail && hrStep.assignedEmail.toLowerCase() === persona.email.toLowerCase()) || isDirectorOfHr(persona);
     }
   }
 

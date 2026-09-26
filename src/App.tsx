@@ -148,6 +148,11 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
     if (!config.routingRules || !Array.isArray(config.routingRules) || config.routingRules.length === 0) {
       config.routingRules = DEFAULT_WORKFLOW_CONFIG.routingRules;
+    } else {
+      // Add district rules introduced after this browser saved its configuration (e.g. Central Office HR).
+      const savedIds = new Set(config.routingRules.map(r => r.id));
+      const missing = DEFAULT_WORKFLOW_CONFIG.routingRules.filter(r => !savedIds.has(r.id));
+      if (missing.length) config.routingRules = [...config.routingRules, ...missing];
     }
     if (!Array.isArray(config.approvers)) {
       config.approvers = DEFAULT_WORKFLOW_CONFIG.approvers;

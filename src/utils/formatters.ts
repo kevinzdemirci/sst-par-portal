@@ -230,9 +230,14 @@ export function isRegionalExecutiveDirector(persona?: UserPersona | null): boole
   return persona.canReviewStages.includes('regional_review') || /regional executive director/i.test(persona.role);
 }
 
+export function isDirectorOfHr(persona?: UserPersona | null): boolean {
+  if (!persona || persona.isNotificationOnly) return false;
+  return /director of human resources|director of hr\b|hr director/i.test(persona.role);
+}
+
 /**
  * CPO Payouts are for the Regional HR Coordinators (entry), the CPO / Super Admins (approval),
- * Payroll (processing), and the Regional Executive Directors (view only).
+ * Payroll (processing), and the Regional Executive Directors and Director of HR (view only).
  */
 export function canPersonaAccessPayouts(persona?: UserPersona | null): boolean {
   if (!persona || persona.isNotificationOnly) return false;
@@ -240,7 +245,8 @@ export function canPersonaAccessPayouts(persona?: UserPersona | null): boolean {
     isSuperAdmin(persona) ||
     isRegionalHrCoordinator(persona) ||
     isPayrollCoordinator(persona) ||
-    isRegionalExecutiveDirector(persona)
+    isRegionalExecutiveDirector(persona) ||
+    isDirectorOfHr(persona)
   );
 }
 

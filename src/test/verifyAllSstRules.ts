@@ -1256,6 +1256,9 @@ assert(hasanNow.isNotificationOnly === false && hasanNow.campus === 'SST Houston
 const houstonOfficePar = { ...INITIAL_PAR_DATA[0], campus: 'SST Houston Regional Office' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Houston Regional Office') };
 assert(canPersonaActOnPar(hasanNow, houstonOfficePar) && !canPersonaActOnPar(hasanNow, { ...houstonOfficePar, campus: 'SST Spring' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Spring') }), 'Hasan endorses Houston Regional Office PARs only');
 assert(!(SST_CAMPUSES as readonly string[]).includes('SST Main Campus (Corpus Christi)'), '"SST Main Campus (Corpus Christi)" removed (it is SST San Antonio College Prep)');
+const albaPersona = personaFromAccount(officeAccounts[0]);
+assert(canPersonaAccessPayouts(albaPersona) && !isRegionalHrCoordinator(albaPersona), 'Director of HR (Alba Urcullu) can view CPO Payouts, in reviewer mode (not HR entry)');
+assert(!canPersonaAccessPayouts(hasanNow), 'Regional Directors of Talent Acquisition cannot see CPO Payouts');
 assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing

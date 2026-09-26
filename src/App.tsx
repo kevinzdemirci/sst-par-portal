@@ -450,6 +450,11 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     }
   }, [workflowConfig.approvers, availablePersonas]);
 
+  const reportDeliveryProblem = (message: string) => showToast(message, 'warning');
+  const reportSheetSync = (res: { success: boolean; message: string }) => {
+    if (!res.success) showToast(res.message, 'warning');
+  };
+
   const showToast = (text: string, type: 'success' | 'warning' | 'info' = 'success') => {
     setToastMessage({ text, type });
   };
@@ -651,12 +656,12 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Email the next approver in the chain, or the submitter when complete (from sstpar@ssttx.org)
-        sendParEmails(buildApprovalEmails(updatedPar, persona));
+        sendParEmails(buildApprovalEmails(updatedPar, persona), reportDeliveryProblem);
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
         if (appsScriptConfig.scriptUrl) {
-          syncParToSstGoogleSheet(updatedPar, 'Department Approval', persona, comments).catch(console.error);
+          syncParToSstGoogleSheet(updatedPar, 'Department Approval', persona, comments).then(reportSheetSync).catch(console.error);
         }
 
         return updatedPar;
@@ -710,14 +715,14 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Email the submitter (not the employee) about the rejection
-        sendParEmails(buildRejectedEmails(updatedPar, persona, comments));
+        sendParEmails(buildRejectedEmails(updatedPar, persona, comments), reportDeliveryProblem);
 
         showToast(`❌ ${par.trackingNumber} has been declined.`, 'warning');
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
         if (appsScriptConfig.scriptUrl) {
-          syncParToSstGoogleSheet(updatedPar, 'Department Rejection', persona, comments).catch(console.error);
+          syncParToSstGoogleSheet(updatedPar, 'Department Rejection', persona, comments).then(reportSheetSync).catch(console.error);
         }
 
         return updatedPar;
@@ -771,14 +776,14 @@ export function App({ session = null }: { session?: PortalSession | null }) {
         }
 
         // Email the submitter (not the employee): the PAR needs their changes
-        sendParEmails(buildReturnedEmails(updatedPar, persona, comments));
+        sendParEmails(buildReturnedEmails(updatedPar, persona, comments), reportDeliveryProblem);
 
         showToast(`⚠️ ${par.trackingNumber} returned to campus initiator for revisions.`, 'warning');
 
         // Automated SSTTX Google Sheets Background Synchronization
         const appsScriptConfig = getStoredAppsScriptConfig();
         if (appsScriptConfig.scriptUrl) {
-          syncParToSstGoogleSheet(updatedPar, 'Revision Requested', persona, comments).catch(console.error);
+          syncParToSstGoogleSheet(updatedPar, 'Revision Requested', persona, comments).then(reportSheetSync).catch(console.error);
         }
 
         return updatedPar;
@@ -826,14 +831,14 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     setIsNewParModalOpen(false);
 
     // Email the first approver, a receipt to the submitter, and department notices
-    sendParEmails(buildSubmissionEmails(newPar));
+    sendParEmails(buildSubmissionEmails(newPar), reportDeliveryProblem);
 
     showToast(`🎉 New request ${newPar.trackingNumber} submitted for ${newPar.firstName} ${newPar.lastName}! Forwarded to Principal/Supervisor endorsement.`, 'success');
 
     // Automated SSTTX Google Sheets Background Synchronization
     const appsScriptConfig = getStoredAppsScriptConfig();
     if (appsScriptConfig.scriptUrl) {
-      syncParToSstGoogleSheet(newPar, 'New PAR Submission', currentPersona, 'Submitted & Forwarded to Principal').catch(console.error);
+      syncParToSstGoogleSheet(newPar, 'New PAR Submission', currentPersona, 'Submitted & Forwarded to Principal').then(reportSheetSync).catch(console.error);
     }
   };
 
@@ -857,7 +862,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     // Automated SSTTX Google Sheets Background Synchronization
     const appsScriptConfig = getStoredAppsScriptConfig();
     if (appsScriptConfig.scriptUrl) {
-      syncParToSstGoogleSheet(updatedPar, 'Employee Info Edited', currentPersona).catch(console.error);
+      syncParToSstGoogleSheet(updatedPar, 'Employee Info Edited', currentPersona).then(reportSheetSync).catch(console.error);
     }
   };
 

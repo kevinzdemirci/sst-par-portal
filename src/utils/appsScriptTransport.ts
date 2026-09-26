@@ -1,4 +1,4 @@
-import { callPortalRelay, getSignedInDistrictUser } from './firebaseClient';
+import { callPortalRelay, isFirebaseConfigured } from './firebaseClient';
 
 /**
  * Sends a request to the district Apps Script (email + SST Sheet). A signed-in user goes
@@ -8,7 +8,7 @@ import { callPortalRelay, getSignedInDistrictUser } from './firebaseClient';
  * Returns the Apps Script's JSON reply (null if it had none).
  */
 export async function postToAppsScript(scriptUrl: string, body: Record<string, unknown>): Promise<any> {
-  if (getSignedInDistrictUser()) return callPortalRelay(body);
+  if (isFirebaseConfigured()) return callPortalRelay(body);
   // text/plain avoids a CORS preflight, which Apps Script does not answer.
   const response = await fetch(scriptUrl, {
     method: 'POST',

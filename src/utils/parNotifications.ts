@@ -284,13 +284,23 @@ export function buildRejectedEmails(par: PersonnelActionRequest, reviewer: UserP
 }
 
 /** Sends emails through the district Apps Script (from sstpar@ssttx.org). Failures are logged. */
-export function sendParEmails(emails: ParEmail[]): void {
+export function sendParEmails(emails: ParEmail[], onFailure?: (message: string) => void): void {
   const creds = getDistrictEmailCredentials();
   if (!creds.isEnabled) return;
   emails.forEach(e =>
     sendGmailEmail(
       { to: e.to, toName: e.toName, subject: e.subject, bodyText: e.bodyText, htmlBody: e.htmlBody, category: e.category },
       creds
-    ).catch(err => console.error(`PAR email to ${e.to} failed:`, err))
+    )
+      .then(result => {
+        if (!result.success) {
+          console.error(`PAR email to ${e.to} failed: ${result.message}`);
+          onFailure?.(`Email to ${e.toName || e.to} was not sent: ${result.message}`);
+        }
+      })
+      .catch(err => {
+        console.error(`PAR email to ${e.to} failed:`, err);
+        onFailure?.(`Email to ${e.toName || e.to} was not sent: ${err?.message || 'unknown error'}`);
+      })
   );
 }

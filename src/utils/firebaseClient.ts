@@ -80,6 +80,9 @@ export async function requestAdpRefresh(): Promise<{ status: 'fresh' | 'refreshe
  * accepts active portal accounts. Returns the Apps Script's JSON reply.
  */
 export async function callPortalRelay(body: Record<string, unknown>): Promise<any> {
+  const auth = getAuth(getApp());
+  await auth.authStateReady();
+  if (!isDistrictAccount(auth.currentUser)) throw new Error('Sign in to the portal to send emails or update the SST Sheet.');
   const call = httpsCallable<Record<string, unknown>, any>(getFunctions(getApp(), 'us-central1'), 'portalRelay');
   return (await call(body)).data;
 }

@@ -11,7 +11,7 @@ import {
   canPersonaCreatePar,
   isSuperAdmin 
 } from '../utils/formatters';
-import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS, Campus } from '../types/par';
+import { PersonnelActionRequest, UserPersona, SST_CAMPUSES, SST_CAMPUS_REGIONS, Campus, TERMINATION_REASONS, TERMINATION_CODES } from '../types/par';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { CpoPayoutRequest } from '../types/payout';
 import { DEFAULT_PAYOUT_TEMPLATES, PayoutTemplateItem } from '../components/CpoPayoutModal';
@@ -1267,6 +1267,10 @@ const loaHouston = buildSstRouting('leave_of_absence', false, 'Houston', officeC
 const loaSa = buildSstRouting('leave_of_absence', false, 'San Antonio', officeConfig, 'SST Alamo');
 assert(loaHouston.map(st => st.assignedEmail).join(',') === 'kstewart@ssttx.org,uvillanueva@ssttx.org', 'Houston leave: Kristy Stewart (Regional HR) then Ursula Villanueva (Benefits)');
 assert(loaSa.map(st => st.assignedEmail).join(',') === 'ajohnson@ssttx.org,uvillanueva@ssttx.org', 'San Antonio leave: Amber Johnson (Regional HR) then Ursula Villanueva (Benefits)');
+assert(TERMINATION_REASONS.length === 17 && new Set(TERMINATION_REASONS.map(r => r.code)).size === 17, 'Termination reasons: the 17 ADP codes SST has used, each unique');
+assert(TERMINATION_CODES.includes('R = Resignation - Personal Reasons') && TERMINATION_CODES.includes('Y = Reduction in Force'), 'Termination reasons use ADP codes and wording');
+assert(TERMINATION_REASONS.filter(r => r.voluntary && !r.involuntary).every(r => /Resignation|Retirement/.test(r.label)), 'Voluntary-only reasons are resignations and retirement');
+assert(TERMINATION_REASONS.filter(r => r.involuntary && !r.voluntary).every(r => !/Resignation|Retirement/.test(r.label)), 'Involuntary-only reasons exclude resignations and retirement');
 const loaCentral = buildSstRouting('leave_of_absence', false, 'Central Administration', officeConfig, 'SST Central Office (District Administration)');
 assert(loaCentral.map(st => st.assignedEmail).join(',') === 'aurcullu@ssttx.org,uvillanueva@ssttx.org', `Central Office leave: Alba Urcullu (HR) then Benefits (Got: ${loaCentral.map(st => st.assignedEmail).join(', ')})`);
 const centralSalary = buildSstRouting('salary_change', false, 'Central Administration', DEFAULT_WORKFLOW_CONFIG, 'SST Central Office (District Administration)');

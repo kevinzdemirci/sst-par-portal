@@ -16,7 +16,9 @@ import {
   BEREAVEMENT_RELATIONSHIPS,
   MedicalCertificationStatus,
   RehireEligibility,
-  TERMINATION_CODES
+  TERMINATION_REASONS,
+  TerminationReason,
+  formatTerminationCode
 } from '../types/par';
 import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
@@ -67,11 +69,6 @@ interface PendingAttachment {
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
-// Termination codes that are consistent with each separation classification.
-// Job Abandonment (A) and Mutual Agreement (E) can be recorded either way.
-const VOLUNTARY_CODE_LETTERS = ['A', 'B', 'E', 'F'];
-const INVOLUNTARY_CODE_LETTERS = ['A', 'C', 'D', 'E'];
-
 // Stakeholder FYI notices go out for actions that affect system access or create a vacancy.
 // Compensation and leave actions are excluded so pay and medical details are not broadcast.
 const ACTIONS_WITH_DEPARTMENT_NOTICES: ActionType[] = ['termination', 'campus_transfer', 'role_change', 'promotion'];
@@ -81,10 +78,14 @@ function localTodayIso(): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function codesFor(isVoluntary: boolean | null): readonly string[] {
-  if (isVoluntary === null) return TERMINATION_CODES;
-  const letters = isVoluntary ? VOLUNTARY_CODE_LETTERS : INVOLUNTARY_CODE_LETTERS;
-  return TERMINATION_CODES.filter(code => letters.includes(code.charAt(0)));
+/** ADP termination reasons that fit the separation classification (all when not chosen yet). */
+function reasonsFor(isVoluntary: boolean | null): TerminationReason[] {
+  if (isVoluntary === null) return TERMINATION_REASONS;
+  return TERMINATION_REASONS.filter(r => (isVoluntary ? r.voluntary : r.involuntary));
+}
+
+function codesFor(isVoluntary: boolean | null): string[] {
+  return reasonsFor(isVoluntary).map(formatTerminationCode);
 }
 
 function formatBytes(bytes: number): string {
@@ -478,14 +479,12 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const selectClassification = (voluntary: boolean) => {
     setIsVoluntary(voluntary);
     if (terminationCode && !codesFor(voluntary).includes(terminationCode)) setTerminationCode('');
-    if (voluntary && terminationCode === '' && isSchoolYearNonRenewal === false) setTerminationCode('B = Voluntary Resignation');
     // Involuntary separations carry a 6-day statutory final-pay deadline.
     if (!priorityTouched) setPriority(voluntary ? 'normal' : 'urgent');
   };
 
   const selectNonRenewal = (value: boolean) => {
     setIsSchoolYearNonRenewal(value);
-    if (value && isVoluntary === false && !terminationCode) setTerminationCode('D = End of Contract / Non-Renewal');
   };
 
   const changeLastDayWorked = (value: string) => {
@@ -1013,12 +1012,20 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     <input id="par-ldw" type="date" required value={lastDayWorked}
                       onChange={e => changeLastDayWorked(e.target.value)} className={inputCls} />
                   </Field>
-                  <Field label="Termination reason code" htmlFor="par-code" required className="sm:col-span-2"
-                    hint={isVoluntary === null ? 'Choose a classification to see the matching codes.' : undefined}>
+                  <Field label="ADP termination reason" htmlFor="par-code" required className="sm:col-span-2"
+                    hint={isVoluntary === null
+                      ? 'Choose a classification to see the matching ADP reasons.'
+                      : 'Same reason code Payroll enters in ADP Workforce Now.'}>
                     <select id="par-code" required value={terminationCode}
                       onChange={e => setTerminationCode(e.target.value)} className={inputCls}>
-                      <option value="">Select a code…</option>
-                      {codesFor(isVoluntary).map(code => <option key={code} value={code}>{code}</option>)}
+                      <option value="">Select a reason…</option>
+                      {Array.from(new Set(reasonsFor(isVoluntary).map(r => r.group))).map(group => (
+                        <optgroup key={group} label={group}>
+                          {reasonsFor(isVoluntary).filter(r => r.group === group).map(r => (
+                            <option key={r.code} value={formatTerminationCode(r)}>{formatTerminationCode(r)}</option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                   </Field>
                 </div>

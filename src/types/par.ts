@@ -125,14 +125,44 @@ export const BEREAVEMENT_RELATIONSHIPS = [
 
 export type MedicalCertificationStatus = 'Sent to Benefits' | 'Employee will send to Benefits';
 
-export const TERMINATION_CODES = [
-  'A = Job Abandonment',
-  'B = Voluntary Resignation',
-  'C = Involuntary Performance',
-  'D = End of Contract / Non-Renewal',
-  'E = Mutual Agreement',
-  'F = Retirement'
-] as const;
+export interface TerminationReason {
+  code: string;
+  label: string;
+  group: string;
+  /** Fits a voluntary separation (employee resigned). */
+  voluntary: boolean;
+  /** Fits an involuntary separation (SST ended employment). */
+  involuntary: boolean;
+}
+
+/**
+ * ADP Workforce Now termination reason codes SST has used (from ADP's separated-worker
+ * records, 2026-09-26). The PAR records the same code Payroll enters in ADP.
+ */
+export const TERMINATION_REASONS: TerminationReason[] = [
+  { code: 'R', label: 'Resignation - Personal Reasons', group: 'Resignation', voluntary: true, involuntary: false },
+  { code: 'B', label: 'Resignation - Better Opportunity Elsewhere', group: 'Resignation', voluntary: true, involuntary: false },
+  { code: 'H', label: 'Resignation - Relocation', group: 'Resignation', voluntary: true, involuntary: false },
+  { code: 'C', label: 'Resignation - Dissatisfaction with Role/Environment', group: 'Resignation', voluntary: true, involuntary: false },
+  { code: 'U', label: 'Retirement', group: 'Retirement', voluntary: true, involuntary: false },
+  { code: 'E', label: 'Performance - Failure to Improve After Coaching/Support', group: 'Performance', voluntary: false, involuntary: true },
+  { code: 'M', label: 'Performance - Inability to Meet Job Expectations', group: 'Performance', voluntary: false, involuntary: true },
+  { code: 'N', label: 'Misconduct - Inappropriate Behavior', group: 'Misconduct', voluntary: false, involuntary: true },
+  { code: 'J', label: 'Misconduct - Violation of School Policy', group: 'Misconduct', voluntary: false, involuntary: true },
+  { code: 'T', label: 'Attendance - Excessive Absenteeism', group: 'Attendance', voluntary: false, involuntary: true },
+  { code: 'D', label: 'Attendance', group: 'Attendance', voluntary: false, involuntary: true },
+  { code: 'A', label: 'Job Abandonment', group: 'Attendance', voluntary: true, involuntary: true },
+  { code: 'L', label: 'Failure to Maintain Certification/Licensure', group: 'Licensure', voluntary: false, involuntary: true },
+  { code: 'Y', label: 'Reduction in Force', group: 'Workforce Changes', voluntary: false, involuntary: true },
+  { code: 'W', label: 'Position Closed', group: 'Workforce Changes', voluntary: false, involuntary: true },
+  { code: 'G', label: 'Deceased', group: 'Other', voluntary: true, involuntary: true },
+  { code: 'O', label: 'Other', group: 'Other', voluntary: true, involuntary: true }
+];
+
+/** Stored and displayed as "R = Resignation - Personal Reasons". */
+export const formatTerminationCode = (r: TerminationReason) => `${r.code} = ${r.label}`;
+
+export const TERMINATION_CODES: string[] = TERMINATION_REASONS.map(formatTerminationCode);
 
 export interface Employee {
   id: string;

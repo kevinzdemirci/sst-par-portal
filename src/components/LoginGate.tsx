@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { LogIn, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import { DISTRICT_EMAIL_DOMAIN } from '../config/firebase';
 import { isFirebaseConfigured, signInWithDistrictGoogle, signOutDistrictGoogle, watchDistrictUser } from '../utils/firebaseClient';
@@ -24,16 +24,39 @@ type GateState =
   | { status: 'ready'; session: PortalSession };
 
 const Screen: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-8 text-center space-y-5">
-      <img src={SST_DEFAULT_LOGO} alt="School of Science and Technology" className="h-20 w-auto mx-auto object-contain" />
-      <div>
-        <h1 className="text-lg font-bold text-slate-900">Personnel Action Request Portal</h1>
-        <p className="text-xs text-slate-500 mt-1">School of Science and Technology · Human Resources</p>
+  <div className="min-h-screen flex flex-col bg-[linear-gradient(180deg,#0f2352_0%,#0f2352_38%,#eef2f7_38%,#eef2f7_100%)]">
+    <main className="flex-1 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(15,35,82,0.35)] ring-1 ring-slate-200 overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-[#0f2352] via-[#1a3880] to-[#b91c1c]" />
+        <div className="px-8 sm:px-10 pt-10 pb-8">
+          <img
+            src={SST_DEFAULT_LOGO}
+            alt="School of Science and Technology"
+            className="h-32 sm:h-36 w-auto mx-auto object-contain"
+          />
+          <div className="mt-7 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b91c1c]">Human Resources</p>
+            <h1 className="mt-1.5 text-[22px] font-bold tracking-tight text-slate-900">Personnel Action Request Portal</h1>
+          </div>
+          <div className="mt-7 space-y-4 text-center">{children}</div>
+        </div>
       </div>
-      {children}
-    </div>
+    </main>
+    <footer className="pb-6 px-4 text-center text-[11px] leading-relaxed text-slate-500">
+      <p>© {new Date().getFullYear()} School of Science and Technology. For authorized district use only.</p>
+      <p>Personnel information in this portal is confidential.</p>
+    </footer>
   </div>
+);
+
+/** Google's standard multicolor "G" mark for the sign-in button. */
+const GoogleMark: React.FC = () => (
+  <svg viewBox="0 0 48 48" className="w-5 h-5" aria-hidden="true">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </svg>
 );
 
 /**
@@ -140,20 +163,26 @@ export const LoginGate: React.FC<{ children: (session: PortalSession | null) => 
     default:
       return (
         <Screen>
-          <p className="text-sm text-slate-600">Sign in with your @{DISTRICT_EMAIL_DOMAIN} Google account to continue. Partner-school principals use their school account.</p>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Sign in with your <span className="font-semibold text-slate-800">@{DISTRICT_EMAIL_DOMAIN}</span> Google account.
+          </p>
           {state.status === 'signed-out' && state.error && (
-            <p className="text-xs font-semibold text-rose-700" role="alert">{state.error}</p>
+            <p className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs font-medium text-rose-800" role="alert">{state.error}</p>
           )}
           <button
             type="button"
             onClick={signIn}
             disabled={isSigningIn}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#0f2352] text-white text-sm font-semibold hover:bg-[#1a3880] disabled:opacity-60"
+            className="w-full inline-flex items-center justify-center gap-3 h-12 px-4 rounded-lg bg-white border border-slate-300 text-[15px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 hover:border-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1a3880] focus-visible:ring-offset-2 disabled:opacity-60 transition-colors"
           >
-            <LogIn className="w-4 h-4" />
+            <GoogleMark />
             {isSigningIn ? 'Signing in…' : 'Sign in with Google'}
           </button>
-          <p className="text-[11px] text-slate-400">Only district staff with a portal account can sign in.</p>
+          <div className="pt-4 border-t border-slate-100 space-y-1 text-[11px] leading-relaxed text-slate-500">
+            <p>Access is limited to district staff with a portal account.</p>
+            <p>Partner-school principals sign in with their school Google account.</p>
+            <p>Need access? Contact Human Resources.</p>
+          </div>
         </Screen>
       );
   }

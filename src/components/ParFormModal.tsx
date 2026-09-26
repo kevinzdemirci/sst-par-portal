@@ -26,6 +26,7 @@ import {
   getDepartmentNotificationRecipients,
   getTexasFinalPayDeadline,
   isCampusPrincipal,
+  isValidAdpPositionId,
   locationForCampus
 } from '../utils/formatters';
 import {
@@ -301,7 +302,10 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
     if (!actionType) errs.push('Select the type of personnel action.');
     if (!firstName.trim() || !lastName.trim()) errs.push("Enter the employee's first and last name.");
-    if (!employeeId.trim()) errs.push('Enter the ADP employee ID.');
+    if (!employeeId.trim()) errs.push('Enter the ADP Position ID.');
+    else if (!isValidAdpPositionId(employeeId) && employeeId.trim() !== linkedWorker?.positionId) {
+      errs.push('The ADP Position ID must be 3 letters followed by 6 digits, e.g. UFP000123.');
+    }
     if (!title.trim()) errs.push("Enter the employee's current title.");
     if (!campus) errs.push("Select the employee's campus.");
     if (workEmail && !/@ssttx\.org$/i.test(workEmail.trim())) {
@@ -541,7 +545,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       currentStage: submitterEndorses ? firstPendingStage : 'supervisor_review',
       effectiveDate,
 
-      employeeId: employeeId.trim(),
+      employeeId: employeeId.trim().toUpperCase(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       title: title.trim(),
@@ -549,7 +553,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       campus,
       employmentStatus,
       workEmail: workEmail.trim(),
-      associateId: associateId || employeeId.trim(),
+      associateId: associateId || employeeId.trim().toUpperCase(),
       dpsSid: dpsSid.trim() || undefined,
       currentSalary,
 
@@ -700,7 +704,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           authorRole: currentPersona.role,
           authorDepartment: currentPersona.department,
           timestamp: nowIso,
-          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. ${submitterEndorses ? 'Principal endorsement recorded at submission.' : 'Routed for Principal/Supervisor endorsement.'}`
+          message: `Submitted ${trackingNumber}: ${actionLabel} for ${firstName.trim()} ${lastName.trim()} (${campus}, ADP Position ID ${employeeId.trim()}), effective ${formatDate(effectiveDate)}. Submitter certified the request as accurate and complete. ${submitterEndorses ? 'Principal endorsement recorded at submission.' : 'Routed for Principal/Supervisor endorsement.'}`
         }
       ],
 
@@ -846,7 +850,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   <input id="par-last" name="par-last" type="text" required autoComplete="off" data-1p-ignore data-lpignore="true" value={lastName}
                     onChange={e => setLastName(e.target.value)} className={inputCls} />
                 </Field>
-                <Field label="ADP employee ID" htmlFor="par-adp" required>
+                <Field label="ADP Position ID" htmlFor="par-adp" required>
                   <input
                     id="par-adp"
                     name="par-adp"
@@ -860,8 +864,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       if (!associateId || associateId === employeeId) setAssociateId(e.target.value);
                       setEmployeeId(e.target.value);
                     }}
-                    placeholder="e.g. MRG92014A"
-                    className={`${inputCls} font-mono`}
+                    placeholder="e.g. UFP000123"
+                    className={`${inputCls} font-mono uppercase`}
                   />
                 </Field>
 

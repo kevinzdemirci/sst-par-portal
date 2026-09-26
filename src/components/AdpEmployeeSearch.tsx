@@ -147,7 +147,7 @@ export const AdpEmployeeSearch: React.FC<AdpEmployeeSearchProps> = ({
               onFocus={() => setIsLookupOpen(true)}
               onBlur={() => setIsLookupOpen(false)}
               onKeyDown={onLookupKeyDown}
-              placeholder="Start typing a staff member or ADP ID"
+              placeholder="Start typing a staff member or Position ID"
               className={`${inputClassName} pl-8`}
             />
           </div>

@@ -349,7 +349,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search staff by name, ADP ID, position, campus..."
+                  placeholder="Search staff by name, Position ID, campus..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -396,7 +396,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
                 <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
                   <thead className="bg-[#0f2352] text-white font-bold uppercase tracking-wider text-[10px] sticky top-0 z-10 shadow-xs">
                     <tr>
-                      <th className="px-4 py-3">Staff Member & ADP ID</th>
+                      <th className="px-4 py-3">Staff Member & Position ID</th>
                       <th className="px-4 py-3">Campus & Position</th>
                       <th className="px-4 py-3">Salary & Agreement</th>
                       <th className="px-4 py-3">ADP Status</th>
@@ -585,7 +585,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
                   <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
                     <tr>
                       <th className="px-4 py-3">PAR Tracking #</th>
-                      <th className="px-4 py-3">Staff Member (ADP ID)</th>
+                      <th className="px-4 py-3">Staff Member (Position ID)</th>
                       <th className="px-4 py-3">Separation Reason & Type</th>
                       <th className="px-4 py-3">Last Day Worked (LDW)</th>
                       <th className="px-4 py-3">PAR Stage</th>

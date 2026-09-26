@@ -11,6 +11,7 @@ import {
   isPayrollCoordinator,
   formatPayoutTypeBadge, 
   formatPayoutStatusBadge,
+  isValidAdpPositionId,
   locationForCampus
 } from '../utils/formatters';
 import { AdpWorker } from '../types/adp';
@@ -246,7 +247,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     }
     // Payroll keys this into ADP, so it must identify a real ADP record.
     if (!formAdpId.trim()) {
-      alert('Enter the employee\'s ADP ID, or pick the employee from the ADP search.');
+      alert('Enter the employee\'s ADP Position ID, or pick the employee from the ADP search.');
+      return;
+    }
+    if (!isValidAdpPositionId(formAdpId) && formAdpId.trim() !== formLinkedWorker?.positionId) {
+      alert('The ADP Position ID must be 3 letters followed by 6 digits, e.g. UFP000123.');
       return;
     }
     const numAmount = parseFloat(formAmount);
@@ -268,9 +273,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       id: `payout-${Date.now()}`,
       trackingNumber: tracking,
       payoutType: formPayoutType,
-      employeeId: formLinkedWorker?.associateId || formAdpId.trim(),
+      employeeId: formLinkedWorker?.associateId || formAdpId.trim().toUpperCase(),
       employeeName: formEmployeeName.trim(),
-      adpId: formAdpId.trim(),
+      adpId: formAdpId.trim().toUpperCase(),
       campus: formCampus,
       region: formRegion,
       jobTitle: formJobTitle.trim(),
@@ -832,7 +837,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input 
                       type="text"
-                      placeholder="Search staff, ADP ID, tracking #..."
+                      placeholder="Search staff, Position ID, tracking #..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 w-48 sm:w-64"
@@ -1206,11 +1211,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ADP ID: *</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">ADP Position ID: *</label>
                       <input 
                         type="text"
                         required
-                        placeholder="e.g. MRG92014A"
+                        placeholder="e.g. UFP000123"
                         name="payout-adp"
                         autoComplete="off"
                         data-1p-ignore
@@ -1759,7 +1764,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   <strong className="text-slate-900 truncate block">{selectedPayout.campus}</strong>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">ADP ID:</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">ADP Position ID:</span>
                   <strong className="text-slate-900 font-mono block">{selectedPayout.adpId}</strong>
                 </div>
                 <div>

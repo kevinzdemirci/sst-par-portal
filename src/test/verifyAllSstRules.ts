@@ -50,7 +50,7 @@ import {
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { matchSstCampus, locationForCampus, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
+import { matchSstCampus, locationForCampus, isValidAdpPositionId, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
 import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
@@ -1042,7 +1042,7 @@ const sampleAdpWorker = {
     {
       primaryIndicator: true,
       jobTitle: 'Science Teacher',
-      positionID: 'POS-SPR-SCI-02',
+      positionID: 'UFP000123',
       workerTypeCode: { codeValue: 'F', shortName: 'Full Time' },
       assignmentStatus: { statusCode: { codeValue: 'L' } },
       homeWorkLocation: { nameCode: { shortName: 'SST - Spring Campus' } },
@@ -1070,7 +1070,11 @@ assert(mapWorker(ltsWorker).workerType === 'Sub', 'Relay maps LTS (Long Term Sub
 
 const appWorker = workerFromRelayRecord(relayRec, '2026-09-25T12:00:00Z');
 assert(appWorker.campus === 'SST Spring' && appWorker.location === 'Houston', `ADP location "SST - Spring Campus" maps to SST Spring / Houston (Got: ${appWorker.campus})`);
-assert(appWorker.adpId === 'MRG92014A' && appWorker.workEmail === 'mrodriguez@ssttx.org', 'App worker keeps ADP ID and email');
+assert(appWorker.adpId === 'UFP000123' && appWorker.associateId === 'G3ABC123XYZ' && appWorker.workEmail === 'mrodriguez@ssttx.org', 'Employee ID is the ADP Position ID (UFP000123); associate OID and email kept');
+assert(isValidAdpPositionId('UFP000123') && isValidAdpPositionId('ela004512') && isValidAdpPositionId('0FP123456'), 'Valid Position IDs: 3-character company code + 6 digits');
+assert(!isValidAdpPositionId('MRG92014A') && !isValidAdpPositionId('UFP12345') && !isValidAdpPositionId(''), 'Invalid Position IDs are rejected (worker IDs, too few digits, blank)');
+const posCsv = parseAdpCsvExport(`Associate ID,Position ID,Legal First Name,Legal Last Name\nG3XYZ,UFR004455,Dana,Cole`);
+assert(posCsv[0].adpId === 'UFR004455' && posCsv[0].associateId === 'G3XYZ', 'CSV import uses the Position ID as the employee ID');
 
 assert(matchSstCampus('SST Sugar Land College Prep High School') === 'SST Sugar Land College Prep High School', 'Campus match: exact name');
 assert(matchSstCampus('Sugar Land College Prep HS Campus') === undefined, 'Campus match: a partial name is left blank instead of matching SST Sugar Land');

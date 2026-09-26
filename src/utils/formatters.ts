@@ -224,6 +224,14 @@ export function getPriorityBadge(priority: Priority): {
 
 export const CAMPUS_PRINCIPAL_TITLE = 'Campus Principal';
 
+/**
+ * ADP Position ID: a 3-character company code (UFP, UFR, ELA, ...) followed by 6 digits,
+ * e.g. UFP000123. This is the ID the portal records for each employee.
+ */
+export function isValidAdpPositionId(value?: string | null): boolean {
+  return /^[A-Za-z0-9]{3}\d{6}$/.test((value || '').trim());
+}
+
 /** Regional Executive Directors (not the notification-only IT / Talent Acquisition regional directors). */
 export function isRegionalExecutiveDirector(persona?: UserPersona | null): boolean {
   if (!persona || persona.isNotificationOnly) return false;

@@ -23,7 +23,10 @@ export function getStoredAdpStaff(): AdpWorker[] {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          return withoutLegacySamples(parsed as AdpWorker[], LEGACY_SAMPLE_ADP_WORKER_IDS);
+          // The employee ID shown and recorded is the ADP Position ID (older saved rosters used the worker ID).
+          return withoutLegacySamples(parsed as AdpWorker[], LEGACY_SAMPLE_ADP_WORKER_IDS).map(w =>
+            w.positionId && w.adpId !== w.positionId ? { ...w, adpId: w.positionId } : w
+          );
         }
       }
     } else if (memoryAdpStaffStore) {
@@ -281,7 +284,8 @@ export function workerFromRelayRecord(rec: AdpRelayWorker, syncedAt: string): Ad
   const campus = matchSstCampus(rec.locationName) || '';
   return {
     id: rec.associateOID,
-    adpId: rec.workerId || rec.associateOID,
+    // The portal identifies employees by ADP Position ID (e.g. UFP000123).
+    adpId: rec.positionId || rec.workerId || rec.associateOID,
     associateId: rec.associateOID,
     positionId: rec.positionId || '',
     firstName: rec.firstName,
@@ -494,8 +498,8 @@ export function parseAdpCsvExport(csvText: string): AdpWorker[] {
       return '';
     };
 
-    const associateId = pick('associate id', 'adp id', 'worker id');
-    const adpId = associateId || pick('file number', 'employee id');
+    const associateId = pick('associate id', 'worker id');
+    const adpId = pick('position id', 'adp position id') || associateId || pick('adp id', 'file number', 'employee id');
 
     let firstName = pick('legal first name', 'first name', 'first');
     let lastName = pick('legal last name', 'last name', 'last');

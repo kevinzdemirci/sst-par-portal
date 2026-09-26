@@ -564,7 +564,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         <strong className="text-sm text-slate-900">{par.lastName}</strong>
                       </div>
                       <div>
-                        <span className="text-slate-500 block text-[11px]">Employee ID (found in ADP):</span>
+                        <span className="text-slate-500 block text-[11px]">ADP Position ID:</span>
                         <strong className="font-mono text-sm text-slate-900">{par.employeeId}</strong>
                       </div>
                       <div>

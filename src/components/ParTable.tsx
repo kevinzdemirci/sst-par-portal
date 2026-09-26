@@ -150,7 +150,7 @@ export const ParTable: React.FC<ParTableProps> = ({
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <th className="py-3 px-4">Tracking # & Priority</th>
-              <th className="py-3 px-4">Employee (ADP ID)</th>
+              <th className="py-3 px-4">Employee (Position ID)</th>
               <th className="py-3 px-4">Campus & Location</th>
               <th className="py-3 px-4">PAR Type</th>
               <th className="py-3 px-4">Action Summary</th>

@@ -639,9 +639,14 @@ export function buildSstRouting(
     }
 
     // 5. Approver resolution
-    // The Principal / Supervisor step goes to the principal of the employee's campus when one is set up.
+    // The Principal / Supervisor step goes to the endorser assigned to the employee's location:
+    // the campus principal, or e.g. the Director of HR for Central Office.
     const campusPrincipal = rule.stage === 'supervisor_review' && campus
-      ? config.approvers.find(a => a.roleKey === 'supervisor' && a.campus === campus && !a.isNotificationOnly)
+      ? config.approvers.find(a =>
+          a.campus === campus &&
+          !a.isNotificationOnly &&
+          (a.roleKey === 'supervisor' || (a.canReviewStages || []).includes('supervisor_review'))
+        )
       : undefined;
 
     const matchedApprover = campusPrincipal

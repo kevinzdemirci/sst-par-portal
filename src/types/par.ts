@@ -45,7 +45,6 @@ export const SST_CAMPUSES = [
   'SST Corpus Christi Early Elementary',
   'SST Bayshore',
   'SST Corpus Christi College Prep High School',
-  'SST Main Campus (Corpus Christi)',
   // District Administration
   'SST Central Office (District Administration)',
   'SST Houston Regional Office'
@@ -81,8 +80,7 @@ export const SST_CAMPUS_REGIONS: Record<string, Campus[]> = {
     'SST Corpus Christi Elementary',
     'SST Corpus Christi Early Elementary',
     'SST Bayshore',
-    'SST Corpus Christi College Prep High School',
-    'SST Main Campus (Corpus Christi)'
+    'SST Corpus Christi College Prep High School'
   ],
   'District Offices': [
     'SST Central Office (District Administration)',

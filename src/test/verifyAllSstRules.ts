@@ -51,7 +51,7 @@ import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
-import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
+import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
 declare const process: { exit: (code?: number) => void };
@@ -1238,6 +1238,24 @@ const payoutAccess = Object.fromEntries(['p-kevin', 'p-kristy', 'p-amber', 'p-pa
 assert(payoutAccess['p-kevin'] && payoutAccess['p-kristy'] && payoutAccess['p-amber'] && payoutAccess['p-paola'] && payoutAccess['p-atnan'] && payoutAccess['p-serdar'], 'CPO Payouts: Super Admin, Regional HR Coordinators, Payroll, and Regional Executive Directors have access');
 assert(!payoutAccess['p-vanessa'] && !payoutAccess['p-ursula'] && !payoutAccess['p-enes'] && !payoutAccess['p-hasan'], 'CPO Payouts: principals, Benefits, IT, and Talent Acquisition have no access');
 assert(!canPersonaAccessPayouts(alamoPrincipal), 'CPO Payouts: campus principal accounts have no access');
+
+// Office endorsers: Central Office -> Director of HR; regional offices -> Regional Directors of Talent Acquisition
+const hasanDefault = USER_PERSONAS.find(p => p.email === 'hkendirci@ssttx.org')!;
+const officeAccounts: PortalAccount[] = [
+  { email: 'aurcullu@ssttx.org', name: 'Alba Urcullu', title: 'Director of Human Resources', roleKey: 'supervisor', department: 'Human Resources', campus: 'SST Central Office (District Administration)', region: 'District Offices', canReviewStages: ['draft', 'supervisor_review'], active: true, source: 'directory' },
+  { ...accountFromApprover(hasanDefault), campus: 'SST Houston Regional Office', canReviewStages: ['supervisor_review'], isNotificationOnly: false },
+  { ...accountFromApprover(USER_PERSONAS.find(p => p.email === 'adal@ssttx.org')!), campus: 'SST San Antonio Regional Office', canReviewStages: ['supervisor_review'], isNotificationOnly: false }
+];
+const officeConfig = { ...DEFAULT_WORKFLOW_CONFIG, approvers: mergeAccountsIntoApprovers(DEFAULT_WORKFLOW_CONFIG.approvers, officeAccounts) };
+const route = (loc: 'Houston' | 'San Antonio' | 'Central Administration', c: string) => buildSstRouting('salary_change', false, loc, officeConfig, c)[0].assignedEmail;
+assert(route('Central Administration', 'SST Central Office (District Administration)') === 'aurcullu@ssttx.org', 'Central Office step 1 routes to the Director of HR (Alba Urcullu)');
+assert(route('Houston', 'SST Houston Regional Office') === 'hkendirci@ssttx.org', 'Houston Regional Office step 1 routes to Hasan Kendirci');
+assert(route('San Antonio', 'SST San Antonio Regional Office') === 'adal@ssttx.org', 'San Antonio Regional Office step 1 routes to Ali Dal');
+const hasanNow = mergeAccountsIntoPersonas(USER_PERSONAS, officeAccounts).find(p => p.email === 'hkendirci@ssttx.org')!;
+assert(hasanNow.isNotificationOnly === false && hasanNow.campus === 'SST Houston Regional Office', 'Account settings override the built-in FYI-only persona');
+const houstonOfficePar = { ...INITIAL_PAR_DATA[0], campus: 'SST Houston Regional Office' as const, currentStage: 'supervisor_review' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Houston Regional Office') };
+assert(canPersonaActOnPar(hasanNow, houstonOfficePar) && !canPersonaActOnPar(hasanNow, { ...houstonOfficePar, campus: 'SST Spring' as const, routingSteps: buildSstRouting('salary_change', false, 'Houston', officeConfig, 'SST Spring') }), 'Hasan endorses Houston Regional Office PARs only');
+assert(!(SST_CAMPUSES as readonly string[]).includes('SST Main Campus (Corpus Christi)'), '"SST Main Campus (Corpus Christi)" removed (it is SST San Antonio College Prep)');
 assert(isBootstrapAdminEmail('KDemirci@ssttx.org') && isBootstrapAdminEmail('sstpar@ssttx.org') && !isBootstrapAdminEmail('palamo@ssttx.org'), 'Only the bootstrap Super Admin emails are admins without an account');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing

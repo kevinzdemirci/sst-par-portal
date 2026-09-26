@@ -194,9 +194,44 @@ export function approverFromAccount(acc: PortalAccount): ApproverRoleConfig {
   };
 }
 
-/** Adds shared accounts that this browser's directory does not have yet (matched by email). */
+/** Fields the shared account decides; local signature, PIN, and photo settings are kept. */
+function accountOverrides(acc: PortalAccount) {
+  return {
+    name: acc.name,
+    department: acc.department,
+    campus: acc.campus,
+    region: acc.region,
+    canReviewStages: acc.canReviewStages,
+    isNotificationOnly: acc.isNotificationOnly === true,
+    notificationRoleType: acc.notificationRoleType
+  };
+}
+
+/**
+ * Brings this browser's approver directory in line with the shared accounts (matched by
+ * email): existing approvers take the account's role settings, missing ones are added.
+ */
 export function mergeAccountsIntoApprovers(approvers: ApproverRoleConfig[], accounts: PortalAccount[]): ApproverRoleConfig[] {
+  const active = accounts.filter(a => a.active);
+  const byEmail = new Map(active.map(a => [normalizeEmail(a.email), a]));
+  const updated = approvers.map(a => {
+    const acc = byEmail.get(normalizeEmail(a.email));
+    return acc ? { ...a, ...accountOverrides(acc), title: acc.title } : a;
+  });
   const known = new Set(approvers.map(a => normalizeEmail(a.email)));
-  const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(approverFromAccount);
-  return added.length ? [...approvers, ...added] : approvers;
+  const added = active.filter(a => !known.has(normalizeEmail(a.email))).map(approverFromAccount);
+  return [...updated, ...added];
+}
+
+/** Same as mergeAccountsIntoApprovers, for the portal's persona list. */
+export function mergeAccountsIntoPersonas(personas: UserPersona[], accounts: PortalAccount[]): UserPersona[] {
+  const active = accounts.filter(a => a.active);
+  const byEmail = new Map(active.map(a => [normalizeEmail(a.email), a]));
+  const updated = personas.map(p => {
+    const acc = byEmail.get(normalizeEmail(p.email));
+    return acc ? { ...p, ...accountOverrides(acc), role: acc.title } : p;
+  });
+  const known = new Set(personas.map(p => normalizeEmail(p.email)));
+  const added = active.filter(a => !known.has(normalizeEmail(a.email))).map(a => personaFromAccount(a));
+  return [...updated, ...added];
 }

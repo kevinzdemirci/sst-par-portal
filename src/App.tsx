@@ -37,7 +37,7 @@ import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpSer
 import { watchDistrictUser } from './utils/firebaseClient';
 import type { PortalSession } from './components/LoginGate';
 import { PortalAccountsPanel } from './components/PortalAccountsPanel';
-import { fetchAllAccounts, mergeAccountsIntoApprovers, normalizeEmail, personaFromAccount, PortalAccount } from './utils/accountsService';
+import { fetchAllAccounts, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, normalizeEmail, personaFromAccount, PortalAccount } from './utils/accountsService';
 import { CpoPayoutRequest } from './types/payout';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
 
@@ -222,11 +222,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
   const applyPortalAccounts = (accounts: PortalAccount[]) => {
     setPortalAccounts(accounts);
     setWorkflowConfig(prev => ({ ...prev, approvers: mergeAccountsIntoApprovers(prev.approvers, accounts) }));
-    setAvailablePersonas(prev => {
-      const known = new Set(prev.map(p => normalizeEmail(p.email)));
-      const added = accounts.filter(a => a.active && !known.has(normalizeEmail(a.email))).map(a => personaFromAccount(a));
-      return added.length ? [...prev, ...added] : prev;
-    });
+    setAvailablePersonas(prev => mergeAccountsIntoPersonas(prev, accounts));
   };
 
   useEffect(() => {

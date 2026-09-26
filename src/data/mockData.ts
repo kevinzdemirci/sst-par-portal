@@ -675,7 +675,15 @@ export function buildSstRouting(
         )
       : undefined;
 
+    // No endorser on file for this campus: go to the region's leader, never another campus's principal.
+    const regionalFallback = rule.stage === 'supervisor_review' && campus && !campusPrincipal
+      ? config.approvers.find(a =>
+          a.roleKey === (location === 'Houston' ? 'regional_houston' : location === 'San Antonio' || location === 'Corpus Christi' ? 'regional_sacc' : 'cpo')
+        )
+      : undefined;
+
     const matchedApprover = campusPrincipal
+      || regionalFallback
       || config.approvers.find(a => a.id === rule.assignedApproverId)
       || config.approvers.find(a => a.roleKey === rule.assignedApproverId)
       || (rule.assignedApproverId === 'p-atnan' && location !== 'Houston' ? config.approvers.find(a => a.id === 'p-serdar') : null)

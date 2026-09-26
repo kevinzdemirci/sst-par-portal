@@ -9,9 +9,18 @@ const ADP_API_BASE = 'https://api.adp.com';
 const PAGE_SIZE = 100;
 const MAX_PAGES = 200; // safety stop: 20,000 records
 
+/**
+ * ADP's token endpoint does not accept chunked request bodies, so every body is sent
+ * with an explicit Content-Length (otherwise Node streams it chunked and ADP answers
+ * "unsupported_grant_type").
+ */
+export function withContentLength(headers = {}, body) {
+  return body === undefined ? headers : { ...headers, 'Content-Length': Buffer.byteLength(body) };
+}
+
 function httpsRequest(agent, url, { method = 'GET', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
-    const req = https.request(url, { method, headers, agent }, res => {
+    const req = https.request(url, { method, headers: withContentLength(headers, body), agent }, res => {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') }));

@@ -46,7 +46,7 @@ import {
   isAdpDataStale
 } from '../utils/adpService';
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
-import { createAdpClient } from '../../functions/src/adpClient.js';
+import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus } from '../utils/formatters';
 import { mapWorker } from '../../functions/src/mapWorker.js';
@@ -1174,6 +1174,9 @@ assert(!isAdpSyncDue(DEFAULT_ADP_CONFIG, nowMs, false), 'No auto-sync when live 
   let scopeError = '';
   try { await failingAdp.fetchAllWorkers('/hr/v2/workers'); } catch (e: any) { scopeError = e.message; }
   assert(scopeError.includes('HTTP 403'), 'ADP errors (e.g. 403 Invalid Scope) are reported, not swallowed');
+  const tokenBody = new URLSearchParams({ grant_type: 'client_credentials', client_id: 'e09c8b13', client_secret: 'x' }).toString();
+  assert(withContentLength({ 'Content-Type': 'application/x-www-form-urlencoded' }, tokenBody)['Content-Length'] === Buffer.byteLength(tokenBody), 'ADP token request sends Content-Length (ADP rejects chunked bodies with unsupported_grant_type)');
+  assert(!('Content-Length' in withContentLength({ Accept: 'application/json' })), 'GET requests without a body get no Content-Length');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

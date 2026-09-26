@@ -1195,6 +1195,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                         type="text"
                         required
                         placeholder="e.g. Marcus Vance"
+                        name="payout-staff"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
                         value={formEmployeeName}
                         onChange={(e) => setFormEmployeeName(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
@@ -1207,6 +1211,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                         type="text"
                         required
                         placeholder="e.g. MRG92014A"
+                        name="payout-adp"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
                         value={formAdpId}
                         onChange={(e) => setFormAdpId(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"
@@ -1221,6 +1229,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                         type="text"
                         required
                         placeholder="e.g. SST Champions Elementary"
+                        name="payout-campus"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
                         value={formCampus}
                         onChange={(e) => {
                           setFormCampus(e.target.value);
@@ -1240,6 +1252,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                       <input 
                         type="text"
                         placeholder="e.g. Science Lead Teacher"
+                        name="payout-title"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
                         value={formJobTitle}
                         onChange={(e) => setFormJobTitle(e.target.value)}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20"

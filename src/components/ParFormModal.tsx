@@ -813,16 +813,19 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Field label="First name" htmlFor="par-first" required>
-                  <input id="par-first" type="text" required autoComplete="off" value={firstName}
+                  <input id="par-first" name="par-first" type="text" required autoComplete="off" data-1p-ignore data-lpignore="true" value={firstName}
                     onChange={e => setFirstName(e.target.value)} className={inputCls} />
                 </Field>
                 <Field label="Last name" htmlFor="par-last" required>
-                  <input id="par-last" type="text" required autoComplete="off" value={lastName}
+                  <input id="par-last" name="par-last" type="text" required autoComplete="off" data-1p-ignore data-lpignore="true" value={lastName}
                     onChange={e => setLastName(e.target.value)} className={inputCls} />
                 </Field>
                 <Field label="ADP employee ID" htmlFor="par-adp" required>
                   <input
                     id="par-adp"
+                    name="par-adp"
+                    data-1p-ignore
+                    data-lpignore="true"
                     type="text"
                     required
                     autoComplete="off"
@@ -837,7 +840,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                 </Field>
 
                 <Field label="Current title" htmlFor="par-title" required>
-                  <input id="par-title" type="text" required value={title}
+                  <input id="par-title" name="par-title" autoComplete="off" data-1p-ignore data-lpignore="true" type="text" required value={title}
                     onChange={e => setTitle(e.target.value)} placeholder="e.g. Science Teacher" className={inputCls} />
                 </Field>
                 <Field label="Campus" htmlFor="par-campus" required hint={campus ? `Region: ${location}` : 'Determines the regional approvers.'}>
@@ -856,7 +859,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   </select>
                 </Field>
                 <Field label="Work email" htmlFor="par-email">
-                  <input id="par-email" type="email" value={workEmail}
+                  <input id="par-email" name="par-email" autoComplete="off" data-1p-ignore data-lpignore="true" type="email" value={workEmail}
                     onChange={e => setWorkEmail(e.target.value)} placeholder="name@ssttx.org" className={`${inputCls} font-mono`} />
                 </Field>
 
@@ -885,12 +888,12 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   </div>
                 </Field>
                 <Field label="Direct supervisor" htmlFor="par-supervisor">
-                  <input id="par-supervisor" type="text" value={supervisorName}
+                  <input id="par-supervisor" name="par-supervisor" autoComplete="off" data-1p-ignore data-lpignore="true" type="text" value={supervisorName}
                     onChange={e => setSupervisorName(e.target.value)} className={inputCls} />
                 </Field>
 
                 <Field label="DPS SID" htmlFor="par-dps" hint="Texas DPS State ID from the fingerprint record, if on file.">
-                  <input id="par-dps" type="text" value={dpsSid}
+                  <input id="par-dps" name="par-dps" autoComplete="off" data-1p-ignore data-lpignore="true" type="text" value={dpsSid}
                     onChange={e => setDpsSid(e.target.value)} className={`${inputCls} font-mono`} />
                 </Field>
                 <Field label="Employment agreement">
@@ -1092,11 +1095,11 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   )}
                   <Field label="New title" htmlFor="par-new-title" required={actionType !== 'campus_transfer'}
                     hint={actionType === 'campus_transfer' ? 'Leave blank if the title is unchanged.' : undefined}>
-                    <input id="par-new-title" type="text" value={proposedTitle}
+                    <input id="par-new-title" name="par-new-title" autoComplete="off" data-1p-ignore data-lpignore="true" type="text" value={proposedTitle}
                       onChange={e => setProposedTitle(e.target.value)} placeholder={title || 'e.g. Science Teacher'} className={inputCls} />
                   </Field>
                   <Field label="Receiving supervisor" htmlFor="par-new-supervisor">
-                    <input id="par-new-supervisor" type="text" value={proposedSupervisor}
+                    <input id="par-new-supervisor" name="par-new-supervisor" autoComplete="off" data-1p-ignore data-lpignore="true" type="text" value={proposedSupervisor}
                       onChange={e => setProposedSupervisor(e.target.value)} className={inputCls} />
                   </Field>
                 </div>

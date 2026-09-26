@@ -92,9 +92,15 @@ export const AdpEmployeeSearch: React.FC<AdpEmployeeSearchProps> = ({
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               id={idPrefix}
-              type="text"
+              type="search"
+              name={`${idPrefix}-query`}
               role="combobox"
               autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
               aria-expanded={isLookupOpen && employeeQuery.trim().length >= 2}
               aria-controls={`${idPrefix}-list`}
               aria-activedescendant={isLookupOpen && employeeMatches[activeMatch] ? `${idPrefix}-${activeMatch}` : undefined}
@@ -107,7 +113,7 @@ export const AdpEmployeeSearch: React.FC<AdpEmployeeSearchProps> = ({
               onFocus={() => setIsLookupOpen(true)}
               onBlur={() => setIsLookupOpen(false)}
               onKeyDown={onLookupKeyDown}
-              placeholder="Search by name, ADP ID, or email"
+              placeholder="Start typing a staff member or ADP ID"
               className={`${inputClassName} pl-8`}
             />
           </div>

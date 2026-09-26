@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  ApprovalStep,
+  WorkflowStage,
   PersonnelActionRequest, 
   UserPersona 
 } from '../types/par';
@@ -59,6 +61,48 @@ interface ParDetailModalProps {
   onSwitchPersona?: (persona: UserPersona) => void;
   availablePersonas?: UserPersona[];
 }
+
+/**
+ * One approval signature on the official form. Shows only what the PAR's routing history
+ * records: never a placeholder name or date.
+ */
+const SignatureBox: React.FC<{ title: string; step?: ApprovalStep; currentStage: WorkflowStage }> = ({ title, step, currentStage }) => {
+  if (!step) {
+    return (
+      <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 text-slate-400">
+        <span className="text-[11px] block font-medium">{title}:</span>
+        <div className="text-xs italic my-1">Not required for this PAR</div>
+      </div>
+    );
+  }
+  const signed = step.status === 'approved';
+  const sentBack = step.status === 'rejected' || step.status === 'returned';
+  return (
+    <div className={`p-2.5 rounded-lg border ${signed ? 'bg-emerald-50/40 border-emerald-300' : sentBack ? 'bg-rose-50/50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+      <span className="text-[11px] text-slate-500 block font-medium">{title}:</span>
+      {signed ? (
+        <>
+          <div className="font-serif italic text-blue-900 text-base font-bold my-1">{step.reviewerName || step.assignedRole}</div>
+          <div className="text-[11px] text-slate-600">Date: {formatDate(step.decisionDate)}</div>
+          {step.comments && <div className="text-[10px] text-slate-600 mt-1">Notes: {step.comments}</div>}
+          <div className="text-[10px] text-emerald-700 font-semibold mt-1">✓ Signed electronically</div>
+        </>
+      ) : sentBack ? (
+        <>
+          <div className="text-xs font-semibold text-rose-800 my-1">{step.status === 'rejected' ? 'Rejected' : 'Returned for revision'} by {step.reviewerName || step.assignedRole}</div>
+          <div className="text-[11px] text-slate-600">Date: {formatDate(step.decisionDate)}</div>
+          {step.comments && <div className="text-[10px] text-slate-600 mt-1">Notes: {step.comments}</div>}
+        </>
+      ) : (
+        <>
+          <div className="text-xs italic text-slate-500 my-1">Awaiting signature</div>
+          <div className="text-[10px] text-slate-500">{step.assignedRole}{step.assignedEmail ? ` · ${step.assignedEmail}` : ''}</div>
+          <div className="text-[10px] text-slate-500 mt-1">{currentStage === step.stage ? '⏳ Current step' : 'After earlier signatures'}</div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export const ParDetailModal: React.FC<ParDetailModalProps> = ({
   par,
@@ -257,13 +301,22 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
     setGeneralComment('');
   };
 
+  // Print (or save as PDF) the whole official form: switch to the form tab, then let the
+  // print stylesheet lay the pop-up out as normal pages (see "par-printing" in index.css).
   const handlePrint = () => {
-    window.print();
+    setActiveTab('form');
+    document.body.classList.add('par-printing');
+    const done = () => {
+      document.body.classList.remove('par-printing');
+      window.removeEventListener('afterprint', done);
+    };
+    window.addEventListener('afterprint', done);
+    setTimeout(() => window.print(), 50);
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
+    <div className="par-print-root fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6">
+      <div className="par-print-panel bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
         
         {/* Header Bar */}
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between no-print">
@@ -442,20 +495,20 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/70">
+        <div className="par-print-body flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/70">
           
           {/* TAB 1: EXACT OFFICIAL SST FORM */}
           {activeTab === 'form' && (
             <div className="space-y-6">
               
               {/* Document Container Formatted exactly like the PDF */}
-              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-300 shadow-sm font-sans text-slate-900">
+              <div className="par-print-document bg-white p-6 sm:p-8 rounded-2xl border border-slate-300 shadow-sm font-sans text-slate-900">
                 
                 {/* PDF Header Stamp */}
                 <div className="flex justify-between text-[11px] text-slate-400 border-b pb-2 mb-4 font-mono">
-                  <span>9/18/26, 8:31 AM</span>
+                  <span>{new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</span>
                   <span className="font-sans font-medium text-slate-500">Personnel Action Request</span>
-                  <span>(Viewing document 1 of 1, page 1 of 1)</span>
+                  <span>{par.trackingNumber}</span>
                 </div>
 
                 {/* Logo & Form Title */}
@@ -953,91 +1006,13 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-3 flex items-center justify-between">
                     <span>Signature Approvals</span>
                     <span className="text-[10px] text-slate-400 font-sans font-normal lowercase">
-                      (SST Official 4-Page PAR Workflow: Page 2 Sign-Offs)
+                      (electronic signatures recorded in the portal)
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* 1. Principal / Supervisor */}
-                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                      <span className="text-[11px] text-slate-500 block font-medium">Principal/Supervisor:</span>
-                      <div className="font-serif italic text-blue-900 text-base font-bold my-1">
-                        {supervisorStep?.reviewerName || 'Vanessa Nguyen'}
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        Date: {formatDate(supervisorStep?.decisionDate || '2026-09-17')}
-                      </div>
-                      <div className="text-[10px] text-emerald-700 font-semibold mt-1">
-                        ✓ Campus Leadership Endorsement
-                      </div>
-                    </div>
-
-                    {/* 2. Chief People Officer (Dr. Kevin Demirci - for Involuntary & Changes) */}
-                    <div className={`p-2.5 rounded-lg border ${
-                      cpoStep 
-                        ? (cpoStep.status === 'approved' ? 'bg-emerald-50/40 border-emerald-300' : 'bg-purple-50/50 border-purple-200') 
-                        : 'bg-slate-50/50 border-slate-200 text-slate-400'
-                    }`}>
-                      <span className="text-[11px] text-slate-500 block font-medium">
-                        Chief People Officer:
-                      </span>
-                      {cpoStep ? (
-                        <>
-                          <div className="font-serif italic text-purple-950 text-base font-bold my-1">
-                            {cpoStep.reviewerName || 'Dr. Kevin Demirci'}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Date: {formatDate(cpoStep.decisionDate)}
-                          </div>
-                          <div className="text-[10px] text-purple-800 font-semibold mt-1">
-                            {cpoStep.status === 'approved' 
-                              ? '✓ Approved (kdemirci@ssttx.org)' 
-                              : (par.currentStage === 'cpo_review' ? '⏳ Pending Involuntary / Exec Review' : 'Pending Previous Signatures')}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-serif italic text-slate-400 text-sm my-1">
-                            — N/A (Voluntary Routed to Regional Exec)
-                          </div>
-                          <div className="text-[11px] text-slate-400">Date: —</div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* 3. Regional Executive Director (Atnan Ekin - Houston, Serdar Bulut - SA & CC) */}
-                    <div className={`p-2.5 rounded-lg border ${
-                      regionalStep 
-                        ? (regionalStep.status === 'approved' ? 'bg-emerald-50/40 border-emerald-300' : 'bg-orange-50/50 border-orange-200') 
-                        : 'bg-slate-50/50 border-slate-200 text-slate-400'
-                    }`}>
-                      <span className="text-[11px] text-slate-500 block font-medium">
-                        Regional Exec Director:
-                      </span>
-                      {regionalStep ? (
-                        <>
-                          <div className="font-serif italic text-orange-950 text-base font-bold my-1">
-                            {regionalStep.reviewerName || (par.location === 'Houston' ? 'Atnan Ekin' : 'Serdar Bulut')}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            Date: {formatDate(regionalStep.decisionDate)}
-                          </div>
-                          <div className="text-[10px] text-orange-800 font-semibold mt-1">
-                            {regionalStep.status === 'approved' 
-                              ? `✓ Approved (${par.location === 'Houston' ? 'aekin@ssttx.org' : 'sbulut@ssttx.org'})` 
-                              : (par.currentStage === 'regional_review' 
-                                  ? `⏳ Pending ${par.location === 'Houston' ? 'Houston' : 'SA & CC'} Regional Review` 
-                                  : 'Pending Previous Signatures')}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-serif italic text-slate-400 text-sm my-1">
-                            — N/A (Involuntary Routed to CPO)
-                          </div>
-                          <div className="text-[11px] text-slate-400">Date: —</div>
-                        </>
-                      )}
-                    </div>
+                    <SignatureBox title="Principal / Supervisor" step={supervisorStep} currentStage={par.currentStage} />
+                    <SignatureBox title="Chief People Officer" step={cpoStep} currentStage={par.currentStage} />
+                    <SignatureBox title="Regional Executive Director" step={regionalStep} currentStage={par.currentStage} />
                   </div>
 
                   {par.finalPayCheckComment && (
@@ -1128,40 +1103,9 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
 
                   {/* Signatures from HR, Benefits, Payroll */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
-                    <div className="p-2 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 block">
-                        Regional HR Signature ({par.location === 'Houston' ? 'Houston' : 'SA & CC'}):
-                      </span>
-                      <div className="font-serif italic text-blue-900 font-bold my-0.5">
-                        {hrStep?.reviewerName || (par.location === 'Houston' ? 'Kristy Stewart' : 'Amber Johnson')}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Date: {hrStep?.decisionDate ? formatDate(hrStep.decisionDate) : (hrStep?.status === 'approved' ? '09/17/2026' : (par.currentStage === 'hr_review' ? 'Pending Signature' : '09/17/2026'))}
-                      </div>
-                      <div className="text-[10px] text-slate-600 mt-1">Notes: {hrStep?.comments || par.notesForHr || 'PTO & Rehire Audited'}</div>
-                    </div>
-
-                    <div className="p-2 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 block">Benefits Signature:</span>
-                      <div className="font-serif italic text-blue-900 font-bold my-0.5">
-                        {benefitsStep ? (benefitsStep.reviewerName || 'Ursula Villanueva') : '— N/A'}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Date: {benefitsStep?.decisionDate ? formatDate(benefitsStep.decisionDate) : (benefitsStep?.status === 'approved' ? '09/18/2026' : (par.currentStage === 'benefits_review' ? 'Pending Signature' : '09/18/2026'))}
-                      </div>
-                      <div className="text-[10px] text-slate-600 mt-1">Notes: {benefitsStep?.comments || par.notesForBenefits || (benefitsStep ? 'Benefits Terminated & COBRA Sent' : 'Not required')}</div>
-                    </div>
-
-                    <div className="p-2 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 block">Payroll Signature:</span>
-                      <div className="font-serif italic text-slate-700 font-bold my-0.5">
-                        {payrollStep?.reviewerName || (par.currentStage === 'completed' || payrollStep?.status === 'approved' ? 'Paola Comparini' : 'Pending Signature')}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Date: {payrollStep?.decisionDate ? formatDate(payrollStep.decisionDate) : (par.currentStage === 'completed' ? '09/19/2026' : '—')}
-                      </div>
-                      <div className="text-[10px] text-slate-600 mt-1">Notes: {payrollStep?.comments || par.notesForPayroll || 'ADP Closeout & Wages Issued'}</div>
-                    </div>
+                    <SignatureBox title={hrStep?.stageLabel || 'Regional HR Coordinator'} step={hrStep} currentStage={par.currentStage} />
+                    <SignatureBox title="Benefits" step={benefitsStep} currentStage={par.currentStage} />
+                    <SignatureBox title="Payroll" step={payrollStep} currentStage={par.currentStage} />
                   </div>
 
                   {/* Automated Department Notifications (FYI / No Action Required) */}

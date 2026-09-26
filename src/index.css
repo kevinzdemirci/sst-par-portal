@@ -43,4 +43,59 @@
     box-shadow: none !important;
     border: 1px solid #cbd5e1 !important;
   }
+
+  /* Official PAR form: print the whole form across pages, nothing else. */
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+  body.par-printing {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html:has(body.par-printing),
+  body.par-printing,
+  body.par-printing #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body.par-printing #root > div > :not(.par-print-root) {
+    display: none !important;
+  }
+  body.par-printing #root > div {
+    min-height: 0 !important;
+    background: white !important;
+  }
+  body.par-printing .par-print-root {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: none !important;
+    backdrop-filter: none !important;
+  }
+  body.par-printing .par-print-panel {
+    display: block !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  body.par-printing .par-print-body {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  body.par-printing .par-print-document {
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+  /* Sections may run across pages; keep their smaller parts (questions, signature boxes) whole. */
+  body.par-printing .par-print-document > div > *,
+  body.par-printing .par-print-document .grid > * {
+    break-inside: avoid;
+  }
 }

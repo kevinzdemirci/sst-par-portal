@@ -24,6 +24,7 @@ import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { AdpWorker } from '../types/adp';
 import { AdpEmployeeSearch } from './AdpEmployeeSearch';
+import { fetchAdpAnnualSalary } from '../utils/adpService';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
@@ -206,6 +207,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [associateId, setAssociateId] = useState<string>(preSelectedWorker?.associateId || preSelectedWorker?.adpId || '');
   const [dpsSid, setDpsSid] = useState<string>(preSelectedWorker?.dpsSid || '');
   const [currentSalary, setCurrentSalary] = useState<number>(preSelectedWorker?.annualSalary || 0);
+  const [salaryFromAdp, setSalaryFromAdp] = useState(false);
+  const salaryLookupFor = useRef<string | undefined>(undefined);
   const [supervisorName, setSupervisorName] = useState<string>(
     preSelectedWorker?.supervisorName || (submitterIsSupervisor ? currentPersona.name : '')
   );
@@ -523,6 +526,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
   const applyWorker = (w: AdpWorker) => {
     setLinkedWorker(w);
+    setSalaryFromAdp(false);
     setFirstName(w.firstName);
     setLastName(w.lastName);
     setEmployeeId(w.adpId);
@@ -535,6 +539,16 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     );
     if (workerCampus) setCampus(workerCampus);
     changeCurrentSalary(w.annualSalary || 0);
+    // Pay comes from ADP separately, only for users allowed to see it.
+    salaryLookupFor.current = w.associateId;
+    if (!w.annualSalary) {
+      fetchAdpAnnualSalary(w.associateId).then(annual => {
+        if (annual && salaryLookupFor.current === w.associateId) {
+          changeCurrentSalary(annual);
+          setSalaryFromAdp(true);
+        }
+      });
+    }
     setSupervisorName(w.supervisorName || '');
     setDpsSid(w.dpsSid || '');
     setTrsNotificationRequired(w.trsMember);
@@ -969,7 +983,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                   </select>
                 </Field>
                 <Field label="Current annual salary" htmlFor="par-salary" required={showCompSection}
-                  hint="Used by Payroll to calculate daily rate and final pay.">
+                  hint={salaryFromAdp ? 'Filled from ADP. Correct it if it has changed.' : 'Used by Payroll to calculate daily rate and final pay.'}>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                     <input
@@ -979,7 +993,10 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       step="1"
                       inputMode="decimal"
                       value={currentSalary || ''}
-                      onChange={e => changeCurrentSalary(parseFloat(e.target.value) || 0)}
+                      onChange={e => {
+                        setSalaryFromAdp(false);
+                        changeCurrentSalary(parseFloat(e.target.value) || 0);
+                      }}
                       className={`${inputCls} pl-6`}
                     />
                   </div>

@@ -71,6 +71,7 @@ export function mapWorker(worker, options = {}) {
     u => (u.typeCode?.codeValue || '').toLowerCase().startsWith('department')
   );
   const annual = Number(assignment.baseRemuneration?.annualRateAmount?.amountValue);
+  const hourly = Number(assignment.baseRemuneration?.hourlyRateAmount?.amountValue);
 
   return {
     associateOID: worker.associateOID,
@@ -92,6 +93,7 @@ export function mapWorker(worker, options = {}) {
     hireDate: worker.workerDates?.originalHireDate || assignment.hireDate || '',
     terminationDate: worker.workerDates?.terminationDate || assignment.terminationDate || undefined,
     annualSalary: options.includeSalary === false || !Number.isFinite(annual) ? undefined : annual,
+    hourlyRate: options.includeSalary === false || !Number.isFinite(hourly) ? undefined : hourly,
     supervisorName: reportsTo.reportsToWorkerName?.formattedName || '',
     supervisorAssociateOID: reportsTo.associateOID || undefined,
     dpsSid: findCustomString(worker, options.dpsSidField),

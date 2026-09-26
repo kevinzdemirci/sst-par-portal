@@ -381,12 +381,21 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     }
   }, [toastMessage]);
 
-  // Handle URL activation link (e.g., from an email invitation: ?activate=<roleId>)
+  // Handle URL activation link (e.g., from an email invitation: ?activate=<roleId>).
+  // Signed-in staff can only activate their own role; only Super Admins can open others'.
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const activateId = params.get('activate');
       if (activateId) {
+        const linkEmail =
+          workflowConfig.approvers.find((a) => a.id === activateId)?.email ||
+          availablePersonas.find((p) => p.id === activateId)?.email ||
+          '';
+        if (session && !session.isAdmin && normalizeEmail(linkEmail) !== normalizeEmail(session.email)) {
+          showToast('This activation link belongs to a different account.', 'warning');
+          return;
+        }
         const matchedAppr = workflowConfig.approvers.find((a) => a.id === activateId);
         if (matchedAppr) {
           setTargetAccountRole(matchedAppr);
@@ -977,7 +986,10 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     });
 
     // 3. Switch active persona: If CPO created another user, stay as CPO
-    if (isActivationFlow) {
+    if (isActivationFlow && !canSwitchPersona && session && normalizeEmail(safePersona.email) !== normalizeEmail(session.email)) {
+      // A regular user can never switch into someone else's role.
+      setIsActivationFlow(false);
+    } else if (isActivationFlow) {
       setCurrentPersona(safePersona);
       setFilterActionQueue(true);
       showToast(`🎉 Welcome to SST, ${safePersona.name}! Digital signature and PIN activated for ${safePersona.role}.`, 'success');
@@ -1759,7 +1771,7 @@ export function App({ session = null }: { session?: PortalSession | null }) {
 
       {/* SST Staff Authentication & PIN Verification Modal */}
       <AuthModal
-        isOpen={isAuthModalOpen}
+        isOpen={isAuthModalOpen && canSwitchPersona}
         availablePersonas={availablePersonas}
         workflowConfig={workflowConfig}
         currentPersona={currentPersona}

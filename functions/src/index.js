@@ -160,14 +160,10 @@ export const portalRelay = onCall(
       }
     }
 
-    // The deployed Apps Script recognizes emails by their "to" field and answers with its
-    // status page when an email request carries an action name, so emails go without one.
-    const { action: _action, ...fields } = body;
-    const forwarded = action === 'send_email' ? fields : body;
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...forwarded, portalKey: APPS_SCRIPT_KEY.value().trim(), requestedBy: email })
+      body: JSON.stringify({ ...body, portalKey: APPS_SCRIPT_KEY.value().trim(), requestedBy: email })
     });
     const text = await res.text();
     if (!res.ok) {

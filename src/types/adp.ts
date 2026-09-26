@@ -56,7 +56,9 @@ export interface AdpConnectionConfig {
   organizationId: string;       // e.g. "SST-TEXAS-CHARTER"
   apiEndpoint: string;
   relayUrl?: string;            // SST ADP relay (holds the ADP credentials and certificate), e.g. https://sst-adp-relay.example.workers.dev
-  lastSyncTimestamp?: string;
+  lastSyncTimestamp?: string;   // When the roster data was pulled from ADP (relay snapshot time)
+  lastCheckedAt?: string;       // When this browser last fetched the roster from the relay
+  lastSyncError?: string;       // Most recent daily pull failure reported by the relay
   autoSyncOnParComplete: boolean;
   webhookUrl?: string;
   environment: 'production' | 'sandbox';

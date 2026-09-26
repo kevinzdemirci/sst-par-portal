@@ -9,6 +9,16 @@ compatibility_date = "2026-09-01"
 binding = "ADP_CERT"
 certificate_id = "REPLACE_WITH_CERTIFICATE_ID"
 
+# Daily roster pull from ADP at 10:00 UTC (5:00 AM Central daylight time, 4:00 AM standard time).
+[triggers]
+crons = ["0 10 * * *"]
+
+# Daily roster snapshot. Create it once (README, step 6) and paste the id it prints:
+#   npx wrangler kv namespace create ROSTER
+[[kv_namespaces]]
+binding = "ROSTER"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
 [vars]
 ACCESS_TEAM_DOMAIN = "REPLACE.cloudflareaccess.com"
 ACCESS_AUD = "REPLACE_WITH_ACCESS_APPLICATION_AUD"

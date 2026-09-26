@@ -32,6 +32,7 @@ import { AdpStaffModal } from './components/AdpStaffModal';
 import { AdpWorker } from './types/adp';
 import { getStoredGmailCredentials, sendGmailEmail } from './utils/gmailService';
 import { syncParToSstGoogleSheet, getStoredAppsScriptConfig } from './utils/sstAppsScriptService';
+import { getStoredAdpConfig, isAdpSyncDue, syncFromAdpApi } from './utils/adpService';
 import { CpoPayoutRequest } from './types/payout';
 import { INITIAL_PAYOUT_REQUESTS } from './data/mockPayoutData';
 import { CheckCircle, AlertCircle, Info, Trash2, Users, DollarSign, FileText } from 'lucide-react';
@@ -373,6 +374,24 @@ export function App() {
   const showToast = (text: string, type: 'success' | 'warning' | 'info' = 'success') => {
     setToastMessage({ text, type });
   };
+
+  // Keep the ADP staff roster current: re-read the relay's daily snapshot when this
+  // browser's copy is more than 6 hours old (checked on load and every hour).
+  useEffect(() => {
+    const syncIfDue = () => {
+      const adpConfig = getStoredAdpConfig();
+      if (!isAdpSyncDue(adpConfig)) return;
+      syncFromAdpApi(adpConfig).catch(err => {
+        console.error('Automatic ADP roster sync failed:', err);
+        if (isSuperAdmin(currentPersona)) {
+          showToast(`Automatic ADP roster sync failed: ${err?.message || 'unknown error'}`, 'warning');
+        }
+      });
+    };
+    syncIfDue();
+    const timer = window.setInterval(syncIfDue, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Handle saving workflow configuration from the Admin Tool (Chief People Officer Only)
   const handleSaveWorkflowConfig = (newConfig: WorkflowConfig) => {

@@ -337,7 +337,31 @@ export function mergeAdpRoster(current: AdpWorker[], incoming: AdpWorker[]): Adp
  * Pulls the staff roster from ADP Workforce Now through the SST ADP relay.
  * The relay holds the ADP credentials; the browser only sends the user's sign-in cookie.
  */
-export async function fetchLiveAdpRoster(relayUrl: string): Promise<{ workers: AdpWorker[]; syncedAt: string }> {
+/** How often the portal re-reads the relay's daily roster snapshot. */
+export const ADP_AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/** ADP data older than this is flagged as possibly out of date (the daily pull likely failed). */
+export const ADP_STALE_AFTER_MS = 36 * 60 * 60 * 1000;
+
+/**
+ * True when a relay is configured and this browser has not fetched the roster recently.
+ */
+export function isAdpSyncDue(config: AdpConnectionConfig, now: number = Date.now()): boolean {
+  if (!config.relayUrl) return false;
+  const last = config.lastCheckedAt ? Date.parse(config.lastCheckedAt) : NaN;
+  return Number.isNaN(last) || now - last >= ADP_AUTO_SYNC_INTERVAL_MS;
+}
+
+/**
+ * True when the roster came from ADP more than 36 hours ago.
+ */
+export function isAdpDataStale(config: AdpConnectionConfig, now: number = Date.now()): boolean {
+  if (!config.relayUrl || !config.lastSyncTimestamp) return false;
+  return now - Date.parse(config.lastSyncTimestamp) > ADP_STALE_AFTER_MS;
+}
+
+export async function fetchLiveAdpRoster(
+  relayUrl: string
+): Promise<{ workers: AdpWorker[]; syncedAt: string; lastAttempt?: { at: string; ok: boolean; error?: string } }> {
   const res = await fetch(`${relayUrl.replace(/\/+$/, '')}/workers`, {
     credentials: 'include',
     headers: { Accept: 'application/json' }
@@ -351,8 +375,16 @@ export async function fetchLiveAdpRoster(relayUrl: string): Promise<{ workers: A
     }
     throw new Error(detail || `ADP relay returned ${res.status}`);
   }
-  const data: { syncedAt: string; workers: AdpRelayWorker[] } = await res.json();
-  return { syncedAt: data.syncedAt, workers: data.workers.map(w => workerFromRelayRecord(w, data.syncedAt)) };
+  const data: {
+    syncedAt: string;
+    workers: AdpRelayWorker[];
+    lastAttempt?: { at: string; ok: boolean; error?: string };
+  } = await res.json();
+  return {
+    syncedAt: data.syncedAt,
+    lastAttempt: data.lastAttempt,
+    workers: data.workers.map(w => workerFromRelayRecord(w, data.syncedAt))
+  };
 }
 
 /**
@@ -365,10 +397,15 @@ export async function syncFromAdpApi(
   const current = getStoredAdpStaff();
 
   if (config.relayUrl) {
-    const { workers, syncedAt } = await fetchLiveAdpRoster(config.relayUrl);
+    const { workers, syncedAt, lastAttempt } = await fetchLiveAdpRoster(config.relayUrl);
     const merged = mergeAdpRoster(current, workers);
     saveStoredAdpStaff(merged);
-    saveStoredAdpConfig({ ...config, lastSyncTimestamp: syncedAt });
+    saveStoredAdpConfig({
+      ...config,
+      lastSyncTimestamp: syncedAt,
+      lastCheckedAt: new Date().toISOString(),
+      lastSyncError: lastAttempt && !lastAttempt.ok ? lastAttempt.error || 'Daily ADP pull failed.' : undefined
+    });
     return {
       success: true,
       syncedCount: workers.length,

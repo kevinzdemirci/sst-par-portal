@@ -41,8 +41,12 @@ import {
   batchPushTerminationsToAdp, 
   parseAdpCsvExport,
   workerFromRelayRecord,
-  mergeAdpRoster
+  mergeAdpRoster,
+  isAdpSyncDue,
+  isAdpDataStale
 } from '../utils/adpService';
+import adpRelay from '../../adp-relay/src/index.js';
+import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus } from '../utils/formatters';
 import { mapWorker } from '../../adp-relay/src/mapWorker.js';
 
@@ -1098,6 +1102,56 @@ const orphan = { ...appWorker, id: 'OLD', adpId: 'OLD', associateId: 'OLD', link
 const mergedRoster = mergeAdpRoster([linkedExisting, orphan], [appWorker]);
 assert(mergedRoster[0].linkedParId === 'par-1' && mergedRoster[0].alignmentStatus === 'par_in_progress', 'Roster merge keeps PAR linkage');
 assert(mergedRoster.some(w => w.adpId === 'OLD'), 'Roster merge keeps PAR-linked workers missing from ADP');
+
+// 25. Daily ADP roster sync (relay cron + portal auto-sync)
+console.log('\n--- 25. Daily ADP Roster Sync ---');
+const nowMs = Date.parse('2026-09-26T15:00:00Z');
+assert(!isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: undefined }, nowMs), 'No auto-sync without a relay URL');
+assert(isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp' }, nowMs), 'Auto-sync is due when this browser has never synced');
+assert(!isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastCheckedAt: '2026-09-26T10:00:00Z' }, nowMs), 'Auto-sync waits 6 hours between checks');
+assert(isAdpSyncDue({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastCheckedAt: '2026-09-26T08:59:00Z' }, nowMs), 'Auto-sync runs after 6 hours');
+assert(isAdpDataStale({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastSyncTimestamp: '2026-09-25T02:00:00Z' }, nowMs), 'Roster older than 36 hours is flagged stale');
+assert(!isAdpDataStale({ ...DEFAULT_ADP_CONFIG, relayUrl: '/api/adp', lastSyncTimestamp: '2026-09-26T10:00:00Z' }, nowMs), 'This morning\'s roster is not stale');
+
+// Simulate the relay's scheduled pull against a fake ADP that returns 150 workers over two pages.
+const fakeKv = new Map<string, string>();
+const recentTerm = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+const fakeAdpWorker = (i: number) => ({
+  associateOID: `OID${i}`,
+  workerID: { idValue: `W${i}` },
+  person: { legalName: { givenName: `First${i}`, familyName1: `Last${i}` } },
+  workerDates: i === 1 ? { terminationDate: '2019-06-01' } : i === 2 ? { terminationDate: recentTerm } : {},
+  workAssignments: [{ primaryIndicator: true, assignmentStatus: { statusCode: { codeValue: i <= 2 ? 'T' : 'A' } } }]
+});
+const adpCalls: string[] = [];
+const fakeEnv = {
+  ROSTER: {
+    get: async (k: string, type?: string) => (fakeKv.has(k) ? (type === 'json' ? JSON.parse(fakeKv.get(k)!) : fakeKv.get(k)) : null),
+    put: async (k: string, v: string) => { fakeKv.set(k, v); }
+  },
+  ADP_CERT: {
+    fetch: async (url: string) => {
+      adpCalls.push(url);
+      if (url.includes('/auth/oauth/v2/token')) return new Response(JSON.stringify({ access_token: 'tok', expires_in: 3600 }));
+      const skip = Number(new URL(url).searchParams.get('$skip'));
+      const count = skip === 0 ? 100 : skip === 100 ? 50 : 0;
+      if (count === 0) return new Response(null, { status: 204 });
+      return new Response(JSON.stringify({ workers: Array.from({ length: count }, (_, j) => fakeAdpWorker(skip + j + 1)) }));
+    }
+  },
+  ADP_CLIENT_ID: 'id', ADP_CLIENT_SECRET: 'secret', TERMINATED_LOOKBACK_DAYS: '365'
+};
+const pending: Promise<unknown>[] = [];
+await adpRelay.scheduled({}, fakeEnv, { waitUntil: (p: Promise<unknown>) => { pending.push(p); } });
+await Promise.all(pending);
+const savedRoster = JSON.parse(fakeKv.get('roster') || '{}');
+const savedStatus = JSON.parse(fakeKv.get('sync-status') || '{}');
+assert(adpCalls.some(u => u.includes('/hr/v2/worker-demographics')), 'Scheduled pull calls /hr/v2/worker-demographics');
+assert(savedRoster.workers?.length === 149, `Scheduled pull saves all pages minus staff terminated over a year ago (Got: ${savedRoster.workers?.length})`);
+assert(savedRoster.workers.some((w: { workerId: string }) => w.workerId === 'W2'), 'Scheduled pull keeps a recent termination');
+assert(savedStatus.ok === true && savedStatus.trigger === 'scheduled', 'Scheduled pull records a successful run');
+const unauth = await adpRelay.fetch(new Request('https://relay.test/api/adp/workers'), fakeEnv);
+assert(unauth.status === 401, 'Relay refuses roster requests without Cloudflare Access sign-in');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

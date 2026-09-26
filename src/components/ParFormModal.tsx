@@ -17,7 +17,7 @@ import {
 import { buildSstRouting } from '../data/mockData';
 import { SST_PAYROLL_CYCLES } from '../data/mockPayoutData';
 import { AdpWorker } from '../types/adp';
-import { getStoredAdpConfig, getStoredAdpStaff } from '../utils/adpService';
+import { getStoredAdpConfig, getStoredAdpStaff, isAdpDataStale } from '../utils/adpService';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
@@ -899,6 +899,13 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       ))
                     )}
                   </ul>
+                )}
+                {adpConfig.relayUrl && (isAdpDataStale(adpConfig) || adpConfig.lastSyncError) && (
+                  <p className="mt-1 text-[10px] font-semibold text-amber-800">
+                    ADP data may be out of date: the daily ADP refresh has not succeeded since{' '}
+                    {adpConfig.lastSyncTimestamp ? new Date(adpConfig.lastSyncTimestamp).toLocaleString() : 'setup'}.
+                    Confirm details against ADP.
+                  </p>
                 )}
                 <p className="mt-1 text-[10px] text-slate-500">
                   {adpConfig.relayUrl

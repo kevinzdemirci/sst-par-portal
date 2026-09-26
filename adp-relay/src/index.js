@@ -4,7 +4,11 @@
  * Holds the ADP Workforce Now API credentials and client certificate, calls ADP
  * on behalf of the PAR portal, and returns only the staff fields a PAR needs.
  *
- *   GET /workers  (any path ending in /workers) → { syncedAt, workers: [...] }
+ *   GET /workers  (any path ending in /workers) → { syncedAt, lastAttempt, workers: [...] }
+ *
+ * The roster is pulled from ADP once a day by a Cron Trigger (see wrangler.toml) and
+ * saved in Workers KV, so the portal gets it in about a second instead of waiting on
+ * ADP paging. GET /workers?refresh=1 pulls again if the saved copy is over an hour old.
  *
  * SST's API Central project ("Worker Demographic Data (Read Only)") allows
  * /hr/v2/worker-demographics, which returns the same worker records as /hr/v2/workers
@@ -15,6 +19,7 @@
  *
  * Bindings / settings (see wrangler.toml and README.md):
  *   ADP_CERT               mTLS certificate binding (the ADP-signed client certificate)
+ *   ROSTER                 Workers KV namespace holding the daily roster snapshot
  *   ADP_CLIENT_ID          secret
  *   ADP_CLIENT_SECRET      secret
  *   ACCESS_TEAM_DOMAIN     e.g. ssttx.cloudflareaccess.com
@@ -34,13 +39,19 @@ const ADP_TOKEN_URL = 'https://accounts.adp.com/auth/oauth/v2/token';
 const ADP_API_BASE = 'https://api.adp.com';
 const DEFAULT_WORKERS_PATH = '/hr/v2/worker-demographics';
 const PAGE_SIZE = 100;
-const ROSTER_CACHE_MS = 10 * 60 * 1000;
+const ROSTER_KEY = 'roster';
+const STATUS_KEY = 'sync-status';
+const MANUAL_REFRESH_MIN_AGE_MS = 60 * 60 * 1000;
 
 let cachedToken = null; // { value, expiresAt }
-let cachedRoster = null; // { body, expiresAt }
 let cachedAccessKeys = null; // { keys, expiresAt }
 
 export default {
+  // Daily roster pull (Cron Trigger).
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(refreshRoster(env, 'scheduled'));
+  },
+
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -54,35 +65,58 @@ export default {
     if (!identity.ok) return json({ error: identity.error }, 401, cors);
 
     try {
-      const refresh = url.searchParams.get('refresh') === '1';
-      if (!refresh && cachedRoster && cachedRoster.expiresAt > Date.now()) {
-        return json(cachedRoster.body, 200, cors);
+      let roster = await env.ROSTER.get(ROSTER_KEY, 'json');
+      const wantsRefresh = url.searchParams.get('refresh') === '1';
+      const isStale = roster && Date.now() - Date.parse(roster.syncedAt) > MANUAL_REFRESH_MIN_AGE_MS;
+      if (!roster || (wantsRefresh && isStale)) {
+        await refreshRoster(env, `on-demand by ${identity.email}`);
+        roster = await env.ROSTER.get(ROSTER_KEY, 'json');
       }
-      const workers = await fetchAllWorkers(env);
-      const lookbackDays = Number(env.TERMINATED_LOOKBACK_DAYS) || 365;
-      const cutoff = new Date(Date.now() - lookbackDays * 86400000).toISOString().slice(0, 10);
-      const body = {
-        syncedAt: new Date().toISOString(),
-        workers: workers
-          .map(w =>
-            mapWorker(w, {
-              dpsSidField: env.DPS_SID_FIELD,
-              trsField: env.TRS_FIELD,
-              includeSalary: env.INCLUDE_SALARY !== 'false'
-            })
-          )
-          // Keep current staff and recent separations; long-gone staff only clutter the search.
-          .filter(w => w.status !== 'Terminated' || !w.terminationDate || w.terminationDate >= cutoff)
-      };
-      cachedRoster = { body, expiresAt: Date.now() + ROSTER_CACHE_MS };
-      console.log(`roster served to ${identity.email}: ${body.workers.length} workers`);
-      return json(body, 200, cors);
+      if (!roster) {
+        return json({ error: 'The staff roster has not been pulled from ADP yet. Check the relay logs.' }, 503, cors);
+      }
+      const lastAttempt = await env.ROSTER.get(STATUS_KEY, 'json');
+      console.log(`roster served to ${identity.email}: ${roster.workers.length} workers, synced ${roster.syncedAt}`);
+      return json({ ...roster, lastAttempt }, 200, cors);
     } catch (err) {
       console.error('ADP relay error:', err);
-      return json({ error: 'Could not reach ADP Workforce Now. Check the relay logs.' }, 502, cors);
+      return json({ error: 'Could not load the staff roster. Check the relay logs.' }, 502, cors);
     }
   }
 };
+
+/**
+ * Pulls every worker from ADP, keeps the PAR fields, and saves the snapshot to KV.
+ * The previous snapshot is kept if the pull fails, and the failure is recorded.
+ */
+async function refreshRoster(env, trigger) {
+  const attemptAt = new Date().toISOString();
+  try {
+    const workers = await fetchAllWorkers(env);
+    const lookbackDays = Number(env.TERMINATED_LOOKBACK_DAYS) || 365;
+    const cutoff = new Date(Date.now() - lookbackDays * 86400000).toISOString().slice(0, 10);
+    const roster = {
+      syncedAt: new Date().toISOString(),
+      workers: workers
+        .map(w =>
+          mapWorker(w, {
+            dpsSidField: env.DPS_SID_FIELD,
+            trsField: env.TRS_FIELD,
+            includeSalary: env.INCLUDE_SALARY !== 'false'
+          })
+        )
+        // Keep current staff and recent separations; long-gone staff only clutter the search.
+        .filter(w => w.status !== 'Terminated' || !w.terminationDate || w.terminationDate >= cutoff)
+    };
+    await env.ROSTER.put(ROSTER_KEY, JSON.stringify(roster));
+    await env.ROSTER.put(STATUS_KEY, JSON.stringify({ at: attemptAt, ok: true, trigger, count: roster.workers.length }));
+    console.log(`roster refreshed (${trigger}): ${roster.workers.length} of ${workers.length} ADP workers kept`);
+  } catch (err) {
+    console.error(`roster refresh failed (${trigger}):`, err);
+    await env.ROSTER.put(STATUS_KEY, JSON.stringify({ at: attemptAt, ok: false, trigger, error: String(err?.message || err).slice(0, 300) }));
+    throw err;
+  }
+}
 
 async function getAdpToken(env) {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;

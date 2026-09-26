@@ -1203,8 +1203,10 @@ assert(principalPlan.missingEmail.length === 1 && principalPlan.missingCampus.le
 assert(!principalPlan.toCreate.some(a => /assistant|fp@|former/i.test(a.name + a.email)), 'Assistant principals and terminated principals are skipped');
   const partnerPlan = planPrincipalAccounts([mkWorker({ id: 'N1', adpId: 'N1', associateId: 'N1', fullName: 'ALYSSA  GAMEZ', jobTitle: 'PRINCIPAL', workEmail: 'agamez@newfrontierspublicschools.org', campus: 'SST Alamo', employmentStatus: 'Active' }),
     mkWorker({ id: 'N2', adpId: 'N2', associateId: 'N2', fullName: 'HALIL  CICEK', jobTitle: 'PRINCIPAL', workEmail: 'hcicek@ssttx.org', campus: 'SST The Woodlands', employmentStatus: 'Active' })], []);
-  assert(partnerPlan.otherDomain.length === 1 && partnerPlan.toCreate.length === 1, 'Principals with a non-@ssttx.org email are not given accounts (they could not sign in)');
-  assert(partnerPlan.toCreate[0].name === 'Halil Cicek', `ADP names are tidied: extra spaces collapsed, ALL-CAPS title-cased (Got: ${partnerPlan.toCreate[0].name})`);
+  assert(partnerPlan.otherDomain.length === 0 && partnerPlan.toCreate.length === 2, 'NFPS partner principals (@newfrontierspublicschools.org) get accounts');
+  const outsidePlan = planPrincipalAccounts([mkWorker({ id: 'X1', adpId: 'X1', associateId: 'X1', fullName: 'Outside Person', jobTitle: 'PRINCIPAL', workEmail: 'someone@gmail.com', campus: 'SST Alamo', employmentStatus: 'Active' })], []);
+  assert(outsidePlan.otherDomain.length === 1 && outsidePlan.toCreate.length === 0, 'Principals with an email outside the allowed domains are not given accounts');
+  assert(partnerPlan.toCreate.some(a => a.name === 'Halil Cicek') && partnerPlan.toCreate.some(a => a.name === 'Alyssa Gamez'), `ADP names are tidied: extra spaces collapsed, ALL-CAPS title-cased (Got: ${partnerPlan.toCreate.map(a => a.name).join(', ')})`);
 
 const alamoApprovers = mergeAccountsIntoApprovers(DEFAULT_WORKFLOW_CONFIG.approvers, principalPlan.toCreate);
 assert(alamoApprovers.length === DEFAULT_WORKFLOW_CONFIG.approvers.length + 1, 'Shared principal accounts join the approver directory once');

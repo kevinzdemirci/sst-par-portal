@@ -21,6 +21,18 @@ export const FIREBASE_CONFIG: FirebaseOptions | null = {
 export const DISTRICT_EMAIL_DOMAIN = 'ssttx.org';
 
 /**
+ * Google account domains allowed to sign in. Signing in only gets someone past the login
+ * screen if an admin created a portal account for them. newfrontierspublicschools.org is
+ * for the NFPS partner-school principals. Must match isDistrictStaff() in firestore.rules.
+ */
+export const ALLOWED_SIGN_IN_DOMAINS = ['ssttx.org', 'newfrontierspublicschools.org'];
+
+export function isAllowedSignInEmail(email?: string | null): boolean {
+  const e = (email || '').trim().toLowerCase();
+  return ALLOWED_SIGN_IN_DOMAINS.some(d => e.endsWith(`@${d}`));
+}
+
+/**
  * Accounts that can always sign in as portal Super Admin (manage accounts, invite staff),
  * even before the shared accounts list exists. Must match isBootstrapAdmin() in firestore.rules.
  */

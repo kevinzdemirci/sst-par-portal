@@ -2,11 +2,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Signed in with a verified district Google Workspace account.
+    // Signed in with a verified district (or NFPS partner-school) Google account.
+    // Must match ALLOWED_SIGN_IN_DOMAINS in src/config/firebase.ts.
     function isDistrictStaff() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email.matches('.*@ssttx[.]org$');
+        && request.auth.token.email.lower().matches('.*@(ssttx[.]org|newfrontierspublicschools[.]org)$');
     }
 
     function myEmail() {

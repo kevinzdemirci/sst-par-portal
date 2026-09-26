@@ -140,7 +140,7 @@ export const LoginGate: React.FC<{ children: (session: PortalSession | null) => 
     default:
       return (
         <Screen>
-          <p className="text-sm text-slate-600">Sign in with your @{DISTRICT_EMAIL_DOMAIN} Google account to continue.</p>
+          <p className="text-sm text-slate-600">Sign in with your @{DISTRICT_EMAIL_DOMAIN} Google account to continue. Partner-school principals use their school account.</p>
           {state.status === 'signed-out' && state.error && (
             <p className="text-xs font-semibold text-rose-700" role="alert">{state.error}</p>
           )}

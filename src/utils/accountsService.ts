@@ -1,7 +1,7 @@
 import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ApproverRoleConfig, Campus, UserPersona, WorkflowStage } from '../types/par';
 import { AdpWorker } from '../types/adp';
-import { BOOTSTRAP_ADMIN_EMAILS, DISTRICT_EMAIL_DOMAIN } from '../config/firebase';
+import { BOOTSTRAP_ADMIN_EMAILS, isAllowedSignInEmail } from '../config/firebase';
 import { getDb } from './firebaseClient';
 import { getInitialsAvatarUrl, locationForCampus } from './formatters';
 
@@ -94,7 +94,7 @@ export interface PrincipalImportPlan {
   alreadyHaveAccount: { worker: AdpWorker; account: PortalAccount }[];
   missingEmail: AdpWorker[];
   missingCampus: AdpWorker[];
-  /** Work email outside the district Google domain, so they could not sign in. */
+  /** Work email outside the allowed sign-in domains, so they could not sign in. */
   otherDomain: AdpWorker[];
 }
 
@@ -117,7 +117,7 @@ export function planPrincipalAccounts(roster: AdpWorker[], existing: PortalAccou
       plan.missingEmail.push(w);
       continue;
     }
-    if (!normalizeEmail(w.workEmail).endsWith(`@${DISTRICT_EMAIL_DOMAIN}`)) {
+    if (!isAllowedSignInEmail(w.workEmail)) {
       plan.otherDomain.push(w);
       continue;
     }

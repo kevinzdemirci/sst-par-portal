@@ -23,7 +23,7 @@ import { buildRoster, chunkRoster } from './roster.js';
 const ADP_WORKERS_PATH = '/hr/v2/worker-demographics';
 const DPS_SID_FIELD = 'DPS SID&/Name';
 const TERMINATED_LOOKBACK_DAYS = 365;
-const ALLOWED_EMAIL_DOMAIN = 'ssttx.org';
+const ALLOWED_EMAIL_DOMAINS = ['ssttx.org', 'newfrontierspublicschools.org'];
 const MANUAL_REFRESH_MIN_AGE_MS = 60 * 60 * 1000;
 
 const ADP_CLIENT_ID = defineSecret('ADP_CLIENT_ID');
@@ -92,7 +92,7 @@ export const syncAdpRoster = onSchedule(
 
 export const refreshAdpRoster = onCall(runtime, async request => {
   const email = String(request.auth?.token?.email || '').toLowerCase();
-  if (!request.auth || request.auth.token.email_verified !== true || !email.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
+  if (!request.auth || request.auth.token.email_verified !== true || !ALLOWED_EMAIL_DOMAINS.some(d => email.endsWith(`@${d}`))) {
     throw new HttpsError('permission-denied', 'Sign in with your district Google account.');
   }
   const meta = (await db.doc('adpRoster/meta').get()).data();

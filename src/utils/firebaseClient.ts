@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { DISTRICT_EMAIL_DOMAIN, FIREBASE_CONFIG } from '../config/firebase';
+import { DISTRICT_EMAIL_DOMAIN, FIREBASE_CONFIG, isAllowedSignInEmail } from '../config/firebase';
 
 let app: FirebaseApp | null = null;
 
@@ -28,7 +28,7 @@ export function getDb(): Firestore {
 }
 
 export function isDistrictAccount(user: User | null): boolean {
-  return !!user?.email && user.emailVerified && user.email.toLowerCase().endsWith(`@${DISTRICT_EMAIL_DOMAIN}`);
+  return !!user?.email && user.emailVerified && isAllowedSignInEmail(user.email);
 }
 
 export function getSignedInDistrictUser(): User | null {
@@ -44,7 +44,7 @@ export function getSignedInDistrictUser(): User | null {
 export async function signInWithDistrictGoogle(): Promise<User> {
   const auth = getAuth(getApp());
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ hd: DISTRICT_EMAIL_DOMAIN, prompt: 'select_account' });
+  provider.setCustomParameters({ prompt: 'select_account' });
   const { user } = await signInWithPopup(auth, provider);
   if (!isDistrictAccount(user)) {
     await signOut(auth);

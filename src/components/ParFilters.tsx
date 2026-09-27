@@ -72,10 +72,10 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs mb-6 no-print space-y-3.5">
       
       {/* Top Row: Search, Selectors, and Action Buttons */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2.5">
         
         {/* Left: Search & Filter dropdowns */}
-        <div className="flex flex-wrap items-center gap-2.5 flex-1">
+        <div className="contents">
           
           {/* Search Box */}
           <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
@@ -85,7 +85,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
               placeholder="Search employee, Position ID, campus..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] transition-all text-slate-800 placeholder-slate-400"
+              className="w-full h-9 pl-9 pr-3 text-xs bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] transition-all text-slate-800 placeholder-slate-400"
             />
           </div>
 
@@ -96,7 +96,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             <select
               value={selectedActionType}
               onChange={(e) => onActionTypeChange(e.target.value as ActionType | 'all')}
-              className="text-xs bg-slate-50 border border-slate-200 text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-medium"
+              className="h-9 text-xs bg-slate-50 border border-slate-200 text-slate-700 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-medium"
             >
               <option value="all">All PAR Types</option>
               <option value="termination">🚪 Termination / Separation</option>
@@ -114,7 +114,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             <select
               value={selectedCampus}
               onChange={(e) => onCampusChange(e.target.value as Campus | 'all')}
-              className="text-xs bg-slate-50 border border-slate-200 text-slate-800 py-2 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-semibold max-w-[220px]"
+              className="h-9 text-xs bg-slate-50 border border-slate-200 text-slate-800 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-semibold max-w-[220px]"
               title="Filter by SST Campus"
             >
               <option value="all">🏫 All SST Campuses (Texas)</option>
@@ -135,7 +135,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             <select
               value={selectedLocation}
               onChange={(e) => onLocationChange(e.target.value as SchoolLocation | 'all')}
-              className="text-xs bg-slate-50 border border-slate-200 text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-medium"
+              className="h-9 text-xs bg-slate-50 border border-slate-200 text-slate-700 px-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f2352]/20 focus:border-[#0f2352] font-medium"
             >
               <option value="all">All Regions</option>
               {locations.map((loc) => (
@@ -160,14 +160,14 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
         </div>
 
         {/* Right Action Tools: CSV Export, Sheets Sync, View Mode Toggle */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap gap-2 ml-auto">
           
           {/* Export to CSV for Texas HR reporting */}
           {onExportCsv && (
             <button
               type="button"
               onClick={onExportCsv}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold shadow-2xs transition-colors"
+              className="inline-flex items-center space-x-1.5 h-9 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold shadow-2xs transition-colors"
               title="Export filtered PAR requests to Texas Charter compliance CSV"
             >
               <Download className="w-3.5 h-3.5 text-blue-700" />
@@ -180,7 +180,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             <button
               type="button"
               onClick={onOpenAppsScript}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold shadow-2xs transition-colors"
+              className="inline-flex items-center space-x-1.5 h-9 px-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold shadow-2xs transition-colors"
               title="Track requests directly in SSTTX Google Sheets"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
@@ -189,10 +189,10 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
           )}
 
           {/* View Mode Toggle */}
-          <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <div className="flex items-center space-x-1 h-9 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
             <button
               onClick={() => onViewModeChange('table')}
-              className={`inline-flex items-center space-x-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+              className={`inline-flex items-center space-x-1.5 h-7 px-2.5 text-xs font-semibold rounded-lg transition-all ${
                 viewMode === 'table'
                   ? 'bg-white text-[#0f2352] shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -203,7 +203,7 @@ export const ParFilters: React.FC<ParFiltersProps> = ({
             </button>
             <button
               onClick={() => onViewModeChange('kanban')}
-              className={`inline-flex items-center space-x-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+              className={`inline-flex items-center space-x-1.5 h-7 px-2.5 text-xs font-semibold rounded-lg transition-all ${
                 viewMode === 'kanban'
                   ? 'bg-white text-[#0f2352] shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'

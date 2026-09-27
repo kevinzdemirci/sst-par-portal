@@ -367,7 +367,7 @@ export const PAYOUT_CATEGORIES = {
   payment: [
     'Retroactive Pay / Salary Adjustment',
     'Department Chair / Lead Teacher Stipend',
-    'Sign-on / Retention Bonus',
+    'PD Days (PLTW & AP)',
     'Moving Stipend',
     'Performance Stipend (AP & PLTW)',
     'Extra Curricular Stipend',

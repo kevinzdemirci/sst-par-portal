@@ -1358,6 +1358,8 @@ assert(buildRejectedEmails(notifPar, approverPersona, 'No')[0].to === 'principal
 const selfStep = { ...afterStep1, routingSteps: afterStep1.routingSteps.map((st, i) => i === 1 ? { ...st, assignedEmail: 'vnguyen@ssttx.org' } : st) };
 assert(buildApprovalEmails(selfStep, approverPersona).length === 0, 'No "action needed" email to the person who just acted');
 assert(renderParEmail({ subject: 's', badge: 'b', tone: 'info', heading: '<script>x</script>', greetingName: 'A', paragraphs: [], details: [] }).htmlBody.includes('&lt;script&gt;'), 'Email content is HTML-escaped');
+const titledEmail = buildSubmissionEmails({ ...INITIAL_PAR_DATA[0], title: 'ASSISTANT PRINCIPAL' })[0];
+assert(titledEmail.bodyText.includes('Title: ASSISTANT PRINCIPAL') && titledEmail.htmlBody.includes('ASSISTANT PRINCIPAL'), 'PAR emails show the employee title (from ADP) under the employee name');
 const district = getDistrictEmailCredentials();
 assert(district.mode === 'google_script' && district.senderEmail === 'sstpar@ssttx.org' && !!district.scriptUrl, 'All portal email goes through the district Apps Script as sstpar@ssttx.org');
 if (NOTIFICATION_TEST_MODE.enabled) {

@@ -1257,7 +1257,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                       <label className="block text-[11px] font-bold text-slate-600 mb-1">Job Title:</label>
                       <input 
                         type="text"
-                        placeholder="e.g. Science Lead Teacher"
+                        placeholder="e.g. Science Teacher"
                         name="payout-title"
                         autoComplete="off"
                         data-1p-ignore

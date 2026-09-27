@@ -27,6 +27,7 @@ import { AdpEmployeeSearch } from './AdpEmployeeSearch';
 import { SST_DEFAULT_LOGO } from '../data/sstLogo';
 import {
   addDaysIso,
+  formatCurrency,
   formatDate,
   getDepartmentNotificationRecipients,
   getTexasFinalPayDeadline,
@@ -248,8 +249,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const [notesRelatingToPositionChange, setNotesRelatingToPositionChange] = useState('');
 
   // Compensation
+  const [currentSalary, setCurrentSalary] = useState<number>(0);
   const [proposedSalary, setProposedSalary] = useState<number>(0);
-  const [isPayReduction, setIsPayReduction] = useState(false);
   const [stipendAmount, setStipendAmount] = useState<number>(0);
   const [salaryReason, setSalaryReason] = useState('');
 
@@ -281,6 +282,10 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
   const isLeave = actionType === 'leave_of_absence';
   const showPositionSection = actionType === 'campus_transfer' || actionType === 'role_change' || actionType === 'promotion';
   const showCompSection = actionType === 'salary_change' || actionType === 'promotion';
+  const isCompChange = actionType === 'salary_change';
+  const salaryDelta = isCompChange && currentSalary > 0 && proposedSalary > 0 ? proposedSalary - currentSalary : undefined;
+  const percentDelta = salaryDelta !== undefined ? (salaryDelta / currentSalary) * 100 : undefined;
+  const isPayReduction = salaryDelta !== undefined && salaryDelta < 0;
   const proposedLocation = proposedCampus ? locationForCampus(proposedCampus) : undefined;
 
 
@@ -399,6 +404,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
 
     if (showCompSection) {
       if (actionType === 'promotion' && proposedSalary <= 0) errs.push('Enter the new annual base salary.');
+      if (isCompChange && currentSalary <= 0) errs.push("Enter the employee's current annual salary.");
       if (actionType === 'salary_change' && proposedSalary <= 0 && stipendAmount <= 0) {
         errs.push('Enter a new base salary or a stipend amount.');
       }
@@ -456,7 +462,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     returnedCharterProperty, outstandingPropertyNotes, hasWrittenStatements, reportableMisconduct, attachments.length,
     outstandingStipendsOwed, rehireEligibility, laptopReturned, keysBadgesReturned, sisGradebookClosed,
     finalPay.deadline, today, proposedCampus, campus, proposedTitle, notesRelatingToPositionChange,
-    showCompSection, isPayReduction, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveTypes,
+    showCompSection, isPayReduction, currentSalary, proposedSalary, linkedWorker, stipendAmount, salaryReason, isLeave, leaveTypes,
     leaveStartDate, expectedReturnDate, isPaidLeave, attested, firstDayOfEmployment, bereavementRelationship,
     emergencyLeaveReason, otherLeaveReason, medicalCertificationStatus, employeeLeaveRequestSigned,
     leavePremiumsAcknowledged, leaveReturnCertAcknowledged
@@ -599,7 +605,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       workEmail: workEmail.trim(),
       associateId: associateId || employeeId.trim().toUpperCase(),
       dpsSid: dpsSid.trim() || undefined,
-      currentSalary: 0, // not collected; HR and Payroll use ADP
+      currentSalary: isCompChange ? currentSalary : 0, // collected on Compensation Change only
 
       // Separation documentation
       isVoluntary: isTermination ? voluntary : undefined,
@@ -642,7 +648,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       // Compensation
       proposedSalary: showCompSection ? proposedSalary : undefined,
       stipendAmount: actionType === 'salary_change' && stipendAmount > 0 ? stipendAmount : undefined,
-      percentIncrease: undefined,
+      percentIncrease: percentDelta !== undefined ? Math.round(percentDelta * 10) / 10 : undefined,
       isPayReduction: actionType === 'salary_change' ? isPayReduction : undefined,
       salaryChangeReason: showCompSection ? salaryReason.trim() : undefined,
 
@@ -1204,7 +1210,17 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
             {/* 3c. Compensation */}
             {showCompSection && (
               <Section step={nextStep()} title="Compensation" description="Enter annual amounts. Payroll prorates them by pay period.">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`grid grid-cols-1 ${isCompChange ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
+                  {isCompChange && (
+                    <Field label="Current annual salary" htmlFor="par-salary" required>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                        <input id="par-salary" type="number" min="0" step="1" inputMode="decimal"
+                          value={currentSalary || ''} onChange={e => setCurrentSalary(parseFloat(e.target.value) || 0)}
+                          className={`${inputCls} pl-6`} />
+                      </div>
+                    </Field>
+                  )}
                   <Field label="New annual base salary" htmlFor="par-new-salary" required={actionType === 'promotion'}
                     hint={actionType === 'salary_change' ? 'Leave blank if only the stipend changes.' : undefined}>
                     <div className="relative">
@@ -1220,6 +1236,12 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                         className={`${inputCls} pl-6 font-semibold`}
                       />
                     </div>
+                    {salaryDelta !== undefined && percentDelta !== undefined && (
+                      <div className={`mt-1 text-[11px] font-semibold ${salaryDelta < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                        {salaryDelta >= 0 ? '+' : '−'}{formatCurrency(Math.abs(salaryDelta))} ({salaryDelta >= 0 ? '+' : '−'}{Math.abs(percentDelta).toFixed(1)}%)
+                        {salaryDelta < 0 && ' · pay reduction: written notice to the employee first; cannot be backdated'}
+                      </div>
+                    )}
                   </Field>
                   {actionType === 'salary_change' && (
                     <Field label="Annual stipend" htmlFor="par-stipend" hint="Optional. Leave blank if there is no stipend.">
@@ -1232,19 +1254,12 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                     </Field>
                   )}
                   <Field label="Reason for change" htmlFor="par-comp-reason" required
-                    className={actionType === 'salary_change' ? '' : 'sm:col-span-2'}>
+                    className={isCompChange ? '' : 'sm:col-span-2'}>
                     <input id="par-comp-reason" type="text" value={salaryReason}
                       onChange={e => setSalaryReason(e.target.value)} className={inputCls}
                       placeholder={actionType === 'promotion' ? 'e.g. Promotion to Assistant Principal' : 'e.g. AP Physics stipend, 2026-27 SY'} />
                   </Field>
                 </div>
-                {actionType === 'salary_change' && (
-                  <label className="mt-3 flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
-                    <input type="checkbox" checked={isPayReduction} onChange={e => setIsPayReduction(e.target.checked)}
-                      className="mt-0.5 rounded accent-[#0f2352]" />
-                    <span>This change lowers the employee's pay. The employee must be told in writing before it takes effect, and it cannot be backdated.</span>
-                  </label>
-                )}
               </Section>
             )}
 

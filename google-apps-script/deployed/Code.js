@@ -144,9 +144,10 @@ function upsertParRecord(par, auditInfo) {
   var currentPending = steps.filter(function(s) { return s.status === "pending"; })[0];
   var assignedReviewer = currentPending ? (currentPending.assignedRole + " (" + (currentPending.reviewerName || currentPending.assignedEmail || "") + ")") : (currentStage === "COMPLETED" ? "All Departments Signed & Executed" : currentStage);
 
-  var currentSalary = par.currentSalary || 0;
-  var proposedSalary = par.proposedSalary || currentSalary;
-  var salaryDelta = proposedSalary - currentSalary;
+  // The portal no longer collects current salary; leave unknown amounts blank instead of $0.
+  var currentSalary = par.currentSalary > 0 ? par.currentSalary : "";
+  var proposedSalary = par.proposedSalary > 0 ? par.proposedSalary : currentSalary;
+  var salaryDelta = currentSalary !== "" && proposedSalary !== "" ? proposedSalary - currentSalary : "";
   var payoutAmount = par.finalPay || (par.earnedWages ? (par.earnedWages - (par.deductions || 0)) : 0);
 
   var sigsCount = (par.electronicSignatures || []).filter(function(s) { return s.status === "signed"; }).length + " / " + (par.electronicSignatures || []).length;

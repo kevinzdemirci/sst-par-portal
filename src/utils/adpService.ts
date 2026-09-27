@@ -275,7 +275,6 @@ export interface AdpRelayWorker {
   hireDate: string;
   terminationDate?: string;
   annualSalary?: number;
-  hourlyRate?: number;
   supervisorName: string;
   supervisorAssociateOID?: string;
   dpsSid?: string;
@@ -420,21 +419,6 @@ export async function fetchFirestoreAdpRoster(): Promise<{
     lastAttempt: data.lastAttempt,
     workers: records.map(w => workerFromRelayRecord(w, data.syncedAt!))
   };
-}
-
-/**
- * One employee's annual salary from ADP (adpSalaries/{associateOID}). Returns undefined when
- * pay data isn't available yet or this user may not see it (firestore.rules decide).
- */
-export async function fetchAdpAnnualSalary(associateOID?: string): Promise<number | undefined> {
-  if (!associateOID || !isFirebaseConfigured() || !getSignedInDistrictUser()) return undefined;
-  try {
-    const snap = await getDoc(doc(getDb(), 'adpSalaries', associateOID));
-    const annual = (snap.data() as { annualSalary?: number | null } | undefined)?.annualSalary;
-    return typeof annual === 'number' && annual > 0 ? annual : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**

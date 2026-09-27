@@ -910,7 +910,8 @@ export function generateParsCsvString(pars: PersonnelActionRequest[]): string {
   const rows = pars.map((p) => {
     const sigsCount = `${p.electronicSignatures.filter(s => s.status === 'signed').length}/${p.electronicSignatures.length}`;
     const cobra = getTexasCobraDeadline(p.lastDayWorked);
-    const salaryDelta = (p.proposedSalary || p.currentSalary) - p.currentSalary;
+    const hasCurrent = p.currentSalary > 0;
+    const salaryDelta = hasCurrent && p.proposedSalary ? p.proposedSalary - p.currentSalary : undefined;
     
     return [
       `"${p.trackingNumber}"`,
@@ -928,9 +929,9 @@ export function generateParsCsvString(pars: PersonnelActionRequest[]): string {
       `"${p.trsNotificationRequired ? 'YES' : 'NO'}"`,
       `"${p.lastDayWorked || 'N/A'}"`,
       `"${cobra.deadlineDateStr}"`,
-      `"${p.currentSalary.toFixed(2)}"`,
-      `"${(p.proposedSalary || p.currentSalary).toFixed(2)}"`,
-      `"${salaryDelta.toFixed(2)}"`,
+      `"${hasCurrent ? p.currentSalary.toFixed(2) : ''}"`,
+      `"${p.proposedSalary ? p.proposedSalary.toFixed(2) : hasCurrent ? p.currentSalary.toFixed(2) : ''}"`,
+      `"${salaryDelta !== undefined ? salaryDelta.toFixed(2) : ''}"`,
       `"${p.finalPay ? p.finalPay.toFixed(2) : ''}"`,
       `"${sigsCount}"`,
       `"${p.submittedBy}"`,

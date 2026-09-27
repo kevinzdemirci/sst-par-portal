@@ -38,7 +38,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from '../data/sstLogo';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatDate } from '../utils/formatters';
 
 interface AdpStaffModalProps {
   isOpen: boolean;
@@ -177,7 +177,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
   const handleExportRosterCsv = () => {
     const headers = [
       'Associate ID', 'First Name', 'Last Name', 'Position ID', 'Job Title', 
-      'Campus', 'Region', 'Status', 'Salary', 'Hire Date', 'Last Day Worked', 
+      'Campus', 'Region', 'Status', 'Hire Date', 'Last Day Worked', 
       'Separation Reason', 'Rehire Eligible', 'Linked PAR Tracking', 'Alignment Status'
     ];
     const rows = reconciledRoster.map(w => [
@@ -189,7 +189,6 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
       `"${w.campus}"`,
       w.location,
       w.employmentStatus,
-      w.annualSalary,
       w.hireDate,
       w.lastDayWorked || '',
       `"${w.terminationReason || ''}"`,
@@ -398,7 +397,7 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
                     <tr>
                       <th className="px-4 py-3">Staff Member & Position ID</th>
                       <th className="px-4 py-3">Campus & Position</th>
-                      <th className="px-4 py-3">Salary & Agreement</th>
+                      <th className="px-4 py-3">Agreement</th>
                       <th className="px-4 py-3">ADP Status</th>
                       <th className="px-4 py-3">Termination Alignment</th>
                       <th className="px-4 py-3 text-right">PAR Action</th>
@@ -437,7 +436,6 @@ export const AdpStaffModal: React.FC<AdpStaffModalProps> = ({
                           </td>
 
                           <td className="px-4 py-3">
-                            <div className="font-black text-slate-900">{formatCurrency(worker.annualSalary)}</div>
                             <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
                               {worker.contractType} · Semi-Monthly
                             </div>

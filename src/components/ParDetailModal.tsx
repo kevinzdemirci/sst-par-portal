@@ -1016,7 +1016,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         <div className="space-y-1">
                           <div><strong>Title:</strong> {par.title}</div>
                           <div><strong>Campus:</strong> {par.campus}</div>
-                          <div><strong>Salary:</strong> {formatCurrency(par.currentSalary)}</div>
+                          {par.currentSalary > 0 && <div><strong>Salary:</strong> {formatCurrency(par.currentSalary)}</div>}
                         </div>
                       </div>
                       <div className="p-3 bg-blue-50/70 rounded-lg border border-blue-200">
@@ -1026,13 +1026,17 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                           <div><strong>Campus:</strong> {par.proposedCampus || par.campus}</div>
                           {par.proposedSalary && (
                             <div className="text-emerald-800 font-bold">
-                              <strong>Salary:</strong> {formatCurrency(par.proposedSalary)} ({(par.percentIncrease ?? 0) >= 0 ? '+' : ''}{par.percentIncrease?.toFixed(1)}%)
+                              <strong>Salary:</strong> {formatCurrency(par.proposedSalary)}
+                              {par.percentIncrease !== undefined && ` (${par.percentIncrease >= 0 ? '+' : ''}${par.percentIncrease.toFixed(1)}%)`}
                             </div>
                           )}
                           {par.stipendAmount && (
                             <div className="text-purple-800 font-bold">
                               <strong>Stipend:</strong> +{formatCurrency(par.stipendAmount)}
                             </div>
+                          )}
+                          {par.isPayReduction && (
+                            <div className="text-rose-800 font-bold">Pay reduction: written notice to the employee required first</div>
                           )}
                         </div>
                       </div>

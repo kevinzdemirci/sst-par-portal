@@ -271,6 +271,8 @@ export interface PersonnelActionRequest {
   currentSalary: number;
   proposedSalary?: number;
   percentIncrease?: number;
+  /** Compensation change that lowers pay (written notice first; no backdating). */
+  isPayReduction?: boolean;
   salaryChangeReason?: string;
   stipendAmount?: number;
 

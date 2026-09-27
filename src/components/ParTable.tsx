@@ -82,12 +82,20 @@ export const ParTable: React.FC<ParTableProps> = ({
       return (
         <div className="text-xs">
           <div className="font-semibold text-slate-900 flex items-center space-x-1">
-            <span>{formatCurrency(par.currentSalary)}</span>
-            <span className="text-slate-400">→</span>
-            <span className="text-emerald-700 font-bold">{formatCurrency(par.proposedSalary)}</span>
+            {par.currentSalary > 0 && (
+              <>
+                <span>{formatCurrency(par.currentSalary)}</span>
+                <span className="text-slate-400">→</span>
+              </>
+            )}
+            {par.proposedSalary ? (
+              <span className={`${par.isPayReduction ? 'text-rose-700' : 'text-emerald-700'} font-bold`}>{formatCurrency(par.proposedSalary)}</span>
+            ) : par.stipendAmount ? (
+              <span className="text-purple-800 font-bold">Stipend {formatCurrency(par.stipendAmount)}</span>
+            ) : null}
           </div>
           <div className="text-[11px] text-emerald-600 font-medium">
-            +{par.percentIncrease?.toFixed(1)}% ({par.salaryChangeReason})
+            {par.percentIncrease !== undefined && `+${par.percentIncrease.toFixed(1)}% `}({par.salaryChangeReason})
           </div>
         </div>
       );
@@ -100,7 +108,7 @@ export const ParTable: React.FC<ParTableProps> = ({
             {par.proposedTitle}
           </div>
           <div className="text-[11px] text-purple-700">
-            {formatCurrency(par.proposedSalary)} (+{par.percentIncrease?.toFixed(1)}%)
+            {formatCurrency(par.proposedSalary)}{par.percentIncrease !== undefined && ` (+${par.percentIncrease.toFixed(1)}%)`}
           </div>
         </div>
       );

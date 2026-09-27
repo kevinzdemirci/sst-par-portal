@@ -57,7 +57,6 @@ import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
 import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
 import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
-import { SST_CAMPUSES as FUNCTION_CAMPUSES, matchSstCampus as functionMatchSstCampus } from '../../functions/src/campus.js';
 
 declare const process: { exit: (code?: number) => void };
 
@@ -1375,20 +1374,9 @@ assert(!!itNotice && applyEmailTerminology({ to: itNotice.to, subject: itNotice.
 
 assert(PAYOUT_CATEGORIES.payment.join('|') === 'Retroactive Pay / Salary Adjustment|Department Chair / Lead Teacher Stipend|Sign-on / Retention Bonus|Moving Stipend|Performance Stipend (AP & PLTW)|Extra Curricular Stipend|Extended School Day Stipend|Extra Duty Stipend|Other Employee Payout', 'CPO payout reasons match SST stipend types (Moving Stipend; no mileage or vacation payout)');
 
-// ADP pay data: kept out of the shared roster; the Cloud Function tags each record with the same campus the portal uses.
-assert(JSON.stringify(FUNCTION_CAMPUSES) === JSON.stringify(SST_CAMPUSES), 'Cloud Function campus list matches the portal campus list');
-const locationSamples = [
-  ...SST_CAMPUSES, ...SST_CAMPUSES.map(c => `015827 001 ${c}`),
-  '015827 007 2 Schertz', '015827 007 SST Schertz', '015831 002-03 Champions', 'Champions College Prep', 'Corpus Elementary', 'CC College Prep',
-  'Sugarland', 'Sugarland College Prep', 'SA College Prep', 'Hill Country CP', 'Central Office', 'Regional Office Houston', 'Regional Office San Antonio',
-  'CC Early Elementary', 'NF Greg Garcia Elem', 'NF Frank L Madla Early College HS', 'Sugar Land', 'Unknown Place', ''
-];
-const mismatched = locationSamples.filter(l => (functionMatchSstCampus(l) || '') !== (matchSstCampus(l) || ''));
-assert(mismatched.length === 0, `Cloud Function matches ADP locations to the same campus as the portal (mismatches: ${mismatched.join('; ')})`);
-const paidWorker = { associateOID: 'G1', person: { legalName: { givenName: 'A', familyName1: 'B' } }, workAssignments: [{ primaryIndicator: true, baseRemuneration: { annualRateAmount: { amountValue: 61000 }, hourlyRateAmount: { amountValue: 29.33 } } }] };
-assert(mapWorker(paidWorker, { includeSalary: true }).annualSalary === 61000 && mapWorker(paidWorker, { includeSalary: true }).hourlyRate === 29.33, 'Pay sync reads annual and hourly rates from ADP base remuneration');
-const sharedRoster = buildRoster([paidWorker], { includeSalary: false });
-assert(sharedRoster[0].annualSalary === undefined && sharedRoster[0].hourlyRate === undefined, 'The shared ADP roster never contains pay');
+// Current salary is no longer collected on PARs: exports leave it blank rather than $0.
+const noSalaryCsv = generateParsCsvString([{ ...INITIAL_PAR_DATA[0], actionType: 'salary_change', currentSalary: 0, proposedSalary: 52000, percentIncrease: undefined }]);
+assert(!noSalaryCsv.split('\n')[1].includes('"0.00","52000.00","52000.00"'), 'CSV export does not treat an unknown current salary as $0');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

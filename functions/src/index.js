@@ -23,14 +23,9 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { createAdpClient } from './adpClient.js';
 import { buildRoster, chunkRoster } from './roster.js';
-import { mapWorker } from './mapWorker.js';
-import { matchSstCampus } from './campus.js';
 
 // SST's API Central project ("Worker Demographic Data (Read Only)") allows only this endpoint.
 const ADP_WORKERS_PATH = '/hr/v2/worker-demographics';
-// Pay data (base remuneration). Returns 403 "Invalid Scope" until ADP adds Workers v2 to the
-// project; the roster sync carries on without salaries until then.
-const ADP_PAY_PATH = '/hr/v2/workers';
 const DPS_SID_FIELD = 'DPS SID&/Name';
 const TERMINATED_LOOKBACK_DAYS = 365;
 const ALLOWED_EMAIL_DOMAINS = ['ssttx.org', 'newfrontierspublicschools.org'];
@@ -83,49 +78,6 @@ function isDistrictAddress(address) {
   return /^[^@\s]+@[^@\s]+$/.test(e) && ALLOWED_EMAIL_DOMAINS.some(d => e.endsWith(`@${d}`));
 }
 
-/**
- * Saves each staff member's pay in adpSalaries/{associateOID}, a collection separate from the
- * roster so firestore.rules can limit who reads it (HR roles: everyone; endorsers: their campus).
- * Only staff kept in the roster are saved. Without ADP pay access it reports why instead of failing.
- */
-async function refreshSalaries(client, rosterIds) {
-  const at = new Date().toISOString();
-  let payWorkers;
-  try {
-    payWorkers = await client.fetchAllWorkers(ADP_PAY_PATH);
-  } catch (err) {
-    const error = String(err?.message || err).slice(0, 200);
-    logger.warn(`ADP pay data not available: ${error}`);
-    return { at, ok: false, error };
-  }
-  const records = new Map();
-  for (const raw of payWorkers) {
-    const w = mapWorker(raw, { includeSalary: true });
-    if (!w.associateOID || !rosterIds.has(w.associateOID)) continue;
-    if (w.annualSalary === undefined && w.hourlyRate === undefined) continue;
-    records.set(w.associateOID, {
-      annualSalary: w.annualSalary ?? null,
-      hourlyRate: w.hourlyRate ?? null,
-      campus: matchSstCampus(w.locationName) || '',
-      positionId: w.positionId || '',
-      syncedAt: at
-    });
-  }
-  const collection = db.collection('adpSalaries');
-  const stale = (await collection.listDocuments()).filter(ref => !records.has(ref.id));
-  const writes = [
-    ...[...records].map(([id, data]) => batch => batch.set(collection.doc(id), data)),
-    ...stale.map(ref => batch => batch.delete(ref))
-  ];
-  for (let i = 0; i < writes.length; i += 400) {
-    const batch = db.batch();
-    writes.slice(i, i + 400).forEach(write => write(batch));
-    await batch.commit();
-  }
-  logger.info(`ADP pay data saved for ${records.size} staff (${stale.length} removed)`);
-  return { at, ok: true, count: records.size };
-}
-
 async function refreshRoster(trigger) {
   const metaRef = db.doc('adpRoster/meta');
   const attemptAt = new Date().toISOString();
@@ -139,15 +91,8 @@ async function refreshRoster(trigger) {
     const adpWorkers = await client.fetchAllWorkers(ADP_WORKERS_PATH);
     const workers = buildRoster(adpWorkers, {
       dpsSidField: DPS_SID_FIELD,
-      terminatedLookbackDays: TERMINATED_LOOKBACK_DAYS,
-      includeSalary: false
+      terminatedLookbackDays: TERMINATED_LOOKBACK_DAYS
     });
-    // Pay data never blocks the roster: any failure is recorded in meta.salaries instead.
-    const salaries = await refreshSalaries(client, new Set(workers.map(w => w.associateOID))).catch(err => ({
-      at: new Date().toISOString(),
-      ok: false,
-      error: String(err?.message || err).slice(0, 200)
-    }));
     const chunks = chunkRoster(workers);
     const previous = (await metaRef.get()).data();
 
@@ -158,8 +103,7 @@ async function refreshRoster(trigger) {
       syncedAt: new Date().toISOString(),
       count: workers.length,
       chunkCount: chunks.length,
-      lastAttempt: { at: attemptAt, ok: true, trigger, count: workers.length },
-      salaries
+      lastAttempt: { at: attemptAt, ok: true, trigger, count: workers.length }
     });
     await batch.commit();
     logger.info(`ADP roster refreshed (${trigger}): kept ${workers.length} of ${adpWorkers.length} workers`);

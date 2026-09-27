@@ -20,12 +20,7 @@ Every day 5:00 AM Central
 - If a daily pull fails, the previous roster is kept and the PAR form shows
   "ADP data may be out of date".
 - Staff terminated more than 365 days ago are left out.
-- Salary: the daily sync also reads `/hr/v2/workers` and saves each employee's pay in
-  `adpSalaries/{associateOID}`, separate from the roster. firestore.rules let HR, Payroll, Benefits,
-  Regional Executive Directors, the CPO, and admins read all pay, and a campus endorser read only
-  their campus's staff. Until ADP grants the project Workers v2, that call returns 403 "Invalid Scope"
-  and `adpRoster/meta.salaries` records the error; the roster still syncs.
-  Check access with `~/sst-adp-cert/adp-salary-check.sh`.
+- Salary is not pulled from ADP (decision 2026-09-26). PARs no longer collect current salary; HR and Payroll use ADP directly.
 
 Google Apps Script cannot do this job, because ADP requires a client certificate on
 every call and Apps Script's `UrlFetchApp` cannot send one.

@@ -45,31 +45,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    function myAccount() {
-      return get(myAccountPath()).data;
-    }
-
-    // HR, Payroll, Benefits, Regional Executive Directors, the CPO, and admins see all pay.
-    function canSeeAllSalaries() {
-      return isAdmin() || (hasPortalAccount() &&
-        myAccount().get('canReviewStages', []).hasAny(['hr_review', 'payroll_action', 'benefits_review', 'cpo_review', 'regional_review']));
-    }
-
-    // A campus endorser (e.g. a principal) sees pay only for staff at their own campus.
-    function isEndorserFor(campus) {
-      return hasPortalAccount() &&
-        myAccount().get('canReviewStages', []).hasAny(['supervisor_review']) &&
-        myAccount().get('campus', '') != '' &&
-        myAccount().get('campus', '') == campus;
-    }
-
-    // Staff pay from ADP, one record per employee; written only by the Cloud Function.
-    match /adpSalaries/{associateOID} {
-      allow get: if canSeeAllSalaries() || isEndorserFor(resource.data.campus);
-      allow list: if canSeeAllSalaries();
-      allow write: if false;
-    }
-
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

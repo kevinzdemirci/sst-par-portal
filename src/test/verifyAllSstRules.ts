@@ -1374,7 +1374,7 @@ assert(worded.bodyText === 'IT Department: upcoming change' && worded.htmlBody =
 const itNotice = buildSubmissionEmails({ ...INITIAL_PAR_DATA[0], departmentNotifications: getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)') }).find(e => e.to === 'myuksel@ssttx.org');
 assert(!!itNotice && applyEmailTerminology({ to: itNotice.to, subject: itNotice.subject, bodyText: itNotice.bodyText, htmlBody: itNotice.htmlBody }).htmlBody!.includes('IT Department: upcoming personnel change'), 'Central Office IT notice to Mikail Yuksel is headed "IT Department"');
 
-assert(PAYOUT_CATEGORIES.payment.join('|') === 'Retroactive Pay / Salary Adjustment|Department Chair / PLC/CST Teacher Stipend|PD Days (PLTW & AP)|Moving Stipend|Performance Stipend (AP & PLTW)|Extra Curricular Stipend|Extended School Day Stipend|Extra Duty Stipend|Other Employee Payout', 'CPO payout reasons match SST stipend types (Moving Stipend; no mileage or vacation payout)');
+assert(PAYOUT_CATEGORIES.payment.join('|') === 'Retroactive Pay / Salary Adjustment|Department Chair / PLC / CST Teacher Stipend|PD Days (PLTW & AP)|Moving Stipend|Performance Stipend (AP & PLTW)|Extra Curricular Stipend|Extended School Day Stipend|Extra Duty Stipend|Other Employee Payout', 'CPO payout reasons match SST stipend types (Moving Stipend; no mileage or vacation payout)');
 
 // Current salary is no longer collected on PARs: exports leave it blank rather than $0.
 const noSalaryCsv = generateParsCsvString([{ ...INITIAL_PAR_DATA[0], actionType: 'salary_change', currentSalary: 0, proposedSalary: 52000, percentIncrease: undefined }]);

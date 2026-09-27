@@ -366,7 +366,7 @@ export const SST_PAYROLL_CYCLES: PayrollCutoffCycle[] = [
 export const PAYOUT_CATEGORIES = {
   payment: [
     'Retroactive Pay / Salary Adjustment',
-    'Department Chair / PLC/CST Teacher Stipend',
+    'Department Chair / PLC / CST Teacher Stipend',
     'PD Days (PLTW & AP)',
     'Moving Stipend',
     'Performance Stipend (AP & PLTW)',

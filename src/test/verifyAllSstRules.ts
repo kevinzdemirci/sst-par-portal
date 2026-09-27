@@ -48,13 +48,13 @@ import {
   isAdpDataStale
 } from '../utils/adpService';
 import { buildRoster, chunkRoster } from '../../functions/src/roster.js';
-import { buildSubmissionEmails, buildApprovalEmails, buildReturnedEmails, buildRejectedEmails, renderParEmail, PORTAL_URL } from '../utils/parNotifications';
+import { buildSubmissionEmails, buildApprovalEmails, buildReturnedEmails, buildRejectedEmails, renderParEmail, PORTAL_URL, buildPayoutSubmittedEmail, buildPayoutApprovedEmail, buildPayoutProcessedEmail, payoutLink } from '../utils/parNotifications';
 import { getDistrictEmailCredentials } from '../utils/emailChannel';
 import { applyEmailTerminology, applyNotificationTestMode } from '../utils/gmailService';
 import { NOTIFICATION_TEST_MODE } from '../config/notifications';
 import { createAdpClient, withContentLength } from '../../functions/src/adpClient.js';
 import { DEFAULT_ADP_CONFIG } from '../data/mockAdpStaffData';
-import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts } from '../utils/formatters';
+import { matchSstCampus, locationForCampus, isValidAdpPositionId, canPersonaViewSstSheet, isCampusPrincipal, canPersonaViewPar, isParSubmittedBy, canPersonaAccessPayouts, canPersonaDeletePayout } from '../utils/formatters';
 import { planPrincipalAccounts, personaFromAccount, approverFromAccount, mergeAccountsIntoApprovers, mergeAccountsIntoPersonas, accountFromApprover, isBootstrapAdminEmail, PortalAccount } from '../utils/accountsService';
 import { mapWorker } from '../../functions/src/mapWorker.js';
 
@@ -1379,6 +1379,24 @@ assert(PAYOUT_CATEGORIES.payment.join('|') === 'Retroactive Pay / Salary Adjustm
 // Current salary is no longer collected on PARs: exports leave it blank rather than $0.
 const noSalaryCsv = generateParsCsvString([{ ...INITIAL_PAR_DATA[0], actionType: 'salary_change', currentSalary: 0, proposedSalary: 52000, percentIncrease: undefined }]);
 assert(!noSalaryCsv.split('\n')[1].includes('"0.00","52000.00","52000.00"'), 'CSV export does not treat an unknown current salary as $0');
+
+// Deleting CPO payout entries added by mistake
+const cpoP = USER_PERSONAS.find(p => p.email === 'kdemirci@ssttx.org')!;
+const kristyP = USER_PERSONAS.find(p => p.email === 'kstewart@ssttx.org')!;
+const amberP = USER_PERSONAS.find(p => p.email === 'ajohnson@ssttx.org')!;
+const paolaP = USER_PERSONAS.find(p => p.email === 'pcomparini@ssttx.org')!;
+const kristyEntry = { status: 'pending_cpo' as const, submitterEmail: 'kstewart@ssttx.org' };
+assert(canPersonaDeletePayout(cpoP, kristyEntry), 'CPO can delete a payout entry');
+assert(canPersonaDeletePayout(kristyP, kristyEntry), 'Regional HR Coordinator can delete an entry they submitted');
+assert(!canPersonaDeletePayout(amberP, kristyEntry), "Regional HR Coordinator cannot delete another coordinator's entry");
+assert(!canPersonaDeletePayout(paolaP, kristyEntry), 'Payroll cannot delete payout entries');
+assert(!canPersonaDeletePayout(cpoP, { ...kristyEntry, status: 'processed_payroll' }), 'No one can delete an entry already processed in ADP');
+
+const samplePayout = { trackingNumber: 'SST-PAY-2026-099', payoutType: 'payment' as const, employeeName: 'Dana Cole', adpId: 'UFP004455', campus: 'SST Alamo', jobTitle: 'TEACHER', amount: 1250, category: 'Moving Stipend', payrollCutoffDate: '2026-10-13', payrollCycleName: 'Period 6', submittedBy: 'Kristy Stewart', submitterEmail: 'kstewart@ssttx.org' };
+const cpoPayoutEmail = buildPayoutSubmittedEmail(samplePayout, { email: 'kdemirci@ssttx.org', name: 'Dr. Kevin Demirci' });
+assert(cpoPayoutEmail.to === 'kdemirci@ssttx.org' && cpoPayoutEmail.htmlBody.includes(payoutLink('SST-PAY-2026-099')) && cpoPayoutEmail.bodyText.includes(`${PORTAL_URL}/?payout=SST-PAY-2026-099`), 'CPO payout email links straight to the request');
+assert(buildPayoutApprovedEmail(samplePayout, { email: 'pcomparini@ssttx.org', name: 'Paola Comparini' }, 'Dr. Kevin Demirci').htmlBody.includes('?payout=SST-PAY-2026-099'), 'Payroll approval email links to the request');
+assert(buildPayoutProcessedEmail({ ...samplePayout, adpBatchNumber: 'B-1' }, 'Paola Comparini')?.to === 'kstewart@ssttx.org', 'Processed email goes to the submitter with a link');
 
 // 23. Texas Payday Law final-pay deadlines & date-only parsing
 console.log('\n--- 23. Texas Final Pay Deadlines & Date Handling ---');

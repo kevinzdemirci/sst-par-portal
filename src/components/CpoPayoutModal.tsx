@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { UserPersona } from '../types/par';
 import { CpoPayoutRequest, PayoutType, PayoutSupportingDoc, PayoutStatus } from '../types/payout';
 import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES, getActivePayrollCycle } from '../data/mockPayoutData';
@@ -9,6 +9,7 @@ import {
   isChiefPeopleOfficer, 
   isRegionalHrCoordinator,
   isPayrollCoordinator,
+  canPersonaDeletePayout,
   formatPayoutTypeBadge, 
   formatPayoutStatusBadge,
   isValidAdpPositionId,
@@ -41,8 +42,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { sendGmailEmail } from '../utils/gmailService';
-import { getDistrictEmailCredentials } from '../utils/emailChannel';
+import { sendParEmails, buildPayoutSubmittedEmail, buildPayoutApprovedEmail, buildPayoutProcessedEmail } from '../utils/parNotifications';
 
 export interface PayoutTemplateItem {
   id: string;
@@ -67,6 +67,9 @@ interface CpoPayoutModalProps {
   onToast: (text: string, type?: 'success' | 'warning' | 'info') => void;
   districtLogo?: string;
   districtName?: string;
+  /** Tracking number from an email link (?payout=): opens that request once. */
+  openPayoutTracking?: string | null;
+  onPayoutOpened?: () => void;
 }
 
 export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
@@ -78,7 +81,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   onSavePayouts,
   onToast,
   districtLogo,
-  districtName = 'School of Science and Technology'
+  districtName = 'School of Science and Technology',
+  openPayoutTracking,
+  onPayoutOpened
 }) => {
   const isCpo = isChiefPeopleOfficer(currentPersona);
   const isHr = isRegionalHrCoordinator(currentPersona);
@@ -86,6 +91,15 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'queue' | 'create' | 'calendar'>(isHr ? 'create' : 'queue');
   const [selectedPayout, setSelectedPayout] = useState<CpoPayoutRequest | null>(null);
+
+  useEffect(() => {
+    if (!openPayoutTracking) return;
+    const found = payouts.find(p => p.trackingNumber === openPayoutTracking);
+    if (found) setSelectedPayout(found);
+    else onToast(`Payout ${openPayoutTracking} is not available here yet.`, 'info');
+    onPayoutOpened?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPayoutTracking]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -119,7 +133,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
   // CPO Review State
   const [cpoNotes, setCpoNotes] = useState<string>('');
-  const [cpoPinInput, setCpoPinInput] = useState<string>(currentPersona.signingPin || '1234');
+  const [cpoPinInput, setCpoPinInput] = useState<string>('');
   
   // Payroll Execution State
   const [payrollBatchNo, setPayrollBatchNo] = useState<string>('ADP-BATCH-SEP25-2026');
@@ -306,17 +320,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
     onSavePayouts([newRequest, ...payouts]);
 
-    // Automated Gmail dispatch to CPO for new payout request
-    const gmailCreds = getDistrictEmailCredentials();
-    if (gmailCreds.isEnabled) {
-      sendGmailEmail({
-        to: 'kdemirci@ssttx.org',
-        toName: 'Dr. Kevin Demirci (Chief People Officer)',
-        subject: `💵 [CPO APPROVAL REQUIRED]: ${newRequest.trackingNumber} - ${formEmployeeName} ($${numAmount.toLocaleString()})`,
-        bodyText: `Dear Dr. Kevin Demirci,\n\nA new staff compensation payout/deduction request has been submitted by ${currentPersona.name} (${currentPersona.role}) for the upcoming payroll cut-off (${formCutoffDate}).\n\nEmployee: ${formEmployeeName} (ADP: ${newRequest.adpId})\nCampus: ${formCampus}\nType: ${formPayoutType.toUpperCase()}\nAmount: $${numAmount.toLocaleString()}\nCategory: ${formCategory}\nReason: ${formReason}\n\nPlease sign in to the SST HR Hub under "CPO Payout Reviewer" to review and execute your approval.\n\nSchool of Science and Technology Human Resources`,
-        category: 'payout'
-      }, gmailCreds).catch(console.error);
-    }
+    // Email the CPO, with a link to this request
+    sendParEmails([buildPayoutSubmittedEmail(newRequest, { email: 'kdemirci@ssttx.org', name: 'Dr. Kevin Demirci' })], msg => onToast(msg, 'warning'));
 
     onToast(`Created ${newRequest.trackingNumber} for ${formEmployeeName} ($${numAmount.toLocaleString()}) — Queued for CPO Approval`, 'success');
 
@@ -337,6 +342,11 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       alert('Only the Chief People Officer (Dr. Kevin Demirci) has authority to approve payout requests.');
       return;
     }
+    // The signing PIN is the e-signature: it must be typed and match, and it is never stored.
+    if (currentPersona.signingPin && cpoPinInput.trim() !== currentPersona.signingPin) {
+      onToast('Enter your signing PIN to approve.', 'warning');
+      return;
+    }
     const nowIso = new Date().toISOString();
     let approvedItem: CpoPayoutRequest | null = null;
 
@@ -350,7 +360,6 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
         cpoSignerName: currentPersona.name,
         cpoSignerId: currentPersona.signerId || 'CPO-SST-DEMIRCI-2026',
         cpoIpAddress: currentPersona.ipAddress || '192.168.1.100',
-        cpoSigningPin: cpoPinInput,
         cpoSignatureImage: currentPersona.signatureImage,
         history: [
           ...p.history,
@@ -368,17 +377,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
     onSavePayouts(updated);
 
-    // Automated Gmail dispatch to Payroll Coordinator upon CPO approval
-    const gmailCreds = getDistrictEmailCredentials();
-    if (gmailCreds.isEnabled && approvedItem) {
-      const target: CpoPayoutRequest = approvedItem;
-      sendGmailEmail({
-        to: 'pcomparini@ssttx.org',
-        toName: 'Paola Comparini (Payroll Coordinator)',
-        subject: `✅ [CPO APPROVED - EXECUTE IN ADP]: ${target.trackingNumber} - ${target.employeeName} ($${target.amount.toLocaleString()})`,
-        bodyText: `Dear Paola Comparini,\n\nDr. Kevin Demirci (Chief People Officer) has approved compensation request ${target.trackingNumber} for ${target.employeeName} (ADP: ${target.adpId}, ${target.campus}).\n\nAmount: $${target.amount.toLocaleString()}\nCategory: ${target.category}\nTarget Payroll Cut-Off: ${target.payrollCutoffDate} (${target.payrollCycleName})\nCPO Approval Notes: ${cpoNotes || 'Approved for payroll entry.'}\n\nPlease enter this transaction into ADP Workforce Now before the cut-off deadline.\n\nSchool of Science and Technology Human Resources`,
-        category: 'payout'
-      }, gmailCreds).catch(console.error);
+    // Email Payroll, with a link to this request
+    if (approvedItem) {
+      sendParEmails([buildPayoutApprovedEmail(approvedItem, { email: 'pcomparini@ssttx.org', name: 'Paola Comparini' }, currentPersona.name, cpoNotes || undefined)], msg => onToast(msg, 'warning'));
     }
 
     try {
@@ -389,6 +390,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onToast(`Approved ${selectedPayout?.trackingNumber} — Successfully routed to Payroll Coordinator (Paola Comparini)`, 'success');
     setSelectedPayout(null);
     setCpoNotes('');
+    setCpoPinInput('');
   };
 
   // CPO Action: Return for Revision
@@ -418,6 +420,15 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     });
     onSavePayouts(updated);
     onToast(`Returned ${selectedPayout?.trackingNumber} for revision`, 'warning');
+    setSelectedPayout(null);
+  };
+
+  // CPO or the submitting Regional HR Coordinator: delete an entry added by mistake
+  const handleDeletePayout = (payout: CpoPayoutRequest) => {
+    if (!canPersonaDeletePayout(currentPersona, payout)) return;
+    if (!window.confirm(`Delete ${payout.trackingNumber} for ${payout.employeeName} (${formatCurrency(payout.amount)})? This cannot be undone.`)) return;
+    onSavePayouts(payouts.filter(p => p.id !== payout.id));
+    onToast(`Deleted ${payout.trackingNumber}`, 'info');
     setSelectedPayout(null);
   };
 
@@ -485,20 +496,9 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
 
     onSavePayouts(updated);
 
-    // Automated Gmail dispatch to Submitter confirming payroll entry
-    const gmailCreds = getDistrictEmailCredentials();
-    if (gmailCreds.isEnabled && executedItem) {
-      const target: CpoPayoutRequest = executedItem;
-      if (target.submitterEmail) {
-        sendGmailEmail({
-          to: target.submitterEmail,
-          toName: target.submittedBy,
-          subject: `🎉 [ADP PAYROLL PROCESSED]: ${target.trackingNumber} - ${target.employeeName}`,
-          bodyText: `Dear ${target.submittedBy},\n\nYour compensation request ${target.trackingNumber} for ${target.employeeName} ($${target.amount.toLocaleString()}) has been finalized and processed in ADP Workforce Now by Payroll Coordinator ${currentPersona.name}.\n\nBatch Number: ${target.adpBatchNumber}\nCycle: ${target.payrollCycleName}\n\nSchool of Science and Technology Human Resources`,
-          category: 'payout'
-        }, gmailCreds).catch(console.error);
-      }
-    }
+    // Email the submitter, with a link to this request
+    const processedEmail = executedItem ? buildPayoutProcessedEmail(executedItem, currentPersona.name) : null;
+    if (processedEmail) sendParEmails([processedEmail], msg => onToast(msg, 'warning'));
 
     onToast(`Marked ${selectedPayout?.trackingNumber} processed in ADP Payroll!`, 'success');
     setSelectedPayout(null);
@@ -1747,12 +1747,26 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedPayout(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {canPersonaDeletePayout(currentPersona, selectedPayout) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePayout(selectedPayout)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-rose-600 transition-colors"
+                    title="Delete this entry (added by mistake)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedPayout(null)}
+                  aria-label="Close"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Dossier Content */}
@@ -1914,6 +1928,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                           <input 
                             type="password"
                             value={cpoPinInput}
+                            autoComplete="new-password"
+                            aria-label="CPO signing PIN"
                             onChange={(e) => setCpoPinInput(e.target.value)}
                             className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono"
                           />

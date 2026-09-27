@@ -305,3 +305,92 @@ export function sendParEmails(emails: ParEmail[], onFailure?: (message: string) 
       })
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// CPO payout and deduction emails. Only the CPO, Payroll, and the submitting Regional HR
+// Coordinator receive these, so they include the amount.
+
+export const payoutLink = (trackingNumber: string) => `${PORTAL_URL}/?payout=${encodeURIComponent(trackingNumber)}`;
+
+interface PayoutEmailSource {
+  trackingNumber: string;
+  payoutType: 'payment' | 'deduction';
+  employeeName: string;
+  adpId: string;
+  campus: string;
+  jobTitle?: string;
+  amount: number;
+  category: string;
+  payrollCutoffDate: string;
+  payrollCycleName: string;
+  submittedBy: string;
+  submitterEmail?: string;
+  adpBatchNumber?: string;
+}
+
+const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function payoutDetails(p: PayoutEmailSource): [string, string][] {
+  return [
+    ['Tracking number', p.trackingNumber],
+    ['Type', p.payoutType === 'deduction' ? 'Payroll deduction' : 'Payment to employee'],
+    ['Employee', p.employeeName],
+    ...(p.jobTitle?.trim() ? [['Title', p.jobTitle.trim()] as [string, string]] : []),
+    ['Position ID', p.adpId],
+    ['Campus', p.campus],
+    ['Amount', money(p.amount)],
+    ['Reason', p.category],
+    ['Payroll cut-off', `${formatDate(p.payrollCutoffDate)} (${p.payrollCycleName})`],
+    ['Submitted by', p.submittedBy]
+  ];
+}
+
+function payoutEmail(to: string, toName: string, category: ParEmail['category'], c: EmailContent): ParEmail {
+  return { to, toName, category, ...renderParEmail(c) };
+}
+
+/** New entry from a Regional HR Coordinator: the CPO reviews and approves it. */
+export function buildPayoutSubmittedEmail(p: PayoutEmailSource, cpo: { email: string; name: string }): ParEmail {
+  return payoutEmail(cpo.email, cpo.name, 'approval', {
+    subject: `Action needed: CPO payout ${p.trackingNumber} for ${p.employeeName} (${money(p.amount)})`,
+    badge: 'Action needed',
+    tone: 'action',
+    heading: `Please review ${p.payoutType === 'deduction' ? 'a payroll deduction' : 'a payout'} request`,
+    greetingName: cpo.name,
+    paragraphs: [`${p.submittedBy} submitted a ${p.payoutType === 'deduction' ? 'payroll deduction' : 'payout'} for your approval before the payroll cut-off.`],
+    details: payoutDetails(p),
+    actionLabel: 'Review the request',
+    actionUrl: payoutLink(p.trackingNumber)
+  });
+}
+
+/** Approved by the CPO: Payroll enters it in ADP. */
+export function buildPayoutApprovedEmail(p: PayoutEmailSource, payroll: { email: string; name: string }, cpoName: string, notes?: string): ParEmail {
+  return payoutEmail(payroll.email, payroll.name, 'approval', {
+    subject: `Approved: enter CPO payout ${p.trackingNumber} in ADP (${p.employeeName})`,
+    badge: 'Approved',
+    tone: 'success',
+    heading: 'Approved by the CPO: please enter it in ADP',
+    greetingName: payroll.name,
+    paragraphs: [`${cpoName} approved this request. Please enter it in ADP Workforce Now before the payroll cut-off, then mark it processed in the portal.`],
+    details: [...payoutDetails(p), ...(notes ? [['CPO notes', notes] as [string, string]] : [])],
+    actionLabel: 'Open the request',
+    actionUrl: payoutLink(p.trackingNumber)
+  });
+}
+
+/** Processed in ADP by Payroll: tells the submitter. */
+export function buildPayoutProcessedEmail(p: PayoutEmailSource, processedBy: string): ParEmail | null {
+  if (!p.submitterEmail) return null;
+  return payoutEmail(p.submitterEmail, p.submittedBy, 'completion', {
+    subject: `Processed in ADP: CPO payout ${p.trackingNumber} (${p.employeeName})`,
+    badge: 'Completed',
+    tone: 'success',
+    heading: 'Your request was processed in ADP',
+    greetingName: p.submittedBy,
+    paragraphs: [`${processedBy} entered this request in ADP Workforce Now.`],
+    details: [...payoutDetails(p), ...(p.adpBatchNumber ? [['ADP batch', p.adpBatchNumber] as [string, string]] : [])],
+    actionLabel: 'View the request',
+    actionUrl: payoutLink(p.trackingNumber)
+  });
+}

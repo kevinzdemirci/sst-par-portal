@@ -264,6 +264,21 @@ export function isDirectorOfHr(persona?: UserPersona | null): boolean {
  * CPO Payouts are for the Regional HR Coordinators (entry), the CPO / Super Admins (approval),
  * Payroll (processing), and the Regional Executive Directors and Director of HR (view only).
  */
+/**
+ * Who may delete a CPO payout entry that was added by mistake: the CPO (any entry) and a
+ * Regional HR Coordinator (entries they submitted). An entry already processed in ADP is a
+ * payroll record and cannot be deleted; correct it with a new entry instead.
+ */
+export function canPersonaDeletePayout(
+  persona: UserPersona | null | undefined,
+  payout: { status: PayoutStatus; submitterEmail?: string }
+): boolean {
+  if (!persona || payout.status === 'processed_payroll') return false;
+  if (isChiefPeopleOfficer(persona) || isSuperAdmin(persona)) return true;
+  return isRegionalHrCoordinator(persona) &&
+    !!payout.submitterEmail && payout.submitterEmail.toLowerCase() === persona.email.toLowerCase();
+}
+
 export function canPersonaAccessPayouts(persona?: UserPersona | null): boolean {
   if (!persona || persona.isNotificationOnly) return false;
   return (

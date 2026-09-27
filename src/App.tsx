@@ -303,7 +303,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
   const [payouts, setPayouts] = useState<CpoPayoutRequest[]>(() => {
     try {
       const saved = localStorage.getItem(PAYOUTS_KEY);
-      if (saved) return withoutLegacySamples(JSON.parse(saved), LEGACY_SAMPLE_PAYOUT_IDS);
+      // Older records saved the CPO signing PIN; it is never kept.
+      if (saved) return (withoutLegacySamples(JSON.parse(saved), LEGACY_SAMPLE_PAYOUT_IDS) as CpoPayoutRequest[]).map(({ cpoSigningPin: _pin, ...p }) => p);
     } catch {
       // ignore
     }
@@ -400,6 +401,26 @@ export function App({ session = null }: { session?: PortalSession | null }) {
     url.searchParams.delete('par');
     window.history.replaceState({}, '', url.toString());
   }, [currentPersona, pars, session]);
+
+  // Payout email links (?payout=<tracking number>) open the CPO Payout tab on that request.
+  const [openPayoutTracking, setOpenPayoutTracking] = useState<string | null>(null);
+  const payoutLinkHandled = useRef(false);
+  useEffect(() => {
+    if (payoutLinkHandled.current) return;
+    const tracking = new URLSearchParams(window.location.search).get('payout');
+    if (!tracking) return;
+    if (session && normalizeEmail(currentPersona.email) !== normalizeEmail(session.email) && !session.isAdmin) return;
+    payoutLinkHandled.current = true;
+    if (canPersonaAccessPayouts(currentPersona)) {
+      setActiveHubTab('payouts');
+      setOpenPayoutTracking(tracking);
+    } else {
+      showToast('You do not have access to CPO payouts.', 'info');
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payout');
+    window.history.replaceState({}, '', url.toString());
+  }, [currentPersona, session]);
 
   // Handle URL activation link (e.g., from an email invitation: ?activate=<roleId>).
   // Signed-in staff can only activate their own role; only Super Admins can open others'.
@@ -1496,6 +1517,8 @@ export function App({ session = null }: { session?: PortalSession | null }) {
               onToast={showToast}
               districtLogo={workflowConfig.districtLogo}
               districtName={workflowConfig.districtName}
+              openPayoutTracking={openPayoutTracking}
+              onPayoutOpened={() => setOpenPayoutTracking(null)}
             />
           </div>
         )}

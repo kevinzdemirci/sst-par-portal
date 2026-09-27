@@ -748,7 +748,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     className="shrink-0 inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ New Payout Entry</span>
+                    <span>New Payout Entry</span>
                   </button>
                 </div>
               ) : (
@@ -870,15 +870,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                 </div>
 
                 {/* Entry vs Reviewer Actions */}
-                {isHr ? (
-                  <button
-                    onClick={() => setActiveTab('create')}
-                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>+ Request Staff Payout / Deduction</span>
-                  </button>
-                ) : isCpo ? (
+                {/* Regional HR starts new entries from the New Payout Entry button above. */}
+                {isHr ? null : isCpo ? (
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setStatusFilter(statusFilter === 'pending_cpo' ? 'all' : 'pending_cpo')}

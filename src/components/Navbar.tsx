@@ -93,10 +93,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-h-[64px] sm:min-h-[84px] py-2 sm:py-1.5">
+        <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-x-4 gap-y-2 min-h-[64px] sm:min-h-[84px] lg:min-h-[96px] py-2 sm:py-1.5">
           
           {/* SST Brand Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center shrink-0">
             <div 
               className="flex items-center py-1 cursor-pointer"
               onClick={() => onSelectHubTab && onSelectHubTab('pars')}
@@ -105,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img 
                 src={getNormalizedLogoUrl(districtLogo)} 
                 alt={districtName || 'School of Science and Technology'} 
-                className="h-11 sm:h-16 md:h-[72px] w-auto max-w-[150px] sm:max-w-[280px] object-contain rounded transition-transform hover:scale-105"
+                className="h-11 sm:h-16 lg:h-20 w-auto max-w-[150px] sm:max-w-[280px] lg:max-w-[320px] object-contain rounded transition-transform hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = SST_DEFAULT_LOGO;
                 }}
@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <div className="flex flex-wrap lg:flex-nowrap items-center justify-end gap-2 sm:gap-3">
             
             {/* Authenticated Staff Persona Badge & Switch Account */}
             <div className="relative flex items-center bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200 shadow-2xs">
@@ -240,7 +240,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
 
               {canSwitchPersona && (
-                <span className="text-xs font-semibold text-[#0f2352] bg-white shadow-2xs border border-slate-200 px-2.5 py-1 rounded-xl pointer-events-none hidden lg:inline-flex items-center space-x-1">
+                <span className="text-xs font-semibold text-[#0f2352] bg-white shadow-2xs border border-slate-200 px-2.5 py-1 rounded-xl pointer-events-none hidden 2xl:inline-flex items-center space-x-1">
                   <Users className="w-3.5 h-3.5 mr-1 text-[#b91c1c]" />
                   <span>Simulate Role</span>
                 </span>
@@ -253,9 +253,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={onSignOut}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 title={signedInEmail ? `Sign out ${signedInEmail}` : 'Sign out'}
+                aria-label="Sign out"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Sign out</span>
+                <span className="hidden 2xl:inline">Sign out</span>
               </button>
             )}
 
@@ -270,9 +271,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950'
                 }`}
                 title={`SSTTX Google Apps Script & Sheets PAR Tracker (${appsScriptConfig.scriptUrl ? 'Connected' : 'Setup Required'})`}
+                aria-label="SSTTX Sheets"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                <span className="hidden xl:inline">SSTTX Sheets</span>
+                <span className="hidden 2xl:inline">SSTTX Sheets</span>
                 <span className={`w-2 h-2 rounded-full ${appsScriptConfig.scriptUrl ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
               </button>
             )}

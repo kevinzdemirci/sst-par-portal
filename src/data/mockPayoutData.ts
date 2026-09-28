@@ -386,6 +386,12 @@ export const PAYOUT_CATEGORIES = {
   ]
 };
 
+/** ADP earnings codes Payroll uploads CPO payouts under. */
+export const ADP_EARNINGS_CODES = [
+  'BCP', 'STP', 'DOC', 'MOV', 'SSP', 'SWK', 'DEN', 'MED', 'MCF', 'VIS', 'PHI', 'UUL', 'ABC', 'AS1', 'ASC',
+  'BN', 'CL2', 'CLB', 'CM', 'EXD', 'JD', 'PBN', 'PTO', 'SNT', 'TIA', 'TUT', 'UTO', 'BV', 'DED', 'MAT'
+];
+
 export function getActivePayrollCycle(): PayrollCutoffCycle {
   return SST_PAYROLL_CYCLES.find(c => c.status === 'active') || SST_PAYROLL_CYCLES[4];
 }

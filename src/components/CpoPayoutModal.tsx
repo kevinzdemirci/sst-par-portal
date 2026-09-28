@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { UserPersona } from '../types/par';
 import { CpoPayoutRequest, PayoutType, PayoutSupportingDoc, PayoutStatus } from '../types/payout';
-import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES, getActivePayrollCycle } from '../data/mockPayoutData';
+import { SST_PAYROLL_CYCLES, PAYOUT_CATEGORIES, ADP_EARNINGS_CODES, getActivePayrollCycle } from '../data/mockPayoutData';
+import { downloadAdpExportXlsx } from '../utils/payrollExport';
 import { 
   formatCurrency, 
   formatDate, 
@@ -9,6 +10,7 @@ import {
   isChiefPeopleOfficer, 
   isRegionalHrCoordinator,
   isPayrollCoordinator,
+  isSuperAdmin,
   canPersonaDeletePayout,
   formatPayoutTypeBadge, 
   formatPayoutStatusBadge,
@@ -88,6 +90,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const isCpo = isChiefPeopleOfficer(currentPersona);
   const isHr = isRegionalHrCoordinator(currentPersona);
   const isPayroll = isPayrollCoordinator(currentPersona);
+  // The ADP upload export and earnings-code edits are for Payroll and the Super Admin.
+  const canExportPayroll = isPayroll || isSuperAdmin(currentPersona);
 
   const [activeTab, setActiveTab] = useState<'queue' | 'create' | 'calendar'>(isHr ? 'create' : 'queue');
   const [selectedPayout, setSelectedPayout] = useState<CpoPayoutRequest | null>(null);
@@ -124,6 +128,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
   const [formPayoutType, setFormPayoutType] = useState<PayoutType>('payment');
   const [formCategory, setFormCategory] = useState<string>(PAYOUT_CATEGORIES.payment[0]);
   const [formAmount, setFormAmount] = useState<string>('');
+  const [formEarningsCode, setFormEarningsCode] = useState<string>('');
   const activeCycle = getActivePayrollCycle();
   const [formCutoffDate, setFormCutoffDate] = useState<string>(activeCycle.cutoffDate);
   const [formCycleName, setFormCycleName] = useState<string>(activeCycle.cycleName);
@@ -274,6 +279,10 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       alert('Please enter a valid positive dollar amount.');
       return;
     }
+    if (!formEarningsCode) {
+      alert('Please select the ADP Earnings Code.');
+      return;
+    }
     if (!formReason.trim()) {
       alert('Please enter a reason and justification for this request.');
       return;
@@ -290,6 +299,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       payoutType: formPayoutType,
       employeeId: formLinkedWorker?.associateId || formAdpId.trim().toUpperCase(),
       employeeName: formEmployeeName.trim(),
+      firstName: formLinkedWorker?.firstName || undefined,
+      lastName: formLinkedWorker?.lastName || undefined,
       adpId: formAdpId.trim().toUpperCase(),
       campus: formCampus,
       region: formRegion,
@@ -297,6 +308,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
       currentSalary: formLinkedWorker?.annualSalary || undefined,
       amount: numAmount,
       category: formCategory,
+      earningsCode: formEarningsCode,
       reason: formReason,
       payrollCutoffDate: formCutoffDate,
       payrollCycleName: formCycleName,
@@ -331,6 +343,7 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     setFormJobTitle('');
     setFormLinkedWorker(null);
     setFormAmount('');
+    setFormEarningsCode('');
     setFormReason('');
     setFormDocs([]);
     setActiveTab('queue');
@@ -503,6 +516,52 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
     onToast(`Marked ${selectedPayout?.trackingNumber} processed in ADP Payroll!`, 'success');
     setSelectedPayout(null);
     setPayrollExecNotes('');
+  };
+
+  // Payroll / Super Admin: set the ADP earnings code on an entry (e.g. one entered before the field existed).
+  const handleSetEarningsCode = (payoutId: string, code: string) => {
+    if (!canExportPayroll) return;
+    const nowIso = new Date().toISOString();
+    const updated = payouts.map(p => p.id !== payoutId ? p : {
+      ...p,
+      earningsCode: code || undefined,
+      history: [
+        ...p.history,
+        {
+          id: `hist-${Date.now()}`,
+          action: 'ADP Earnings Code Updated',
+          actor: `${currentPersona.name} (${currentPersona.role})`,
+          timestamp: nowIso,
+          notes: `Earnings code set to ${code || '(none)'}.`
+        }
+      ]
+    });
+    onSavePayouts(updated);
+    setSelectedPayout(updated.find(p => p.id === payoutId) || null);
+  };
+
+  // ADP upload export: CPO-approved (and already processed) entries for one pay period.
+  const [exportCutoffDate, setExportCutoffDate] = useState<string>(activeCycle.cutoffDate);
+  const handleExportForAdp = () => {
+    if (!canExportPayroll) return;
+    const cycle = SST_PAYROLL_CYCLES.find(c => c.cutoffDate === exportCutoffDate);
+    const inPeriod = payouts.filter(p => p.payrollCutoffDate === exportCutoffDate);
+    const rows = inPeriod.filter(p => p.status === 'approved_by_cpo' || p.status === 'processed_payroll');
+    if (rows.length === 0) {
+      onToast('No CPO-approved entries in this pay period to export.', 'info');
+      return;
+    }
+    const missingCode = rows.filter(p => !p.earningsCode);
+    if (missingCode.length > 0) {
+      alert(`Set the ADP Earnings Code on these entries before exporting:\n${missingCode.map(p => `${p.trackingNumber} (${p.employeeName})`).join('\n')}`);
+      return;
+    }
+    const badId = rows.filter(p => !isValidAdpPositionId(p.adpId));
+    if (badId.length > 0 && !confirm(`These entries do not have a standard Position ID (3 letters + 6 digits), so Company Code / File # may be wrong:\n${badId.map(p => `${p.trackingNumber}: ${p.adpId}`).join('\n')}\n\nExport anyway?`)) return;
+    const stillOpen = inPeriod.filter(p => p.status === 'pending_cpo' || p.status === 'revision_required');
+    if (stillOpen.length > 0 && !confirm(`${stillOpen.length} entr${stillOpen.length === 1 ? 'y is' : 'ies are'} in this pay period still waiting on CPO approval or revision and will NOT be in the file.\n\nExport the ${rows.length} approved entr${rows.length === 1 ? 'y' : 'ies'} now?`)) return;
+    downloadAdpExportXlsx(rows, `SST_CPO_Payouts_ADP_Period${cycle?.periodNumber ?? ''}_${exportCutoffDate}.xlsx`);
+    onToast(`Exported ${rows.length} entr${rows.length === 1 ? 'y' : 'ies'} for ADP upload.`, 'success');
   };
 
   // Filtered Payouts Queue
@@ -918,6 +977,46 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                 ) : null}
               </div>
 
+              {/* ADP Payroll Upload Export (Payroll Coordinator & Super Admin) */}
+              {canExportPayroll && (
+                <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="text-xs text-slate-700">
+                    <div className="font-black text-indigo-900 flex items-center space-x-1.5">
+                      <Download className="w-4 h-4 text-indigo-700" />
+                      <span>Export for ADP Payroll Upload</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Excel file of CPO-approved entries for the pay period: Company Code, File #, First Name, Last Name, Earnings Code, Amount.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={exportCutoffDate}
+                      onChange={(e) => setExportCutoffDate(e.target.value)}
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
+                      aria-label="Pay period to export"
+                    >
+                      {SST_PAYROLL_CYCLES.map(cycle => {
+                        const n = payouts.filter(p => p.payrollCutoffDate === cycle.cutoffDate && (p.status === 'approved_by_cpo' || p.status === 'processed_payroll')).length;
+                        return (
+                          <option key={cycle.id} value={cycle.cutoffDate}>
+                            Period {cycle.periodNumber} ({cycle.periodStartFormatted} – {cycle.periodEndFormatted}) · {n} approved
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleExportForAdp}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Export Excel</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Requests Table / Cards */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
                 <div className="overflow-x-auto">
@@ -1263,8 +1362,8 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                   </div>
                 </div>
 
-                {/* 3. Financial Category, Amount & Payroll Cutoff */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* 3. Financial Category, Earnings Code, Amount & Payroll Cutoff */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                       Reason Category: *
@@ -1276,6 +1375,22 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                     >
                       {PAYOUT_CATEGORIES[formPayoutType].map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      ADP Earnings Code: *
+                    </label>
+                    <select
+                      value={formEarningsCode}
+                      onChange={(e) => setFormEarningsCode(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 font-mono focus:bg-white focus:outline-none"
+                    >
+                      <option value="">Select code…</option>
+                      {ADP_EARNINGS_CODES.map(code => (
+                        <option key={code} value={code}>{code}</option>
                       ))}
                     </select>
                   </div>
@@ -1792,6 +1907,24 @@ export const CpoPayoutModal: React.FC<CpoPayoutModalProps> = ({
                 </span>
                 <div className="text-sm font-black text-slate-900">
                   {selectedPayout.category}
+                </div>
+                <div className="flex items-center space-x-2 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-500">ADP Earnings Code:</span>
+                  {canExportPayroll && selectedPayout.status !== 'rejected' ? (
+                    <select
+                      value={selectedPayout.earningsCode || ''}
+                      onChange={(e) => handleSetEarningsCode(selectedPayout.id, e.target.value)}
+                      className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold font-mono text-slate-800 focus:outline-none"
+                      aria-label="ADP earnings code"
+                    >
+                      <option value="">Not set</option>
+                      {ADP_EARNINGS_CODES.map(code => (
+                        <option key={code} value={code}>{code}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <strong className="font-mono text-slate-900">{selectedPayout.earningsCode || 'Not set'}</strong>
+                  )}
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed bg-slate-50/70 p-3 rounded-xl border border-slate-100">
                   {selectedPayout.reason}

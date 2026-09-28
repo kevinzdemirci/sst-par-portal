@@ -41,6 +41,8 @@ export interface CpoPayoutRequest {
   // Staff Details
   employeeId: string;
   employeeName: string;
+  firstName?: string; // from ADP, for the payroll upload export
+  lastName?: string;
   adpId: string;
   campus: string;
   region: string;
@@ -50,6 +52,7 @@ export interface CpoPayoutRequest {
   // Financial Details & Reason
   amount: number;
   category: string; // e.g. "Retroactive Adjustment", "Tutoring Stipend", "Overpayment Recoupment"
+  earningsCode?: string; // ADP earnings code for the payroll upload (see ADP_EARNINGS_CODES)
   reason: string;   // detailed description/justification
   
   // Target Payroll Cutoff

@@ -1185,7 +1185,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                           <div>
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="font-bold text-slate-900 text-xs flex items-center space-x-1.5">
-                                {notif.type === 'it' ? <Laptop className="w-3.5 h-3.5 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-3.5 h-3.5 text-rose-700" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-600" />}
+                                {notif.type === 'it' || notif.type === 'sis' ? <Laptop className="w-3.5 h-3.5 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-3.5 h-3.5 text-rose-700" /> : <UserPlus className="w-3.5 h-3.5 text-emerald-600" />}
                                 <span>{notif.department}</span>
                               </span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center space-x-1">
@@ -1362,7 +1362,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                     <div key={nIdx} className="p-5 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/60 to-white shadow-2xs space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs uppercase tracking-wider text-purple-900 flex items-center space-x-1.5">
-                          {notif.type === 'it' ? <Laptop className="w-4 h-4 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-4 h-4 text-rose-700" /> : <UserPlus className="w-4 h-4 text-emerald-600" />}
+                          {notif.type === 'it' || notif.type === 'sis' ? <Laptop className="w-4 h-4 text-blue-600" /> : notif.type === 'dps' ? <Fingerprint className="w-4 h-4 text-rose-700" /> : <UserPlus className="w-4 h-4 text-emerald-600" />}
                           <span>{notif.department}</span>
                         </span>
                         <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center space-x-1">

@@ -182,6 +182,23 @@ function departmentNotice(par: PersonnelActionRequest, dept: DepartmentNotificat
       ]
     });
   }
+  if (dept.type === 'sis') {
+    return email(dept.recipientEmail, dept.recipientName, 'notification', {
+      subject: `Action needed: Skyward/SIS account deactivation for ${employeeName(par)} (${par.trackingNumber})`,
+      badge: 'Action needed',
+      tone: 'action',
+      heading: "Deactivate this employee's Skyward / SIS account",
+      greetingName: dept.recipientName,
+      paragraphs: [
+        `A separation PAR was submitted for ${employeeName(par)}. Please deactivate the employee's Skyward / SIS account after the last day worked.`
+      ],
+      details: [
+        ...parDetails(par),
+        ['Work email', par.workEmail || 'Not recorded on the PAR'],
+        ['Last day worked', formatDate(par.lastDayWorked)]
+      ]
+    });
+  }
   return email(dept.recipientEmail, dept.recipientName, 'notification', {
     subject: `FYI: ${getActionTypeInfo(par.actionType).label} for ${employeeName(par)} (${par.trackingNumber})`,
     badge: 'For your information',

@@ -633,6 +633,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       markRehireStatus: isTermination ? rehireEligibility === 'Yes' : undefined,
       finalPayDeadline: isTermination ? finalPay.deadline : undefined,
       immediatePayoutRequired: isTermination ? !voluntary : undefined,
+      notifySis: isTermination ? true : undefined,
       isPartTimeOrSub: employmentStatus !== 'Full-time',
       startDate: linkedWorker?.hireDate || undefined,
       endDate: isTermination ? lastDayWorked : undefined,

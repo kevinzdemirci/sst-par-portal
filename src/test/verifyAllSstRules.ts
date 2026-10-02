@@ -293,7 +293,7 @@ assert(saccRecipients.every(r => r.actionRequired === false), 'All SA & CC notif
 const centralRecipients = getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)');
 assert(centralRecipients.length === 1 && centralRecipients[0].recipientEmail === 'myuksel@ssttx.org' && centralRecipients[0].type === 'it', 'Central Office PAR notifies only Mikail Yuksel (IT), no regional IT or Talent Acquisition');
 const centralTermination = getDepartmentNotificationRecipients('Central Administration', 'SST Central Office (District Administration)', 'termination');
-assert(centralTermination.map(r => r.recipientEmail).join(',') === 'myuksel@ssttx.org,hcelik@ssttx.org', 'Central Office termination notifies Mikail Yuksel and Personnel Services (DPS)');
+assert(centralTermination.map(r => r.recipientEmail).join(',') === 'myuksel@ssttx.org,hcelik@ssttx.org,vyakisan@ssttx.org', 'Central Office termination notifies Mikail Yuksel, Personnel Services (DPS), and the Skyward/SIS contact');
 const houstonOfficeRecipients = getDepartmentNotificationRecipients('Houston', 'SST Houston Regional Office');
 assert(houstonOfficeRecipients.some(r => r.recipientEmail === 'esevik@ssttx.org'), 'Houston Regional Office still notifies the Houston regional IT team');
 
@@ -1304,6 +1304,8 @@ assert(TERMINATION_REASONS.filter(r => r.involuntary && !r.voluntary).every(r =>
 const termNotices = getDepartmentNotificationRecipients('Houston', 'SST Spring', 'termination');
 assert(termNotices.some(n => n.type === 'dps' && n.recipientEmail === 'hcelik@ssttx.org'), 'Every termination notifies Halil Celik (Director of Personnel Services) to unsubscribe from DPS');
 assert(!getDepartmentNotificationRecipients('Houston', 'SST Spring', 'campus_transfer').some(n => n.type === 'dps'), 'Non-termination PARs do not notify Personnel Services');
+assert(SST_CAMPUSES.every(c => getDepartmentNotificationRecipients(locationForCampus(c), c, 'termination').filter(n => n.type === 'sis' && n.recipientEmail === 'vyakisan@ssttx.org' && n.actionRequired).length === 1), 'Every termination, at every campus, notifies Vesim Yakisan (Skyward/SIS) to deactivate the SIS account');
+assert((['campus_transfer', 'role_change', 'promotion', 'salary_change', 'leave_of_absence'] as const).every(t => !getDepartmentNotificationRecipients('Houston', 'SST Spring', t).some(n => n.type === 'sis')), 'Non-termination PARs do not notify the Skyward/SIS contact');
 const sheetViewers = ['p-kevin', 'p-kristy', 'p-amber', 'p-ursula', 'p-paola', 'p-atnan', 'p-serdar', 'p-hasan', 'p-ali'].map(id => USER_PERSONAS.find(p => p.id === id)!);
 assert(sheetViewers.every(p => canPersonaViewSstSheet(p)), 'SST Sheet: Super Admin, Regional HR, Benefits, Payroll, Regional Talent, Regional Executive Directors can view');
 assert(!canPersonaViewSstSheet(USER_PERSONAS.find(p => p.id === 'p-vanessa')!) && !canPersonaViewSstSheet(USER_PERSONAS.find(p => p.id === 'p-enes')!) && !canPersonaViewSstSheet(alamoPrincipal), 'SST Sheet: principals and IT cannot view');
@@ -1344,6 +1346,9 @@ assert(!subTo.includes('jreyes@ssttx.org'), 'The employee is never emailed about
 const allText = subEmails.map(e => e.subject + e.bodyText + e.htmlBody).join(' ');
 assert(!allText.includes('CONFIDENTIAL-REASON-TEXT') && !allText.includes('58,000') && !allText.includes('58000'), 'Emails leave out the separation reason and salary');
 assert(subEmails.find(e => e.to === 'hcelik@ssttx.org')!.bodyText.includes('14000001'), 'DPS notice includes the DPS SID');
+const sisEmail = subEmails.find(e => e.to === 'vyakisan@ssttx.org');
+assert(!!sisEmail && /Skyward\/SIS account deactivation for Jordan Reyes/.test(sisEmail.subject) && sisEmail.bodyText.includes('jreyes@ssttx.org') && sisEmail.bodyText.includes('10/02/2026'), 'Submission sends the Skyward/SIS contact a deactivation notice with the work email and last day worked');
+assert(!!sisEmail && !sisEmail.bodyText.includes('14000001') && !sisEmail.bodyText.includes('CONFIDENTIAL-REASON-TEXT'), 'SIS notice leaves out the DPS SID and the separation reason');
 assert(subEmails.every(e => e.htmlBody.includes(`${PORTAL_URL}/`) && e.bodyText.includes('sstpar@ssttx.org')), 'Every email links to the portal and names sstpar@ssttx.org');
 assert(subEmails.find(e => e.to === notifRoute[0].assignedEmail)!.htmlBody.includes('?par=PAR-2026-NOTIFY1'), 'Action emails link straight to the PAR');
 const approverPersona = USER_PERSONAS.find(p => p.id === 'p-vanessa')!;

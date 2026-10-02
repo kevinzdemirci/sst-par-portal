@@ -455,6 +455,13 @@ export const PERSONNEL_SERVICES_CONTACT = {
   title: 'Director of Personnel Services'
 };
 
+/** Skyward / SIS contact: deactivates separated employees' SIS accounts. */
+export const SIS_CONTACT = {
+  name: 'Vesim Yakisan',
+  email: 'vyakisan@ssttx.org',
+  title: 'Skyward / SIS Contact'
+};
+
 /** Central Office IT contact. Central Office PARs notify only him (no regional IT or Talent Acquisition). */
 export const CENTRAL_OFFICE_IT_CONTACT = {
   name: 'Mikail Yuksel',
@@ -468,7 +475,8 @@ export function isCentralOfficeCampus(campus?: string): boolean {
 
 /**
  * Who is notified (no approval needed) when a PAR is submitted: regional IT and Talent
- * Acquisition, plus Personnel Services for every termination (DPS unsubscribe).
+ * Acquisition, plus Personnel Services (DPS unsubscribe) and the Skyward / SIS contact
+ * (SIS account deactivation) for every termination.
  */
 export function getDepartmentNotificationRecipients(
   location?: string,
@@ -489,6 +497,19 @@ export function getDepartmentNotificationRecipients(
       notifiedAt: new Date().toISOString(),
       actionRequired: true,
       purpose: "Remove the separated employee's fingerprint subscription from the DPS system after the separation date"
+    });
+    recipients.push({
+      id: 'notif-sis-skyward',
+      recipientName: SIS_CONTACT.name,
+      recipientEmail: SIS_CONTACT.email,
+      recipientRole: SIS_CONTACT.title,
+      department: 'Skyward / SIS',
+      region: 'All SST Campuses',
+      type: 'sis',
+      status: 'notified',
+      notifiedAt: new Date().toISOString(),
+      actionRequired: true,
+      purpose: "Deactivate the separated employee's Skyward / SIS account after the last day worked"
     });
   }
   return recipients;

@@ -1414,6 +1414,69 @@ assert(addDaysIso('2026-03-07', 1) === '2026-03-08', 'addDaysIso is unaffected b
 assert(parseDateOnly('2026-09-15').getDate() === 15, 'Date-only strings parse as local calendar dates');
 assert(formatDate('2026-09-15') === '09/15/2026', `formatDate does not shift date-only values by timezone (Got: ${formatDate('2026-09-15')})`);
 
+// TERMINATION ROUTING POLICY: involuntary -> CPO, voluntary -> Regional Executive Director
+console.log('\n📌 Termination routing policy (involuntary -> CPO, voluntary -> Regional Executive Director)...');
+{
+  const locationOf = (campus: Campus) => locationForCampus(campus);
+  const regionalCampuses = SST_CAMPUSES.filter(c => locationOf(c) !== 'Central Administration');
+  const stagesOf = (voluntary: boolean, campus: Campus, config = DEFAULT_WORKFLOW_CONFIG) =>
+    buildSstRouting('termination', voluntary, locationOf(campus), config, campus);
+
+  assert(SST_CAMPUSES.every(c => {
+    const steps = stagesOf(false, c);
+    return steps.some(s => s.stage === 'cpo_review' && s.assignedEmail === 'kdemirci@ssttx.org') && !steps.some(s => s.stage === 'regional_review');
+  }), 'Involuntary termination at every campus goes to the CPO and never to a Regional Executive Director');
+
+  assert(regionalCampuses.every(c => {
+    const steps = stagesOf(true, c);
+    const expected = locationOf(c) === 'Houston' ? 'aekin@ssttx.org' : 'sbulut@ssttx.org';
+    return steps.some(s => s.stage === 'regional_review' && s.assignedEmail === expected) && !steps.some(s => s.stage === 'cpo_review');
+  }), "Voluntary termination at every regional campus goes to that region's Regional Executive Director and not to the CPO");
+
+  const centralOffice: Campus = 'SST Central Office (District Administration)';
+  assert([true, false].every(v => {
+    const steps = stagesOf(v, centralOffice);
+    return steps.some(s => s.stage === 'cpo_review' && s.assignedEmail === 'kdemirci@ssttx.org') && !steps.some(s => s.stage === 'regional_review');
+  }), 'Central Office terminations, voluntary or involuntary, go to the CPO');
+
+  // A browser whose saved routing rules were edited cannot change the policy.
+  const tampered = {
+    ...DEFAULT_WORKFLOW_CONFIG,
+    stages: DEFAULT_WORKFLOW_CONFIG.stages.map(s => (s.stage === 'cpo_review' || s.stage === 'regional_review' ? { ...s, isEnabled: false } : s)),
+    routingRules: DEFAULT_WORKFLOW_CONFIG.routingRules.map(r =>
+      r.id === 'rule-cpo-involuntary' ? { ...r, voluntaryCondition: 'voluntary_only' as const }
+      : r.stage === 'regional_review' ? { ...r, voluntaryCondition: 'all' as const, isEnabled: r.id !== 'rule-regional-sacc' }
+      : r)
+  };
+  const tamperedInv = stagesOf(false, 'SST Alamo', tampered).map(s => s.stage);
+  const tamperedVol = stagesOf(true, 'SST Alamo', tampered).map(s => s.stage);
+  assert(tamperedInv.includes('cpo_review') && !tamperedInv.includes('regional_review'), 'Edited routing rules cannot take the CPO off an involuntary termination');
+  assert(tamperedVol.includes('regional_review') && !tamperedVol.includes('cpo_review'), 'Edited routing rules cannot take the Regional Executive Director off a voluntary termination');
+
+  const regionalPar = (campus: Campus): PersonnelActionRequest => ({
+    ...INITIAL_PAR_DATA[0],
+    actionType: 'termination',
+    isVoluntary: true,
+    campus,
+    location: locationOf(campus),
+    currentStage: 'regional_review',
+    routingSteps: stagesOf(true, campus)
+  });
+  const atnan = USER_PERSONAS.find(p => p.email === 'aekin@ssttx.org')!;
+  const serdar = USER_PERSONAS.find(p => p.email === 'sbulut@ssttx.org')!;
+  const kevin = USER_PERSONAS.find(p => p.email === 'kdemirci@ssttx.org')!;
+  assert(canPersonaActOnPar(atnan, regionalPar('SST Spring')) && !canPersonaActOnPar(serdar, regionalPar('SST Spring')), 'Only Atnan Ekin signs a Houston voluntary termination');
+  assert(canPersonaActOnPar(serdar, regionalPar('SST Alamo')) && !canPersonaActOnPar(atnan, regionalPar('SST Alamo')), 'Only Serdar Bulut signs a San Antonio voluntary termination');
+  assert(canPersonaActOnPar(serdar, regionalPar('SST Bayshore')) && !canPersonaActOnPar(atnan, regionalPar('SST Bayshore')), 'Only Serdar Bulut signs a Corpus Christi voluntary termination');
+  assert(!canPersonaActOnPar(kevin, regionalPar('SST Spring')), 'The CPO does not sign the regional step of a voluntary termination');
+
+  // With no principal on file the endorsement goes to the Regional Executive Director, who must be able to sign it.
+  const standInSteps = stagesOf(false, 'SST Spring');
+  const standInPar: PersonnelActionRequest = { ...regionalPar('SST Spring'), isVoluntary: false, currentStage: 'supervisor_review', routingSteps: standInSteps };
+  assert(standInSteps[0].stage === 'supervisor_review' && standInSteps[0].assignedEmail === 'aekin@ssttx.org', 'A campus with no principal on file sends the endorsement to its Regional Executive Director');
+  assert(canPersonaActOnPar(atnan, standInPar) && !canPersonaActOnPar(serdar, standInPar), 'The assigned stand-in endorser (and no one else) can sign the endorsement');
+}
+
 // SUMMARY
 console.log('\n======================================================');
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);

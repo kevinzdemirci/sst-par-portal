@@ -327,12 +327,15 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
 
   // 1. Supervisor / Principal Review
   if (par.currentStage === 'supervisor_review') {
-    const isEndorser = persona.canReviewStages.includes('supervisor_review') || persona.role.includes('Principal') || persona.role.includes('Supervisor');
-    if (!isEndorser) return false;
-    // A campus principal endorses only their own campus's PARs, unless the step is assigned to them.
+    // Whoever the endorsement is assigned to signs it, e.g. the Regional Executive Director
+    // standing in for a campus with no principal on file.
     const step = par.routingSteps.find(s => s.stage === 'supervisor_review' && s.status === 'pending');
     const assignedToMe = !!step?.assignedEmail && step.assignedEmail.toLowerCase() === persona.email.toLowerCase();
-    return !persona.campus || persona.campus === par.campus || assignedToMe;
+    if (assignedToMe) return true;
+    const isEndorser = persona.canReviewStages.includes('supervisor_review') || persona.role.includes('Principal') || persona.role.includes('Supervisor');
+    if (!isEndorser) return false;
+    // A campus principal endorses only their own campus's PARs.
+    return !persona.campus || persona.campus === par.campus;
   }
 
   // 2. Chief People Officer Review (Involuntary Terminations & Executive approvals)
@@ -343,15 +346,19 @@ export function canPersonaActOnPar(persona: UserPersona, par: PersonnelActionReq
   // 3. Regional Executive Director Review (Voluntary Terminations & Campus assignments)
   if (par.currentStage === 'regional_review') {
     if (persona.canReviewStages.includes('regional_review')) {
-      // Houston region: Atnan Ekin (aekin@ssttx.org)
-      if (par.location === 'Houston' && persona.email === 'aekin@ssttx.org') {
+      const step = par.routingSteps.find(s => s.stage === 'regional_review' && s.status === 'pending');
+      if (step?.assignedEmail && step.assignedEmail.toLowerCase() === persona.email.toLowerCase()) {
         return true;
+      }
+      // Each Regional Executive Director signs only their own region's PARs.
+      // Houston region: Atnan Ekin (aekin@ssttx.org)
+      if (par.location === 'Houston') {
+        return persona.email === 'aekin@ssttx.org' || (persona.region?.includes('Houston') ?? false);
       }
       // San Antonio & Corpus Christi: Serdar Bulut (sbulut@ssttx.org)
-      if ((par.location === 'San Antonio' || par.location === 'Corpus Christi') && persona.email === 'sbulut@ssttx.org') {
-        return true;
+      if (par.location === 'San Antonio' || par.location === 'Corpus Christi') {
+        return persona.email === 'sbulut@ssttx.org' || (persona.region?.includes('San Antonio') ?? false) || (persona.region?.includes('Corpus Christi') ?? false);
       }
-      // If persona has general regional review
       return persona.role.includes('Regional Executive Director');
     }
   }

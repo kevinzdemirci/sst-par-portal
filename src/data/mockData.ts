@@ -16,6 +16,13 @@ import {
 export const ACTION_STAGE_POLICY: Partial<Record<ActionType, WorkflowStage[]>> = {
   leave_of_absence: ['hr_review', 'benefits_review']
 };
+
+/**
+ * District policy: an involuntary termination goes to the Chief People Officer and a voluntary
+ * one to the campus's Regional Executive Director. These two stages always follow the district
+ * rules, whatever the (editable) routing rules say; only the assigned person can be changed.
+ */
+const TERMINATION_EXECUTIVE_STAGES: WorkflowStage[] = ['cpo_review', 'regional_review'];
 import { getInitialsAvatarUrl } from '../utils/formatters';
 import { SST_DEFAULT_LOGO, getNormalizedLogoUrl } from './sstLogo';
 
@@ -622,9 +629,28 @@ export function buildSstRouting(
   campus?: string
 ): ApprovalStep[] {
   const steps: ApprovalStep[] = [];
-  const rules = config.routingRules && config.routingRules.length > 0
+  const savedRules = config.routingRules && config.routingRules.length > 0
     ? config.routingRules
     : DEFAULT_SST_ROUTING_RULES;
+  const isExecutiveStage = (stage: WorkflowStage) =>
+    actionType === 'termination' && TERMINATION_EXECUTIVE_STAGES.includes(stage);
+  const rules = actionType === 'termination'
+    ? [
+        ...savedRules.filter(r => !isExecutiveStage(r.stage)),
+        ...DEFAULT_SST_ROUTING_RULES.filter(r => isExecutiveStage(r.stage)).map(rule => {
+          const saved = savedRules.find(r => r.id === rule.id);
+          return saved
+            ? {
+                ...rule,
+                assignedApproverId: saved.assignedApproverId,
+                customRoleTitle: saved.customRoleTitle,
+                customEmail: saved.customEmail,
+                customDepartment: saved.customDepartment
+              }
+            : rule;
+        })
+      ]
+    : savedRules;
 
   // Active rules sorted by priority order
   const activeRules = [...rules]
@@ -634,7 +660,7 @@ export function buildSstRouting(
   for (const rule of activeRules) {
     // 1. Check if the stage is globally enabled in config.stages
     const stageSetting = config.stages?.find(s => s.stage === rule.stage);
-    if (stageSetting && stageSetting.isEnabled === false) {
+    if (stageSetting && stageSetting.isEnabled === false && !isExecutiveStage(rule.stage)) {
       continue;
     }
 
@@ -645,10 +671,12 @@ export function buildSstRouting(
 
     // 3. Voluntary condition check (for termination actions)
     if (actionType === 'termination') {
-      if (rule.voluntaryCondition === 'voluntary_only' && isVoluntary !== true) {
+      // Central Office has no Regional Executive Director: every termination there goes to the CPO.
+      const routesAsVoluntary = isExecutiveStage(rule.stage) && location === 'Central Administration' ? false : isVoluntary;
+      if (rule.voluntaryCondition === 'voluntary_only' && routesAsVoluntary !== true) {
         continue;
       }
-      if (rule.voluntaryCondition === 'involuntary_only' && isVoluntary !== false) {
+      if (rule.voluntaryCondition === 'involuntary_only' && routesAsVoluntary !== false) {
         continue;
       }
     }

@@ -921,7 +921,8 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                       )}
                     </div>
 
-                    {/* Question 8 */}
+                    {/* Question 8 – involuntary separations only */}
+                    {par.isVoluntary === false && (
                     <div>
                       <div className="font-bold text-slate-900">
                         8. Were there any Written Statements/Incident Reports?
@@ -937,6 +938,7 @@ export const ParDetailModal: React.FC<ParDetailModalProps> = ({
                         </label>
                       </div>
                     </div>
+                    )}
 
                     {/* Question 9 */}
                     <div>

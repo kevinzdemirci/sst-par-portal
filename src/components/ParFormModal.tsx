@@ -356,9 +356,9 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       if (returnedCharterProperty === false && !outstandingPropertyNotes.trim()) {
         errs.push('List the school property that is still outstanding.');
       }
-      if (hasWrittenStatements === null) errs.push('Indicate whether written statements or incident reports exist.');
+      if (isVoluntary === false && hasWrittenStatements === null) errs.push('Indicate whether written statements or incident reports exist.');
       if (reportableMisconduct === null) errs.push('Indicate whether the separation involves misconduct reportable to TEA.');
-      if (hasWrittenStatements === true && attachments.length === 0) {
+      if (isVoluntary === false && hasWrittenStatements === true && attachments.length === 0) {
         errs.push('Attach the written statements or incident reports referenced above.');
       }
       if (outstandingStipendsOwed === null) errs.push('Indicate whether any stipends or supplemental pay are owed.');
@@ -497,6 +497,8 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
     if (terminationCode && !codesFor(voluntary).includes(terminationCode)) setTerminationCode('');
     // Involuntary separations carry a 6-day statutory final-pay deadline.
     if (!priorityTouched) setPriority(voluntary ? 'normal' : 'urgent');
+    // Voluntary separations don't need the incident report question; reset it when switching.
+    if (voluntary) setHasWrittenStatements(null);
   };
 
   const selectNonRenewal = (value: boolean) => {
@@ -622,7 +624,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
       trsNotificationRequired: isTermination || isLeave ? trsNotificationRequired : undefined,
       contractType,
       cobraNoticeDueDate: isTermination ? cobraAdminNoticeDate : undefined,
-      hasWrittenStatements: isTermination ? hasWrittenStatements === true : undefined,
+      hasWrittenStatements: isTermination && !voluntary ? hasWrittenStatements === true : undefined,
       reportableMisconduct: isTermination ? reportableMisconduct === true : undefined,
       teaReportDeadline: isTermination ? teaReportDeadline : undefined,
       outstandingStipendsOwed: isTermination ? outstandingStipendsOwed === true : undefined,
@@ -688,7 +690,7 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
           timestamp: submitterEndorses ? `${new Date().toLocaleString('en-US')} (${nowIso})` : undefined,
           notes: submitterEndorses ? 'Signed at submission by the submitting principal (Google sign-in + certification).' : undefined
         },
-        ...(isTermination && voluntary
+        ...(isTermination && voluntary && location !== 'Central Administration'
           ? (location === 'Houston'
               ? [{
                   signingParty: 'Regional Executive Director (Houston)',
@@ -1087,13 +1089,15 @@ export const ParFormModal: React.FC<ParFormModalProps> = ({
                       </div>
                     )}
                   </YesNo>
-                  <YesNo
-                    name="par-statements"
-                    question="Written statements or incident reports on file?"
-                    hint="If yes, attach them under Supporting documentation."
-                    value={hasWrittenStatements}
-                    onChange={setHasWrittenStatements}
-                  />
+                  {isVoluntary === false && (
+                    <YesNo
+                      name="par-statements"
+                      question="Written statements or incident reports on file?"
+                      hint="If yes, attach them under Supporting documentation."
+                      value={hasWrittenStatements}
+                      onChange={setHasWrittenStatements}
+                    />
+                  )}
                   <YesNo
                     name="par-tea-misconduct"
                     question="Does this separation involve misconduct that must be reported to TEA?"
